@@ -1,0 +1,20 @@
+{
+  "name": "anchor",
+  "version": "0.1.0",
+  "private": false,
+  "description": "遵循 OpenSpec 规范的 Anchor 项目。",
+  "type": "module",
+  "scripts": {
+    "openspec:doctor": "openspec doctor",
+    "openspec:context": "openspec context",
+    "openspec:list": "openspec list",
+    "openspec:list:specs": "openspec list --specs",
+    "openspec:view": "openspec view",
+    "openspec:validate": "openspec validate"
+  },
+  "keywords": [
+    "openspec",
+    "spec-driven-development"
+  ],
+  "license": "MIT"
+}

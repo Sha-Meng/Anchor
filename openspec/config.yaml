@@ -1,0 +1,23 @@
+schema: spec-driven
+
+context: |
+  项目名称：Anchor
+  语言要求：所有回答、说明、规格、提案、设计文档、任务清单和 README 默认使用简体中文。
+  工作方式：遵循 OpenSpec 的规格驱动开发流程；先提出变更并维护规格，再实现代码。
+  技术栈：Unity/Tuanjie Editor 2022.3.62t11，Tuanjie Editor 1.9.3。
+  项目结构：Unity 工程位于仓库根目录，关键目录为 Assets、Packages、ProjectSettings。
+  版本控制：排除 Unity 本地生成目录和缓存，包括 Library、Temp、Obj、Logs、UserSettings、Build、Builds，以及自动生成的 IDE 工程文件。
+
+rules:
+  proposal:
+    - 使用简体中文撰写。
+    - 明确说明背景、目标、非目标、影响范围和验收标准。
+  design:
+    - 使用简体中文撰写。
+    - 说明关键技术选择、权衡、风险和迁移策略。
+  tasks:
+    - 使用简体中文撰写。
+    - 使用可勾选清单，并保持每项任务可独立验证。
+  spec:
+    - 使用简体中文撰写。
+    - 每条需求都应包含可验证场景。

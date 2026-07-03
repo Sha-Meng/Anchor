@@ -1,0 +1,15 @@
+---
+description: 项目语言与 OpenSpec 工作流约束
+alwaysApply: true
+---
+
+# 项目语言与 OpenSpec 约束
+
+- 所有面向用户的回答默认使用简体中文。
+- 所有新增或维护的项目文档默认使用简体中文，包括 README、OpenSpec 提案、设计文档、任务清单和规格。
+- 新功能、重构、行为变更或影响范围不明确的工作，应先通过 OpenSpec 创建变更提案，再进入实现。
+- OpenSpec 目录约定：
+  - `openspec/specs/` 存放当前系统行为的事实来源。
+  - `openspec/changes/` 存放待评审或正在实现的变更。
+  - `openspec/config.yaml` 存放项目上下文和产物规则。
+- 技术栈尚未确定时，不要擅自引入框架；先在 OpenSpec 提案中说明原因和取舍。
