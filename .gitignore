@@ -26,6 +26,7 @@ Thumbs.db
 
 # 本地工具缓存
 .codely-cli/
+.com-unity-codely.json
 
 # Unity 生成目录
 [Ll]ibrary/
