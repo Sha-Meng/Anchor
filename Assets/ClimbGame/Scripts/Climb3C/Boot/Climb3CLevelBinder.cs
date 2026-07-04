@@ -276,7 +276,7 @@ namespace ClimbGame.Climb3C.Boot
 
             var staminaBar = new GameObject("StaminaBarUI").AddComponent<StaminaBarUI>();
             staminaBar.transform.SetParent(canvasGo.transform, false);
-            staminaBar.Build(canvas);
+            staminaBar.Build(canvas, stamina, cam);
 
             // --- 服务 ---
             var servicesGo = new GameObject("Climb3C_Services");

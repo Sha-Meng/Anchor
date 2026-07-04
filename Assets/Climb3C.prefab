@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!1 &4231165280856422020
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 7
+  m_Component:
+  - component: {fileID: 3119622850702973946}
+  - component: {fileID: 3703928745036985071}
+  m_Layer: 0
+  m_HasEditorInfo: 1
+  m_Name: Climb3C
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3119622850702973946
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4231165280856422020}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3703928745036985071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4231165280856422020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: efd59757c904f4bf594b66e67f853cbe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tuning: {fileID: 11400000, guid: 3c6c0d7233a694842be1bf70efe51fc8, type: 2}
+  armRig: {fileID: 11400000, guid: 93cde18aa113e4f8fb6c4c08559ca672, type: 2}
+  haptic: {fileID: 11400000, guid: b77a7412271b344dfa319079f384dd23, type: 2}
+  magnifier: {fileID: 11400000, guid: 0e7b0b9a1dc0343d9aa1abb05731adab, type: 2}
+  stamina: {fileID: 11400000, guid: 6b1496c4bd5604f0e9c78a08f8ebf90e, type: 2}
+  ragdollFall: {fileID: 11400000, guid: 750e5f172818c464d9717f053f4e4198, type: 2}
+  cameraConfig: {fileID: 11400000, guid: c8904260bb9f942c08e364b91c169836, type: 2}
+  routeRootName: RouteNetwork
+  characterFrontOffset: 0.45
+  startBelowLowest: 0.2
+  useConfiguredStartCenter: 0
+  configuredStartCenter: {x: 0, y: 0, z: 0}
+  primaryStartAnchorName: 
+  useNearestStartAnchorPair: 0
+  leftHandStartAnchorName: ScatterAnchor_001
+  rightHandStartAnchorName: ScatterAnchor_002
+  cameraFollow: 1
+  overShoulderOffset: {x: 0.6, y: 0.55, z: -6.2}
+  gripQueryRadius: 0.5
+  stickHandToWall: 0
+  wallSurfaceOffset: 0.05
+  wallProbeFrontStart: 25
+  wallProbeDistance: 8
+  forceConfig: {fileID: 0}
+  sceneCharacterName: RagDollMan
+  characterPrefab: {fileID: 0}
+  characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
+  characterScale: 1
+  maxHandDistance: 1.7
+  handSlipCancelDistance: 3
+  enableMagnifier: 0
+  bodyColor: {r: 0.2, g: 0.5, b: 0.85, a: 1}
+  handColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
+  capsuleCenter: {x: 0, y: 0, z: 0}
+  capsuleHeight: 1.6
+  capsuleRadius: 0.3
+  bodyWallOffset: 0.4
+  resolveCapsulePenetration: 1
+  wallCollisionMask:
+    serializedVersion: 2
+    m_Bits: 19
+  depenetrationIterations: 4

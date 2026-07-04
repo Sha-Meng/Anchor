@@ -155,7 +155,18 @@ namespace ClimbGame.Climb3C.Gameplay
                 _magnifier.Hide();
             }
 
-            if (_staminaBar != null) _staminaBar.SetRatio(_stamina.Ratio);
+            if (_staminaBar != null)
+            {
+                // 圆环体力条只在攀爬动作（伸手/回收）时出现，其余时刻隐藏
+                bool climbing = _s.State == ClimbState.Reaching || _s.State == ClimbState.Returning;
+                _staminaBar.SetVisible(climbing);
+                if (climbing)
+                {
+                    Vector3 handsMid = (_avatar.GetHandPosition(ClimbHand.Left) + _avatar.GetHandPosition(ClimbHand.Right)) * 0.5f;
+                    _staminaBar.SetWorldAnchor(handsMid);
+                    _staminaBar.SetRatio(_stamina.Ratio);
+                }
+            }
         }
 
         private void UpdateClimb(float dt)
