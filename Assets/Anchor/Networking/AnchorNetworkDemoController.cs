@@ -146,8 +146,7 @@ namespace Anchor.Networking
 
         private void BuildRoomListView()
         {
-            if (_currentView == "list" && _canvas != null) return;
-            BeginView("list");
+            BeginView("list", true);
             EnsureEntryCamera();
             CreateCanvas("Anchor Network Demo - 房间列表");
 
@@ -589,9 +588,9 @@ namespace Anchor.Networking
             _remotePlayer = null;
         }
 
-        private void BeginView(string view)
+        private void BeginView(string view, bool forceRebuild = false)
         {
-            if (_currentView == view && _canvas != null) return;
+            if (!forceRebuild && _currentView == view && _canvas != null) return;
             ClearRuntimeSceneObjects();
             _runtimeRoot = new GameObject("Anchor Demo Runtime Root");
             _currentView = view;
