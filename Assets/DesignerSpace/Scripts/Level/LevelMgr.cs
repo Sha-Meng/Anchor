@@ -14,8 +14,27 @@ namespace DesignerSpace
         [Tooltip("关卡全局配置资源（勾选 Debug/Release 模式）")]
         [SerializeField] private LevelGlobalConfig config;
 
-        /// <summary>当前场景中的关卡管理器实例。</summary>
-        public static LevelMgr Instance { get; private set; }
+        private static LevelMgr _instance;
+
+        /// <summary>
+        /// 关卡管理器全局单例。
+        ///
+        /// 首次访问时若尚未注册，会自动在场景中查找已存在的 <see cref="LevelMgr"/>；
+        /// 找不到则返回 null，由调用方自行处理（本项目不自动创建，避免污染场景）。
+        /// </summary>
+        public static LevelMgr Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = FindObjectOfType<LevelMgr>();
+                }
+
+                return _instance;
+            }
+            private set => _instance = value;
+        }
 
         /// <summary>关卡全局配置，可能为空（未在 Inspector 中指定）。</summary>
         public LevelGlobalConfig Config => config;
@@ -25,20 +44,20 @@ namespace DesignerSpace
 
         private void Awake()
         {
-            if (Instance != null && Instance != this)
+            if (_instance != null && _instance != this)
             {
-                Destroy(this);
+                Destroy(gameObject);
                 return;
             }
 
-            Instance = this;
+            _instance = this;
         }
 
         private void OnDestroy()
         {
-            if (Instance == this)
+            if (_instance == this)
             {
-                Instance = null;
+                _instance = null;
             }
         }
     }

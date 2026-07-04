@@ -8142,6 +8142,7 @@ GameObject:
   serializedVersion: 7
   m_Component:
   - component: {fileID: 1815014915}
+  - component: {fileID: 1815014916}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: RouteNetwork
@@ -8167,6 +8168,20 @@ Transform:
   - {fileID: 311246543}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1815014916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1815014914}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f10a95a6cfb1534d8d9da78316f9841, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scatterContainerName: ScatterAnchors
+  levelMgr: {fileID: 1858836987}
 --- !u!1 &1815544327
 GameObject:
   m_ObjectHideFlags: 0

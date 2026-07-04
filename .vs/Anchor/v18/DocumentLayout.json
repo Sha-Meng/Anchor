@@ -3,8 +3,12 @@
   "WorkspaceRootPath": "F:\\Anchor\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|F:\\Anchor\\Assets\\Art\\liusha.shader||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Assets\\Art\\liusha.shader||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{3F8C3344-A1F8-ACD6-F879-EB1FF1313C64}|Assembly-CSharp.csproj|f:\\anchor\\assets\\art\\liusha.shader||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{3F8C3344-A1F8-ACD6-F879-EB1FF1313C64}|Assembly-CSharp.csproj|solutionrelative:assets\\art\\liusha.shader||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|solutionrelative:Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,8 +30,20 @@
               "RelativeToolTip": "Assets\\Art\\liusha.shader",
               "ViewState": "AgIAADoAAAAAAAAAAAAuwGsAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002777|",
-              "WhenOpened": "2026-07-04T07:45:47.168Z",
+              "WhenOpened": "2026-07-04T10:09:47.853Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "RouteNetwork.cs",
+              "DocumentMoniker": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
+              "RelativeDocumentMoniker": "Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
+              "ToolTip": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
+              "RelativeToolTip": "Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-04T10:09:47.886Z"
             }
           ]
         }

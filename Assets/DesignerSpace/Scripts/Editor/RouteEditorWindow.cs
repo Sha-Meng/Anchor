@@ -714,12 +714,7 @@ namespace DesignerSpace.EditorTools
 
         private Transform GetOrCreateScatterContainer()
         {
-            GameObject network = FindRouteNetwork();
-            if (network == null)
-            {
-                network = new GameObject(RouteNetworkName);
-                Undo.RegisterCreatedObjectUndo(network, "创建动线网络");
-            }
+            GameObject network = GetOrCreateRouteNetwork();
 
             Transform container = network.transform.Find(ScatterAnchorsContainerName);
             if (container == null)
@@ -743,12 +738,7 @@ namespace DesignerSpace.EditorTools
 
         private Transform GetOrCreateNodesContainer()
         {
-            GameObject network = FindRouteNetwork();
-            if (network == null)
-            {
-                network = new GameObject(RouteNetworkName);
-                Undo.RegisterCreatedObjectUndo(network, "创建动线网络");
-            }
+            GameObject network = GetOrCreateRouteNetwork();
 
             Transform container = network.transform.Find(RouteNodesContainerName);
             if (container == null)
@@ -765,6 +755,27 @@ namespace DesignerSpace.EditorTools
         private static GameObject FindRouteNetwork()
         {
             GameObject network = GameObject.Find(RouteNetworkName);
+            return network;
+        }
+
+        /// <summary>
+        /// 获取（或按需创建）动线网络根对象，并确保其挂载了 <see cref="RouteNetwork"/> 运行时脚本。
+        /// 复用已存在但缺少脚本的根对象时也会补挂，避免运行时缺失调试可视化能力。
+        /// </summary>
+        private static GameObject GetOrCreateRouteNetwork()
+        {
+            GameObject network = FindRouteNetwork();
+            if (network == null)
+            {
+                network = new GameObject(RouteNetworkName);
+                Undo.RegisterCreatedObjectUndo(network, "创建动线网络");
+            }
+
+            if (network.GetComponent<RouteNetwork>() == null)
+            {
+                Undo.AddComponent<RouteNetwork>(network);
+            }
+
             return network;
         }
 
