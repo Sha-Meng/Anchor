@@ -1,13 +1,18 @@
 ## ADDED Requirements
 
-### Requirement: 打点锚点半径可编辑
+### Requirement: 动线点无半径，AnchorPoint 半径可编辑
 
-关卡动线编辑器在打点时 MUST 为节点挂上 `AnchorPoint`，并 MUST 允许策划在窗口中设置新点的"核心半径"与"最大半径"，分别写入 `AnchorPoint.previewIntenseRadius` 与 `AnchorPoint.previewSlightRadius`。窗口设置作为新点默认值，MUST NOT 覆盖策划事后在 Inspector 对单个点的手工调整。
+打点生成的动线点 MUST 只挂 `RouteNode`，MUST NOT 挂 `AnchorPoint`，本身没有半径。关卡动线编辑器 MUST 允许策划在窗口中设置"核心半径"与"最大半径"，作为离散撒点生成 `AnchorPoint` 的默认值（分别写入 `previewIntenseRadius` 与 `previewSlightRadius`），并 MUST 提供将该半径写入选中 `AnchorPoint` 的操作。
 
-#### Scenario: 打点使用窗口设定的半径
+#### Scenario: 动线点不带 AnchorPoint
 
-- **WHEN** 策划在窗口设置核心半径与最大半径后，在墙面打出一个新点
-- **THEN** 该点 MUST 带有 `AnchorPoint`，且其核心半径、最大半径与窗口设定值一致
+- **WHEN** 策划在墙面打出一个动线点
+- **THEN** 该点 MUST 只挂 `RouteNode`，MUST NOT 挂 `AnchorPoint`
+
+#### Scenario: 半径写入选中的 AnchorPoint
+
+- **WHEN** 策划在窗口设置核心半径与最大半径后，选中若干 `AnchorPoint` 并点击"应用到选中 AnchorPoint"
+- **THEN** 这些 `AnchorPoint` 的核心半径、最大半径 MUST 与窗口设定值一致
 
 #### Scenario: 半径取值被规整
 

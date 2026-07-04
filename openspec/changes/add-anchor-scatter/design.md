@@ -19,13 +19,13 @@
 
 ## Decisions
 
-### Decision 1: 打点节点同时挂 AnchorPoint 并预设半径
+### Decision 1: 动线点不是 AnchorPoint，半径只属于撒出的锚点
 
-`PlaceNode` 在挂 `RouteNode` 的同时 `Undo.AddComponent<AnchorPoint>`，用窗口的"核心半径 / 最大半径"字段写入 `previewIntenseRadius` / `previewSlightRadius`。窗口字段作为"新点默认值"，已存在的点仍可在 Inspector 单独微调。
+打点生成的动线点仅挂 `RouteNode`，表达攀爬骨架与先后关系，本身不挂 `AnchorPoint`、无半径。窗口提供"核心半径 / 最大半径"两个字段，作为离散撒点生成 `AnchorPoint` 的默认值（写入 `previewIntenseRadius` / `previewSlightRadius`），并提供"应用到选中 AnchorPoint"按钮批量写入已有锚点。
 
-理由：策划要求打点即带可抓取语义，核心/最大半径正好对应 `AnchorPoint` 两档半径，直接复用避免新增字段与二次可视化。
+理由：`RouteNode`（路径骨架）与 `AnchorPoint`（可抓取点）语义不同，`MouseFollowJitter`/`level-anchor-system` 只认 `AnchorPoint`。把半径挂在动线点上会污染动线语义并被抓点查询误收。
 
-备选：在 `RouteNode` 上另加两个半径字段。被否，会与 `AnchorPoint` 语义重复，且 `MouseFollowJitter`/`level-anchor-system` 只认 `AnchorPoint`。
+备选：打点即挂 `AnchorPoint`。被否，动线点不应被当作可抓取锚点参与查询。
 
 ### Decision 2: 撒点以有向边为线段骨架，沿边采样候选
 

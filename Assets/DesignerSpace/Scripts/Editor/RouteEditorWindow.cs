@@ -94,14 +94,15 @@ namespace DesignerSpace.EditorTools
             _nodeNamePrefix = EditorGUILayout.TextField(new GUIContent("节点命名前缀"), _nodeNamePrefix);
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("锚点半径（打点 / 撒点共用）", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("AnchorPoint 半径（撒点默认值）", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("动线点（RouteNode）不是 AnchorPoint，无半径。以下半径用于离散撒点生成的 AnchorPoint，也可写入选中的 AnchorPoint。", MessageType.None);
             _coreRadius = EditorGUILayout.FloatField(new GUIContent("核心半径", "写入 AnchorPoint.previewIntenseRadius（剧烈档）"), _coreRadius);
             _maxRadius = EditorGUILayout.FloatField(new GUIContent("最大半径", "写入 AnchorPoint.previewSlightRadius（轻微档）"), _maxRadius);
             NormalizeRadii();
 
             using (new EditorGUI.DisabledScope(Selection.gameObjects == null || Selection.gameObjects.Length == 0))
             {
-                if (GUILayout.Button(new GUIContent("将当前半径应用到选中节点", "把上面的核心/最大半径写入选中对象的 AnchorPoint（没有则添加）")))
+                if (GUILayout.Button(new GUIContent("将当前半径应用到选中 AnchorPoint", "把上面的核心/最大半径写入选中对象的 AnchorPoint（没有则添加）")))
                 {
                     ApplyRadiusToSelection();
                 }
@@ -188,7 +189,7 @@ namespace DesignerSpace.EditorTools
             EditorGUILayout.HelpBox(
                 "使用说明：\n" +
                 "1. 墙面需挂 Wall 脚本才可打点（可用上方按钮为选中对象添加）。\n" +
-                "2. 打点模式：在墙面点击逐个打点，节点自带 AnchorPoint（核心/最大半径见上方参数），相邻两点自动生成先->后虚线箭头。\n" +
+                "2. 打点模式：在墙面点击逐个打点，节点为动线点（RouteNode，非 AnchorPoint），相邻两点自动生成先->后虚线箭头。\n" +
                 "3. 连线模式：先点起点节点，再点终点节点，生成有向箭头。\n" +
                 "4. 离散撒点：先用打点/连线搭好动线，再点\"沿动线离散撒点\"，在动线周围沿墙面随机铺 AnchorPoint；调\"离散距离\"控制疏密，\"清空撒点\"可重来。\n" +
                 "5. Ctrl+Z 可撤销；Ctrl+S 保存场景即持久化。",
@@ -315,9 +316,6 @@ namespace DesignerSpace.EditorTools
             }
 
             RouteNode node = Undo.AddComponent<RouteNode>(go);
-
-            AnchorPoint anchor = Undo.AddComponent<AnchorPoint>(go);
-            ConfigureAnchorRadius(anchor);
 
             if (_autoChainWhilePlacing && _lastPlacedNode != null)
             {
