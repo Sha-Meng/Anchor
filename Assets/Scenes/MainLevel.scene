@@ -1034,7 +1034,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22400762, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -0.00004196167
+      value: -0.000045776367
       objectReference: {fileID: 0}
     - target: {fileID: 22426080, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchorMax.x
@@ -3391,8 +3391,14 @@ MonoBehaviour:
   characterPrefab: {fileID: 0}
   characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
   characterScale: 1
+  initialFlatRotationEuler: {x: 90, y: 0, z: 0}
+  overrideCharacterInitialPosition: 0
+  characterInitialPosition: {x: 0, y: 0, z: 0}
+  initialPositionOffset: {x: 0, y: 0, z: 0}
   maxHandDistance: 1.7
   handSlipCancelDistance: 3
+  gripMagnetZOffset: 0.1
+  grabSnapDistanceXY: 0.5
   enableMagnifier: 0
   bodyColor: {r: 0.2, g: 0.5, b: 0.85, a: 1}
   handColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
@@ -10025,6 +10031,11 @@ MonoBehaviour:
   keepApplyingFixedPose: 1
   smoothCameraTransition: 1
   followRigToTarget: 1
+  useHandMagnetMidpoint: 1
+  leftHandMagnet: {fileID: 0}
+  rightHandMagnet: {fileID: 0}
+  leftMagnetName: LeftHandMagnet
+  rightMagnetName: RightHandMagnet
   followLerpSpeed: 8
   poseLerpSpeed: 6
 --- !u!4 &1646831481
@@ -10494,6 +10505,155 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.2
   previewSlightRadius: 0.5
+--- !u!1001 &1722092740
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 277880251378343871, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.481
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 511640572204084850, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 686132400701842489, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 752219732268105229, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 825870223534386650, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 826890734256174021, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1034753658559028333, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1206374170578579738, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1408877626194185711, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2752322394931881279, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3677546979052929104, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 4015050743815652064, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285033769502326863, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 4726934041961427079, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 6121649091441639910, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 6521067181631724518, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Name
+      value: RagDollMan
+      objectReference: {fileID: 0}
+    - target: {fileID: 6521067181631724518, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605858534911762866, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 7422041578088438344, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 7592468443175198811, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 8141669561947410750, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 8406506940009151944, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 9039092413619724861, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 9126698574622274717, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 9198659677025287128, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
 --- !u!1 &1732614866
 GameObject:
   m_ObjectHideFlags: 0
@@ -11937,11 +12097,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7069800207446442250, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_Name
-      value: RagDollMan
+      value: RagDollMana
       objectReference: {fileID: 0}
     - target: {fileID: 7069800207446442250, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_LocalPosition.x
@@ -12373,6 +12533,11 @@ MonoBehaviour:
   keepApplyingFixedPose: 1
   smoothCameraTransition: 1
   followRigToTarget: 1
+  useHandMagnetMidpoint: 1
+  leftHandMagnet: {fileID: 0}
+  rightHandMagnet: {fileID: 0}
+  leftMagnetName: LeftHandMagnet
+  rightMagnetName: RightHandMagnet
   followLerpSpeed: 8
   poseLerpSpeed: 6
 --- !u!4 &2008784687
@@ -13463,3 +13628,4 @@ SceneRoots:
   - {fileID: 1117413496}
   - {fileID: 1646831481}
   - {fileID: 2008784687}
+  - {fileID: 1722092740}

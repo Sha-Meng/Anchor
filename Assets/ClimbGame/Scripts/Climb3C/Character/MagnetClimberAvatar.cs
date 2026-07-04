@@ -1,5 +1,6 @@
 using ClimbGame.Climb3C.Config;
 using ClimbGame.Climb3C.Core;
+using DesignerSpace;
 using FIMSpace.FProceduralAnimation;
 using UnityEngine;
 
@@ -33,6 +34,9 @@ namespace ClimbGame.Climb3C.Character
         private RA2MagnetPoint _rightMP;
 
         private Vector3 _headLookDir = Vector3.forward;
+        // 场景中若存在外部磁点控制器（HandFollowController，磁点跟随指针小球），
+        // 则 DriveArm 不再移动磁点，避免两套系统同帧争抢；否则由本化身按目标移动磁点。
+        private bool _externalHandControl;
 
         public Transform Root => _root;
         public Vector3 TorsoWorldPosition => _chest != null ? _chest.position : (_root != null ? _root.position : Vector3.zero);
@@ -65,6 +69,9 @@ namespace ClimbGame.Climb3C.Character
             _head = FindDeep(_root, "Head");
             _lHand = FindDeep(_root, "LeftHand");
             _rHand = FindDeep(_root, "RightHand");
+
+            // 是否有外部磁点控制器（如 MainLevel2 的 HandFollowController）；有则本化身不驱动磁点。
+            _externalHandControl = Object.FindObjectOfType<HandFollowController>() != null;
 
             // Animator 始终禁用（不需要任何动画）。初始停止 ragdoll：禁用 RagdollAnimator2 组件；
             // 此时角色为静态骨骼，root.transform 的位置/旋转/缩放驱动可见姿态。第三帧再启用组件并切 Fall。
@@ -140,9 +147,13 @@ namespace ClimbGame.Climb3C.Character
 
         public Vector3 DriveArm(ClimbHand hand, Vector3 handTarget, bool applySway)
         {
-            // 手部磁点的控制已交给 HandFollowController/ControllerMgr（磁点跟随指针小球），
-            // 此处不再由攀爬控制器移动磁点，避免两者同帧争抢磁点位置。
-            // 磁点的吸附强度（DragPower）保持不变，仍由布娃娃把手骨拽到磁点位置。
+            // 有外部磁点控制器（HandFollowController）时不驱动磁点，避免两套系统争抢；
+            // 否则由攀爬控制器移动磁点到目标位（磁点再由布娃娃把手骨拽过去）。
+            if (!_externalHandControl)
+            {
+                Transform magnet = hand == ClimbHand.Left ? _leftMagnet : _rightMagnet;
+                if (magnet != null) magnet.position = handTarget;
+            }
             return GetHandPosition(hand);
         }
 
