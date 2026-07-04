@@ -1,13 +1,15 @@
 using ClimbGame.Climb3C.Config;
 using ClimbGame.Climb3C.Core;
+using FIMSpace.FProceduralAnimation;
 using UnityEngine;
 
 namespace ClimbGame.Climb3C.Character
 {
     /// <summary>
-    /// 用正式角色 Prefab（蒙皮骨骼，如 MainAcotor_F）实现的攀爬化身：
-    /// 关闭 Animator，用两骨 IK 驱动手臂骨骼、根节点跟随躯干中心、头骨做 lookat，
-    /// 根上挂胶囊体+刚体（攀爬时运动学防穿模，摔落时物理下落）。实现 <see cref="IClimberAvatar"/>。
+    /// 用正式角色 Prefab（蒙皮骨骼 + RagdollAnimator2）实现的攀爬化身：
+    /// 攀爬时启用 RA2（Standing 物理混合，身体带布娃娃物理），手臂由两骨 IK 驱动骨骼、
+    /// 根节点跟随躯干中心、头骨 lookat；耐力耗尽切 RA2 全布娃娃摔落，落地混合回受控姿态。
+    /// 实现 <see cref="IClimberAvatar"/>。
     /// </summary>
     public sealed class PrefabClimberAvatar : IClimberAvatar
     {
@@ -18,16 +20,16 @@ namespace ClimbGame.Climb3C.Character
         private readonly Vector3 _capsuleCenter;
         private readonly float _capsuleHeight;
         private readonly float _capsuleRadius;
+        private CapsuleCollider _capsule;
 
         private Transform _root;
-        private Transform _chest;   // Spine2
+        private Transform _chest;
         private Transform _neck;
         private Transform _head;
         private Transform _lUpper, _lFore, _lHand;
         private Transform _rUpper, _rFore, _rHand;
         private Animator _animator;
-        private Rigidbody _body;
-        private CapsuleCollider _capsule;
+        private RagdollAnimator2 _ragdoll2;
 
         private Quaternion _headBindLocal;
         private Vector3 _headLookDir = Vector3.forward;
@@ -35,7 +37,7 @@ namespace ClimbGame.Climb3C.Character
         private bool _ragdoll;
 
         public Transform Root => _root;
-        public Vector3 TorsoWorldPosition => _root != null ? _root.position : Vector3.zero;
+        public Vector3 TorsoWorldPosition => _chest != null ? _chest.position : (_root != null ? _root.position : Vector3.zero);
         public Vector3 HeadWorldPosition => _head != null ? _head.position : TorsoWorldPosition;
         public Vector3 HeadLookDirection => _headLookDir;
         public CapsuleCollider BodyCapsule => _capsule;
@@ -62,8 +64,13 @@ namespace ClimbGame.Climb3C.Character
             _facing = Quaternion.LookRotation(Vector3.forward, Vector3.up);
             _root.SetPositionAndRotation(center, _facing);
 
+            // 攀爬时用程序化 IK 驱动骨骼：禁用 Animator（不让动画覆盖 IK）与 RA2（其 Standing 模式会捕获
+            // Animator 动画，和 IK 冲突且会空引用）。RA2 仅在摔落时启用做全布娃娃。
             _animator = go.GetComponentInChildren<Animator>();
             if (_animator != null) _animator.enabled = false;
+
+            _ragdoll2 = go.GetComponent<RagdollAnimator2>();
+            if (_ragdoll2 != null) _ragdoll2.enabled = false;
 
             _chest = FindDeep(_root, "Spine2") ?? FindDeep(_root, "Spine1") ?? FindDeep(_root, "Spine");
             _neck = FindDeep(_root, "Neck");
@@ -77,20 +84,12 @@ namespace ClimbGame.Climb3C.Character
 
             if (_head != null) _headBindLocal = _head.localRotation;
 
-            // 胶囊体 + 刚体（防穿模 / 摔落）
-            _body = go.GetComponent<Rigidbody>();
-            if (_body == null) _body = go.AddComponent<Rigidbody>();
-            _body.useGravity = false;
-            _body.isKinematic = true;
-            _body.interpolation = RigidbodyInterpolation.Interpolate;
-            _body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
-
-            // 若 Prefab 上已有胶囊体则沿用其配置；没有才新建并按参数设置
-            _capsule = go.GetComponentInChildren<CapsuleCollider>();
+            // 防穿模胶囊体（仅根节点，避免误用 RA2 骨骼上的碰撞体）
+            _capsule = go.GetComponent<CapsuleCollider>();
             if (_capsule == null)
             {
                 _capsule = go.AddComponent<CapsuleCollider>();
-                _capsule.direction = 1; // Y
+                _capsule.direction = 1;
                 _capsule.center = _capsuleCenter;
                 _capsule.height = _capsuleHeight;
                 _capsule.radius = _capsuleRadius;
@@ -100,13 +99,13 @@ namespace ClimbGame.Climb3C.Character
         public void SetupClimbPose(Vector3 center)
         {
             _ragdoll = false;
-            if (_body != null)
+            // 从摔落恢复：仅当 RA2 正在启用（摔落中）时切回 Standing 再关掉；初始化时 RA2 未启用，跳过避免空引用
+            if (_ragdoll2 != null && _ragdoll2.enabled)
             {
-                _body.velocity = Vector3.zero;
-                _body.angularVelocity = Vector3.zero;
-                _body.isKinematic = true;
-                _body.useGravity = false;
+                _ragdoll2.RA2Event_SwitchToStand();
+                _ragdoll2.enabled = false;
             }
+            if (_animator != null) _animator.enabled = false;
             SetTorsoCenter(center);
         }
 
@@ -114,14 +113,8 @@ namespace ClimbGame.Climb3C.Character
         {
             if (_root == null || _ragdoll) return;
             _root.rotation = _facing;
-            if (_chest != null)
-            {
-                _root.position += center - _chest.position;
-            }
-            else
-            {
-                _root.position = center;
-            }
+            if (_chest != null) _root.position += center - _chest.position;
+            else _root.position = center;
         }
 
         public Vector3 DriveArm(ClimbHand hand, Vector3 handTarget, bool applySway)
@@ -169,7 +162,6 @@ namespace ClimbGame.Climb3C.Character
             float t = lerpSpeed <= 0f ? 1f : 1f - Mathf.Exp(-lerpSpeed * Time.deltaTime);
             _headLookDir = Vector3.Slerp(_headLookDir, desired, t).normalized;
 
-            // 头骨在中立姿态基础上叠加"从中立朝向转到注视朝向"的世界旋转
             _head.localRotation = _headBindLocal;
             Quaternion worldDelta = Quaternion.FromToRotation(neutral, _headLookDir);
             _head.rotation = worldDelta * _head.rotation;
@@ -178,14 +170,14 @@ namespace ClimbGame.Climb3C.Character
         public void EnterRagdoll(Vector3 initialVelocity)
         {
             _ragdoll = true;
-            if (_body == null) return;
-            _body.isKinematic = false;
-            _body.useGravity = true;
-            _body.drag = _fall != null ? _fall.linearDrag : 0.1f;
-            _body.angularDrag = _fall != null ? _fall.angularDrag : 0.8f;
-            _body.velocity = initialVelocity;
-            _body.AddTorque(new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * 1.5f,
-                ForceMode.VelocityChange);
+            // 摔落：启用 Animator（RA2 捕获姿态所需）与 RA2，切全布娃娃并施加冲击
+            if (_animator != null) _animator.enabled = true;
+            if (_ragdoll2 != null)
+            {
+                _ragdoll2.enabled = true;
+                _ragdoll2.RA2Event_SwitchToFall();
+                _ragdoll2.RA2Event_AddFullImpact(initialVelocity);
+            }
         }
 
         // --- 两骨解析 IK（设置骨骼旋转，末端 end 到达 target；pole 提供弯曲朝向）---

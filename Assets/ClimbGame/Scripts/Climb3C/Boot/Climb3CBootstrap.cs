@@ -136,10 +136,12 @@ namespace ClimbGame.Climb3C.Boot
             _controller.SetZoneOverlay(zoneOverlay);
             _controller.SetCameraConfig(cameraConfig);
 
+            int wallMask = ~((1 << LayerIgnoreRaycast) | (1 << LayerUI));
+            _controller.SetWallProbe(new WallDepthProbe(wallMask, RivetZ - 4f, 8f, 0.05f));
+
             // 胶囊体防穿模：躯干胶囊体与墙体重叠时沿碰撞法线推出贴合（排除角色/UI 层）
             if (character.BodyCapsule != null)
             {
-                int wallMask = ~((1 << LayerIgnoreRaycast) | (1 << LayerUI));
                 _controller.SetWallResolver(new CapsuleWallResolver(character.BodyCapsule, wallMask));
             }
         }
