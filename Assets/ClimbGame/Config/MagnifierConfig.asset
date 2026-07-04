@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a067352029260442b91e3019d6bfcc4a, type: 3}
+  m_Name: MagnifierConfig
+  m_EditorClassIdentifier: 
+  zoom: 2.5
+  baseOrthoSize: 1.2
+  screenDiameter: 220
+  screenOffset: {x: 0, y: 140}
+  renderTextureSize: 256
+  borderReactsToHaptic: 1
+  borderNone: {r: 0.7, g: 0.7, b: 0.7, a: 0.9}
+  borderSlight: {r: 1, g: 0.85, b: 0.1, a: 0.95}
+  borderIntense: {r: 1, g: 0.2, b: 0.15, a: 1}
+  borderThickness: 6

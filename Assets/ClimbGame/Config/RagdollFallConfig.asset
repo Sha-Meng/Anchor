@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3aac41f5596b54185a116564ae1ca3fd, type: 3}
+  m_Name: RagdollFallConfig
+  m_EditorClassIdentifier: 
+  partMass: 1.2
+  initialDownSpeed: 1.5
+  pushFromWall: 1.2
+  linearDrag: 0.15
+  angularDrag: 0.8
+  recoverBlendSeconds: 0.35
+  snapToNearestRivetOnLand: 1
