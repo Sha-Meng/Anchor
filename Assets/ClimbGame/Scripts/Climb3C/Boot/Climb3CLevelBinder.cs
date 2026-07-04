@@ -77,7 +77,10 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("手贴合墙面时略微前置的距离（朝相机方向，避免陷入墙体）")]
         public float wallSurfaceOffset = 0.05f;
 
-        [Tooltip("贴墙射线的最大长度")]
+        [Tooltip("贴墙射线起点在抓点平面前方的距离（需大于岩石体的前后厚度，确保从岩石外部发射）")]
+        public float wallProbeFrontStart = 25f;
+
+        [Tooltip("贴墙射线越过抓点平面继续延伸的长度")]
         public float wallProbeDistance = 8f;
 
         [Tooltip("坠落判定用的 ForceSystem 配置（留空则用默认阈值）")]
@@ -88,7 +91,7 @@ namespace ClimbGame.Climb3C.Boot
         public GameObject characterPrefab;
 
         [Tooltip("角色 Prefab 资源路径（编辑器下 characterPrefab 为空时使用）")]
-        public string characterPrefabPath = "Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab";
+        public string characterPrefabPath = "Assets/Thridpart/PolyOne/FreeStickman/RagDollMan/PR_RagdollDemo_Mannequin.prefab";
 
         [Tooltip("角色缩放")]
         public float characterScale = 1f;
@@ -276,12 +279,14 @@ namespace ClimbGame.Climb3C.Boot
             // 触点映射到抓点所在平面（抓点无碰撞体，用平面投影，mask=0 强制走平面回退）
             var projector = new WallProjector(cam, 0, planeZ);
 
-            // 墙面深度探针：沿 +Z 打射线让手贴合起伏墙面（排除角色/UI 层，命中墙体/岩壁/抓点）
+            // 墙面深度探针：沿 +Z 打射线，仅修正手的 z 贴合起伏墙面（排除角色/UI 层）
             WallDepthProbe wallProbe = null;
             if (stickHandToWall)
             {
                 int wallMask = ~((1 << LayerIgnoreRaycast) | (1 << LayerUI));
-                wallProbe = new WallDepthProbe(wallMask, planeZ - wallProbeDistance * 0.5f, wallProbeDistance, wallSurfaceOffset);
+                // 射线起点必须在所有岩石"前方"（远离墙面、靠近相机一侧），否则从岩石 MeshCollider 内部
+                // 发射会打不到正面。从抓点平面前方 wallProbeFrontStart 处沿 +Z 打，命中岩石正面。
+                wallProbe = new WallDepthProbe(wallMask, planeZ - wallProbeFrontStart, wallProbeFrontStart + wallProbeDistance, wallSurfaceOffset);
             }
 
             var gameContext = new GameContext(0) { GripQueryRadius = gripQueryRadius };

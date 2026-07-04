@@ -198,9 +198,11 @@ namespace ClimbGame.Climb3C.Gameplay
                     // 相对映射：手 = 手起点 +（触点当前位 − 触点起点）。按下瞬间位移为 0，手不跳变。
                     Vector3 touchNow = _projector.Project(p.ScreenPos, out _);
                     Vector3 target = _s.ReachStartHand + (touchNow - _s.ReachStartTouch);
-                    // 沿 Z 轴打射线贴合起伏墙面：手的 Z 跟随墙面表面
+                    // 仅沿 Z 贴合墙面，x/y 由触点映射决定，不改变手臂可达范围
                     if (_wallProbe != null) target = _wallProbe.StickToWall(target, out _);
                     _s.AttackHandCurrent = SmoothTo(_s.AttackHandCurrent, target, _tuning.handFollowLerp);
+                    // 平滑插值会让 z 偏离墙面，每帧仅修正 z
+                    if (_wallProbe != null) _s.AttackHandCurrent = _wallProbe.StickToWall(_s.AttackHandCurrent, out _);
 
                     if (p.Phase == ClimbPointerPhase.Ended)
                     {

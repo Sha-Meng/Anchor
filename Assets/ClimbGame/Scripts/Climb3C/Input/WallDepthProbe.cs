@@ -3,8 +3,8 @@ using UnityEngine;
 namespace ClimbGame.Climb3C.Input
 {
     /// <summary>
-    /// 墙面深度探针：在手的 (x, y) 处沿世界 +Z 轴打射线命中墙体，
-    /// 把手的 Z 贴到命中的墙面表面（略微前置），使手在起伏的 3D 岩壁上"贴着墙面"移动。
+    /// 墙面深度探针：在手的 (x, y) 处沿世界 +Z 打射线命中墙体，
+    /// 仅调整手的 Z 使其贴近墙面表面，x/y 保持触点映射结果不变。
     /// </summary>
     public sealed class WallDepthProbe
     {
@@ -27,7 +27,7 @@ namespace ClimbGame.Climb3C.Input
             var origin = new Vector3(x, y, _castFromZ);
             if (Physics.Raycast(origin, Vector3.forward, out RaycastHit h, _castDistance, _wallMask, QueryTriggerInteraction.Ignore))
             {
-                surfaceZ = h.point.z;
+                surfaceZ = h.point.z - _surfaceOffset;
                 return true;
             }
             surfaceZ = 0f;
@@ -35,8 +35,8 @@ namespace ClimbGame.Climb3C.Input
         }
 
         /// <summary>
-        /// 把 target 的 z 贴到 (target.x, target.y) 处的墙面表面（沿 +Z 打射线）。
-        /// 命中则 hit=true 并更新 z；未命中保持原 z。
+        /// 仅把 target 的 z 贴到 (target.x, target.y) 处的墙面表面；x/y 不变。
+        /// 命中则 hit=true；未命中保持原 z。
         /// </summary>
         public Vector3 StickToWall(Vector3 target, out bool hit)
         {
