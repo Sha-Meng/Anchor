@@ -72,6 +72,19 @@ namespace DesignerSpace
         [SerializeField] private Color slightColor = new Color(1f, 0.85f, 0.1f);
         [SerializeField] private Color noneColor = new Color(0.2f, 1f, 0.4f);
 
+        [Header("布娃娃手部同步")]
+        [Tooltip("需要同步到 MouseCursorFollower 位置的手部刚体。优先使用刚体，避免只改 Transform 导致物理状态残留。")]
+        [SerializeField] private Rigidbody targetHandRigidbody;
+
+        [Tooltip("没有刚体时使用的备用 Transform。")]
+        [SerializeField] private Transform targetHandTransform;
+
+        [Tooltip("勾选后只有探测按键按住时才同步手部；默认关闭表示光标球移动时手始终跟随。")]
+        [SerializeField] private bool syncHandOnlyWhileProbing = false;
+
+        [Tooltip("同步位置时清零手部刚体速度，避免刚体被上一帧速度甩离光标。")]
+        [SerializeField] private bool clearHandVelocityOnSync = true;
+
         private AnchorPoint[] _anchors;
         private Renderer _renderer;
         private Vector3 _smoothedTarget;
@@ -141,6 +154,11 @@ namespace DesignerSpace
             ApplyColorFeedback();
         }
 
+        private void LateUpdate()
+        {
+            SyncHandPosition();
+        }
+
         /// <summary>
         /// 用鼠标射线打墙面碰撞体，更新墙面命中点 _smoothedTarget 与命中法线 _lastWallNormal。
         /// </summary>
@@ -199,6 +217,31 @@ namespace DesignerSpace
             }
 
             return Mathf.Sqrt(nearestSqr);
+        }
+
+        private void SyncHandPosition()
+        {
+            if (!_hasTarget || (syncHandOnlyWhileProbing && !_isProbing))
+            {
+                return;
+            }
+
+            Vector3 targetPosition = transform.position;
+            if (targetHandRigidbody != null)
+            {
+                targetHandRigidbody.position = targetPosition;
+                if (clearHandVelocityOnSync)
+                {
+                    targetHandRigidbody.velocity = Vector3.zero;
+                    targetHandRigidbody.angularVelocity = Vector3.zero;
+                }
+                return;
+            }
+
+            if (targetHandTransform != null)
+            {
+                targetHandTransform.position = targetPosition;
+            }
         }
 
         private JitterTier EvaluateTier(float distance)
