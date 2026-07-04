@@ -11,6 +11,7 @@ using ClimbGame.Climb3C.Gameplay;
 using ClimbGame.Climb3C.Input;
 using ClimbGame.Climb3C.State;
 using ClimbGame.Climb3C.UI;
+using DesignerSpace;
 using UnityEngine;
 
 namespace ClimbGame.Climb3C.Boot
@@ -61,8 +62,8 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("右手初始抓住的抓点物体名")]
         public string rightHandStartAnchorName = "ScatterAnchor_002";
 
-        [Tooltip("是否启用攀爬相机（越肩视角 + 二次 lookat）")]
-        public bool cameraFollow = true;
+        [Tooltip("是否启用旧的 ClimbCamera 越肩跟随相机。若场景由 CameraMgr（cam0/1/2 机位）接管相机，请保持关闭，避免两者同帧抢写 Main Camera 导致抖动")]
+        public bool cameraFollow = false;
 
         [Tooltip("相机初始越肩偏移（相对角色头部：x 肩侧、y 上、z 后）")]
         public Vector3 overShoulderOffset = new Vector3(0.6f, 0.55f, -3.2f);
@@ -313,8 +314,17 @@ namespace ClimbGame.Climb3C.Boot
             anchorRegistry.RebuildFromScene();
 
             // --- 相机：越肩基座 + 二次 lookat ---
+            // 若场景由 CameraMgr（cam0/1/2 机位）接管相机，则不启用旧的 ClimbCamera，
+            // 避免两个脚本在 LateUpdate 同帧抢写 Main Camera 造成抖动。
             ClimbCamera climbCam = null;
-            if (cameraFollow)
+            bool cameraMgrTakesOver = FindObjectOfType<CameraMgr>() != null;
+            if (cameraMgrTakesOver)
+            {
+                // 主动禁用相机上可能残留的 ClimbCamera，确保相机唯一控制者是 CameraMgr。
+                var existingClimbCam = cam.GetComponent<ClimbCamera>();
+                if (existingClimbCam != null) existingClimbCam.enabled = false;
+            }
+            else if (cameraFollow)
             {
                 climbCam = cam.GetComponent<ClimbCamera>();
                 if (climbCam == null) climbCam = cam.gameObject.AddComponent<ClimbCamera>();
