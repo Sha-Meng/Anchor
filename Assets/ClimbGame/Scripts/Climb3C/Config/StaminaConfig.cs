@@ -32,5 +32,15 @@ namespace ClimbGame.Climb3C.Config
 
         [Tooltip("摔落后自由物理时长上限（秒），超时强制吸附最近铆钉")]
         public float maxFallSeconds = 1.5f;
+
+        [Header("耐力圆环 UI（跟随双手中心 + 偏移）")]
+        [Tooltip("圆环相对双手中心点的世界偏移（x 右、y 上、z 前后）")]
+        public Vector3 ringWorldOffset = new Vector3(0f, 0.5f, 0f);
+
+        [Tooltip("圆环直径（参考分辨率下的像素）")]
+        public float ringSizePixels = 120f;
+
+        [Tooltip("圆环厚度占半径的比例（0~1，越大越粗）")]
+        [Range(0.05f, 0.9f)] public float ringThickness = 0.22f;
     }
 }

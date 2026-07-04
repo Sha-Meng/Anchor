@@ -170,7 +170,20 @@ namespace ClimbGame.Climb3C.Gameplay
                 _magnifier.Hide();
             }
 
-            if (_staminaBar != null) _staminaBar.SetRatio(_stamina.Ratio);
+            if (_staminaBar != null)
+            {
+                // 圆环体力条在攀爬动作（伸手/回收）或耐力未满（恢复中）时出现；
+                // 耐力满且空闲、或摔落时隐藏。
+                bool climbing = _s.State == ClimbState.Reaching || _s.State == ClimbState.Returning;
+                bool show = _s.State != ClimbState.Falling && (climbing || _stamina.Ratio < 0.999f);
+                _staminaBar.SetVisible(show);
+                if (show)
+                {
+                    Vector3 handsMid = (_avatar.GetHandPosition(ClimbHand.Left) + _avatar.GetHandPosition(ClimbHand.Right)) * 0.5f;
+                    _staminaBar.SetWorldAnchor(handsMid);
+                    _staminaBar.SetRatio(_stamina.Ratio);
+                }
+            }
         }
 
         private void UpdateClimb(float dt)

@@ -19,3 +19,6 @@ MonoBehaviour:
   fallDistance: 2.2
   recoverOnLandRatio: 0.6
   maxFallSeconds: 1.5
+  ringWorldOffset: {x: 0, y: 0.5, z: 0}
+  ringSizePixels: 40
+  ringThickness: 0.519
