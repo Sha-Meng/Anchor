@@ -34,8 +34,10 @@ namespace ClimbGame.Climb3C.Gameplay
         private HandMagnifier _magnifier;
         private StaminaBarUI _staminaBar;
         private ClimbCamera _camera;
+        private ClimbCameraConfig _cameraConfig;
         private InputZoneOverlayUI _zoneOverlay;
         private IGripQueryProvider _gripProvider;
+        private WallDepthProbe _wallProbe;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
 
         private GameContext _ctx;
@@ -109,6 +111,8 @@ namespace ClimbGame.Climb3C.Gameplay
             {
                 UpdateClimb(dt);
                 UpdateTorsoAndArms();
+                // 头部 lookat 跟随攀爬手（伸手/回收时），否则回中立
+                DriveHeadLook();
                 // 坠落判定交给 SystemValidation 的 ForceEvaluator（逐帧演算，输入来自 GameContext）
                 EvaluateForceState(dt);
             }
@@ -166,6 +170,8 @@ namespace ClimbGame.Climb3C.Gameplay
                     // 相对映射：手 = 手起点 +（触点当前位 − 触点起点）。按下瞬间位移为 0，手不跳变。
                     Vector3 touchNow = _projector.Project(p.ScreenPos, out _);
                     Vector3 target = _s.ReachStartHand + (touchNow - _s.ReachStartTouch);
+                    // 沿 Z 轴打射线贴合起伏墙面：手的 Z 跟随墙面表面
+                    if (_wallProbe != null) target = _wallProbe.StickToWall(target, out _);
                     _s.AttackHandCurrent = SmoothTo(_s.AttackHandCurrent, target, _tuning.handFollowLerp);
 
                     if (p.Phase == ClimbPointerPhase.Ended)
@@ -297,6 +303,20 @@ namespace ClimbGame.Climb3C.Gameplay
         }
 
         public void SetGripProvider(IGripQueryProvider provider) => _gripProvider = provider;
+
+        public void SetWallProbe(WallDepthProbe probe) => _wallProbe = probe;
+
+        public void SetCameraConfig(ClimbCameraConfig cfg) => _cameraConfig = cfg;
+
+        private void DriveHeadLook()
+        {
+            if (_cameraConfig == null) return;
+            bool looking = (_s.State == ClimbState.Reaching || _s.State == ClimbState.Returning)
+                           && _s.CurrentHand != ClimbHand.None;
+            Vector3 handTarget = looking ? _avatar.GetHandPosition(_s.CurrentHand) : Vector3.zero;
+            _avatar.UpdateHeadLook(handTarget, looking, _cameraConfig.neutralForward,
+                _cameraConfig.headLookMaxAngle, _cameraConfig.headLookLerp);
+        }
 
         public void SetForceSettings(ForceEvaluationSettings settings) => _forceSettings = settings.Sanitized();
 

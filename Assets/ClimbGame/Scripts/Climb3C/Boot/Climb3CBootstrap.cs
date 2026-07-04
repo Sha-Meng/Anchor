@@ -121,8 +121,8 @@ namespace ClimbGame.Climb3C.Boot
 
             var projector = new WallProjector(cam, 1 << LayerDefault, RivetZ);
 
-            // --- 相机连线 ---
-            climbCam.Configure(cameraConfig, () => _controller != null ? _controller.TorsoCenter : startCenter);
+            // --- 相机连线（越肩 + 二次 lookat）---
+            climbCam.Configure(cameraConfig, character);
 
             // --- 运行时上下文（保存攀爬者运行时数据，供后续联机同步）---
             var gameContext = new GameContext(0);
@@ -134,6 +134,7 @@ namespace ClimbGame.Climb3C.Boot
                 projector, rivetField, haptics, magnifierComp, staminaBar, startCenter);
             _controller.SetFallDependencies(ragdollFall, climbCam);
             _controller.SetZoneOverlay(zoneOverlay);
+            _controller.SetCameraConfig(cameraConfig);
         }
 
         private void BuildRivets(Transform wallParent, Material rivetMat, RivetField field)

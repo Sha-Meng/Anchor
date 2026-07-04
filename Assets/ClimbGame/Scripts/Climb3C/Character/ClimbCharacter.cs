@@ -38,6 +38,38 @@ namespace ClimbGame.Climb3C.Character
         /// <summary>躯干部件的实际世界坐标（布娃娃下落时读取真实物理位置）。</summary>
         public Vector3 TorsoWorldPosition => _torso != null ? _torso.Transform.position : _torsoCenter;
 
+        private Vector3 _headLookDir = Vector3.forward;
+
+        public Vector3 HeadWorldPosition => _head != null ? _head.Transform.position : _torsoCenter;
+        public Vector3 HeadLookDirection => _headLookDir;
+
+        /// <summary>头部 lookat：active 时朝 targetWorld，夹取到中立朝向 maxAngle 内；否则回中立。</summary>
+        public void UpdateHeadLook(Vector3 targetWorld, bool active, Vector3 neutralForward, float maxAngleDeg, float lerpSpeed)
+        {
+            if (_ragdoll || _head == null) return;
+
+            Vector3 neutral = neutralForward.sqrMagnitude > 1e-6f ? neutralForward.normalized : Vector3.forward;
+            Vector3 desired = neutral;
+            if (active)
+            {
+                Vector3 toTarget = targetWorld - _head.Transform.position;
+                if (toTarget.sqrMagnitude > 1e-4f)
+                {
+                    Vector3 dir = toTarget.normalized;
+                    float ang = Vector3.Angle(neutral, dir);
+                    if (ang > maxAngleDeg)
+                    {
+                        dir = Vector3.RotateTowards(neutral, dir, maxAngleDeg * Mathf.Deg2Rad, 0f).normalized;
+                    }
+                    desired = dir;
+                }
+            }
+
+            float t = lerpSpeed <= 0f ? 1f : 1f - Mathf.Exp(-lerpSpeed * Time.deltaTime);
+            _headLookDir = Vector3.Slerp(_headLookDir, desired, t).normalized;
+            _head.Transform.rotation = Quaternion.LookRotation(_headLookDir, Vector3.up);
+        }
+
         public ClimbCharacter(ArmRigConfig rig, RagdollFallConfig fall)
         {
             _rig = rig;

@@ -13,6 +13,18 @@ namespace ClimbGame.Climb3C.Character
         /// <summary>躯干部件的真实世界坐标（布娃娃摔落时读取物理位置）。</summary>
         Vector3 TorsoWorldPosition { get; }
 
+        /// <summary>头部世界坐标。</summary>
+        Vector3 HeadWorldPosition { get; }
+
+        /// <summary>头部当前的注视方向（世界，已按最大角度夹取），供相机做二次 lookat。</summary>
+        Vector3 HeadLookDirection { get; }
+
+        /// <summary>
+        /// 更新头部 lookat：active 时头部朝 targetWorld 注视（相对中立朝向夹取到 maxAngleDeg），
+        /// 否则平滑回到中立朝向。需在每帧摆放躯干/头之后调用。
+        /// </summary>
+        void UpdateHeadLook(Vector3 targetWorld, bool active, Vector3 neutralForward, float maxAngleDeg, float lerpSpeed);
+
         /// <summary>进入攀爬姿态：上半身运动学、双腿物理垂摆。</summary>
         void SetupClimbPose(Vector3 center);
 

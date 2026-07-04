@@ -2197,20 +2197,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efd59757c904f4bf594b66e67f853cbe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  tuning: {fileID: 0}
-  armRig: {fileID: 0}
-  haptic: {fileID: 0}
-  magnifier: {fileID: 0}
-  stamina: {fileID: 0}
-  ragdollFall: {fileID: 0}
-  cameraConfig: {fileID: 0}
+  tuning: {fileID: 11400000, guid: 3c6c0d7233a694842be1bf70efe51fc8, type: 2}
+  armRig: {fileID: 11400000, guid: 93cde18aa113e4f8fb6c4c08559ca672, type: 2}
+  haptic: {fileID: 11400000, guid: b77a7412271b344dfa319079f384dd23, type: 2}
+  magnifier: {fileID: 11400000, guid: 0e7b0b9a1dc0343d9aa1abb05731adab, type: 2}
+  stamina: {fileID: 11400000, guid: 6b1496c4bd5604f0e9c78a08f8ebf90e, type: 2}
+  ragdollFall: {fileID: 11400000, guid: 750e5f172818c464d9717f053f4e4198, type: 2}
+  cameraConfig: {fileID: 11400000, guid: c8904260bb9f942c08e364b91c169836, type: 2}
   routeRootName: RouteNetwork
   characterFrontOffset: 0.45
   startBelowLowest: 0.2
-  leftHandStartAnchorName: ScatterAnchor_001
-  rightHandStartAnchorName: ScatterAnchor_002
+  leftHandStartAnchorName: ScatterAnchor_002
+  rightHandStartAnchorName: ScatterAnchor_001
   cameraFollow: 1
+  overShoulderOffset: {x: 0.6, y: 0.55, z: -3.2}
   gripQueryRadius: 0.5
+  stickHandToWall: 1
+  wallSurfaceOffset: 0.05
+  wallProbeDistance: 8
   forceConfig: {fileID: 0}
   bodyColor: {r: 0.2, g: 0.5, b: 0.85, a: 1}
   handColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
