@@ -1,0 +1,20 @@
+{
+  "name": "Anchor.LevelAnchorSystem.Editor",
+  "rootNamespace": "Anchor.LevelAnchorSystem.Editor",
+  "references": [
+    "Anchor.LevelAnchorSystem",
+    "Anchor.DesignerSpace",
+    "Anchor.ForceSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Anchor.LevelAnchorSystem.Tests",
+  "rootNamespace": "Anchor.LevelAnchorSystem.Tests",
+  "references": [
+    "Anchor.DesignerSpace",
+    "Anchor.ForceSystem",
+    "Anchor.LevelAnchorSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": false
+}
