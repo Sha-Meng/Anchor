@@ -74,6 +74,15 @@
             { "name": "inventoryAfter", "type": "integer", "required": true },
             { "name": "ropeRevision", "type": "integer", "required": true }
           ]
+        },
+        {
+          "eventType": "rivet.leadSwitch",
+          "displayName": "Lead Switched",
+          "description": "当前领攀者成功换领后同步给远端，远端交换领攀/后攀身份但不移动玩家库存。",
+          "dataFields": [
+            { "name": "inventoryAfter", "type": "integer", "required": true },
+            { "name": "ropeRevision", "type": "integer", "required": true }
+          ]
         }
       ]
     }
@@ -84,7 +93,7 @@
     "spawnAnchors 配置的是起攀主抓点名，进入 MainLevel 后由主抓点和临近抓点推导合法初始位置。",
     "game.state 是基础攀爬同步主路径，网络层应通过只读状态采样接口生成 climb-player-state.v1 payload。",
     "game.event 只用于有明确远端表现、UI 或调试需求的一次性动作。",
-    "成功打钉使用 game.event / climb-event.v1 / rivet.place 同步，成功回收使用 game.event / climb-event.v1 / rivet.collect 同步；失败尝试不发送成功事件。",
+    "成功打钉使用 game.event / climb-event.v1 / rivet.place 同步，成功回收使用 game.event / climb-event.v1 / rivet.collect 同步，成功换领使用 game.event / climb-event.v1 / rivet.leadSwitch 同步；失败尝试不发送成功事件。",
     "修改 game.* payload 字段或发送频率不需要重新部署 relay 服务器。",
     "修改 system.* 或 room.* 控制流程可能需要修改服务器。"
   ]

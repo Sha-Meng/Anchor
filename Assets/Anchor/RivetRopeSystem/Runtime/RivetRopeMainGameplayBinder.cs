@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace Anchor.RivetRopeSystem
 {
+    public enum RivetRopeLocalPlayerRole
+    {
+        Lead = 0,
+        Second = 1
+    }
+
     public sealed class RivetRopeMainGameplayBinder : MonoBehaviour
     {
         [Header("References")]
@@ -18,6 +24,7 @@ namespace Anchor.RivetRopeSystem
         [SerializeField] private string climbControllerObjectName = "Climb3C_Controller";
         [SerializeField] private string climbControllerTypeName = "ClimbGame.Climb3C.Gameplay.ClimbController3D";
         [SerializeField] private string remoteClimberNamePrefix = "Remote Climber";
+        [SerializeField] private RivetRopeLocalPlayerRole localPlayerRole = RivetRopeLocalPlayerRole.Lead;
         [SerializeField] private Vector3 waistOffset = new Vector3(0f, -0.35f, 0f);
         [SerializeField] private float ropeDepthOffset = 0.22f;
         [SerializeField] private float ropeSideOffset = 0.32f;
@@ -53,8 +60,11 @@ namespace Anchor.RivetRopeSystem
         public Vector3 LowerWaistPosition => lowerAttachPoint != null ? lowerAttachPoint.position : transform.position;
         public Vector3 PlaceCandidatePosition => placeFallbackPoint != null ? placeFallbackPoint.position : UpperWaistPosition + Vector3.up * 0.6f;
         public Vector3 CollectProbePosition => collectProbePoint != null ? collectProbePoint.position : LowerWaistPosition;
-        public bool CanPlaceLeadRivet => driver != null && IsBound && IsStableForInteraction() && driver.Model.GetInventory(driver.Model.LeadPlayerId) > 0;
+        public string LocalPlayerId => ResolveLocalPlayerId();
+        public bool IsLocalLead => driver != null && string.Equals(LocalPlayerId, driver.Model.LeadPlayerId, StringComparison.Ordinal);
+        public bool CanPlaceLeadRivet => driver != null && IsLocalLead && IsBound && IsStableForInteraction() && driver.Model.GetInventory(LocalPlayerId) > 0;
         public bool CanRescuePull => driver != null && driver.Model.RescueState.IsActive && IsStableForInteraction();
+        public bool CanSwitchLead => driver != null && IsLocalLead && IsBound && IsStableForInteraction();
 
         public static string DebugPlaceFirstUiRivet()
         {
@@ -134,7 +144,7 @@ namespace Anchor.RivetRopeSystem
 
             return driver.PlaceRivet(new RivetPlaceRequest
             {
-                PlayerId = driver.LeadPlayerId,
+                PlayerId = LocalPlayerId,
                 Position = PlaceCandidatePosition,
                 IsValidSurface = true,
                 IsPlayerInteractive = true
@@ -165,7 +175,7 @@ namespace Anchor.RivetRopeSystem
 
             var request = new RivetCollectRequest
             {
-                PlayerId = driver.SecondPlayerId,
+                PlayerId = LocalPlayerId,
                 RivetId = nearest.RivetId,
                 PlayerPosition = origin,
                 IsPlayerStable = true,
@@ -190,7 +200,7 @@ namespace Anchor.RivetRopeSystem
 
             return driver.CollectRivet(new RivetCollectRequest
             {
-                PlayerId = driver.SecondPlayerId,
+                PlayerId = LocalPlayerId,
                 RivetId = rivet.RivetId,
                 PlayerPosition = CollectProbePosition,
                 IsPlayerStable = true,
@@ -203,6 +213,34 @@ namespace Anchor.RivetRopeSystem
             return driver != null && CanRescuePull
                 ? driver.ApplyRescueClick(true, true)
                 : new RescuePullResult { Success = false, FailureReason = RivetRopeFailureReason.PlayerNotInteractive };
+        }
+
+        public bool SwitchLeadFromUi(out RivetRopeFailureReason failureReason)
+        {
+            if (driver == null || !CanSwitchLead)
+            {
+                failureReason = RivetRopeFailureReason.PlayerNotInteractive;
+                return false;
+            }
+
+            return driver.TrySwitchLead(true, true, false, out failureReason);
+        }
+
+        public void SetLocalPlayerRole(RivetRopeLocalPlayerRole role)
+        {
+            localPlayerRole = role;
+        }
+
+        private string ResolveLocalPlayerId()
+        {
+            if (driver == null)
+            {
+                return string.Empty;
+            }
+
+            return localPlayerRole == RivetRopeLocalPlayerRole.Second
+                ? driver.SecondPlayerId
+                : driver.LeadPlayerId;
         }
 
         private void TryBindClimbController()

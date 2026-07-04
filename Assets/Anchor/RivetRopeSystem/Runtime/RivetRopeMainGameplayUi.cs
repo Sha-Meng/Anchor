@@ -19,6 +19,7 @@ namespace Anchor.RivetRopeSystem
         private Text _statusText;
         private Button _placeButton;
         private Button _collectButton;
+        private Button _switchButton;
         private Button _rescueButton;
 
         private void Awake()
@@ -60,7 +61,8 @@ namespace Anchor.RivetRopeSystem
 
             _placeButton = AddButton(panel.transform, "插锚", new Vector2(0f, -20f), OnPlaceClicked);
             _collectButton = AddButton(panel.transform, "回收铆钉", new Vector2(0f, -74f), OnCollectClicked);
-            _rescueButton = AddButton(panel.transform, "收绳救援", new Vector2(0f, -128f), OnRescueClicked);
+            _switchButton = AddButton(panel.transform, "换领", new Vector2(0f, -128f), OnSwitchClicked);
+            _rescueButton = AddButton(panel.transform, "收绳救援", new Vector2(0f, -182f), OnRescueClicked);
 
             if (showStatus)
             {
@@ -75,8 +77,8 @@ namespace Anchor.RivetRopeSystem
                 statusRect.anchorMin = new Vector2(0f, 1f);
                 statusRect.anchorMax = new Vector2(1f, 1f);
                 statusRect.pivot = new Vector2(0.5f, 1f);
-                statusRect.anchoredPosition = new Vector2(0f, -178f);
-                statusRect.sizeDelta = new Vector2(-24f, 46f);
+                statusRect.anchoredPosition = new Vector2(0f, -232f);
+                statusRect.sizeDelta = new Vector2(-24f, 68f);
             }
         }
 
@@ -122,6 +124,7 @@ namespace Anchor.RivetRopeSystem
             {
                 SetVisible(_placeButton, false);
                 SetVisible(_collectButton, false);
+                SetVisible(_switchButton, false);
                 SetVisible(_rescueButton, false);
                 if (_panelObject != null)
                 {
@@ -131,12 +134,15 @@ namespace Anchor.RivetRopeSystem
             }
 
             var leadInventory = driver.Model.GetInventory(driver.Model.LeadPlayerId);
+            var secondInventory = driver.Model.GetInventory(driver.Model.SecondPlayerId);
+            var localInventory = driver.Model.GetInventory(binder.LocalPlayerId);
             var showPlace = binder.CanPlaceLeadRivet;
             var showCollect = binder.TryGetNearestCollectableRivet(out _);
+            var showSwitch = binder.CanSwitchLead;
             var showRescue = binder.CanRescuePull;
-            var showAny = showPlace || showCollect || showRescue;
-            var visibleCount = CountVisible(showPlace, showCollect, showRescue);
-            var showStatusNow = showStatus && (showCollect || showRescue);
+            var showAny = showPlace || showCollect || showSwitch || showRescue;
+            var visibleCount = CountVisible(showPlace, showCollect, showSwitch, showRescue);
+            var showStatusNow = showStatus && showAny;
 
             if (_panelObject != null)
             {
@@ -150,6 +156,7 @@ namespace Anchor.RivetRopeSystem
 
             SetVisible(_placeButton, showPlace);
             SetVisible(_collectButton, showCollect);
+            SetVisible(_switchButton, showSwitch);
             SetVisible(_rescueButton, showRescue);
             var statusY = LayoutVisibleButtons();
 
@@ -158,8 +165,9 @@ namespace Anchor.RivetRopeSystem
                 _statusText.gameObject.SetActive(showAny && showStatusNow);
                 _statusText.rectTransform.anchoredPosition = new Vector2(0f, statusY - 2f);
                 _statusText.text =
-                    $"铆钉 {leadInventory} / 场上 {driver.Model.PlacedRivets.Count}\n" +
-                    $"收绳 {driver.Model.RescueState.PullAmount:0.0}m";
+                    $"自己 {localInventory} / 领攀 {leadInventory}\n" +
+                    $"队友 {secondInventory} / 场上 {driver.Model.PlacedRivets.Count}\n" +
+                    $"总计 {driver.Model.TotalInventoryAndPlacedCount()} / 收绳 {driver.Model.RescueState.PullAmount:0.0}m";
             }
         }
 
@@ -173,6 +181,11 @@ namespace Anchor.RivetRopeSystem
             binder?.CollectNearestRivetFromUi();
         }
 
+        private void OnSwitchClicked()
+        {
+            binder?.SwitchLeadFromUi(out _);
+        }
+
         private void OnRescueClicked()
         {
             binder?.RescuePullFromUi();
@@ -184,6 +197,7 @@ namespace Anchor.RivetRopeSystem
             var y = -20f;
             y = LayoutButton(_placeButton, y);
             y = LayoutButton(_collectButton, y);
+            y = LayoutButton(_switchButton, y);
             return LayoutButton(_rescueButton, y);
         }
 
@@ -203,7 +217,7 @@ namespace Anchor.RivetRopeSystem
             return y - 54f;
         }
 
-        private static int CountVisible(bool place, bool collect, bool rescue)
+        private static int CountVisible(bool place, bool collect, bool switchLead, bool rescue)
         {
             var count = 0;
             if (place)
@@ -212,6 +226,11 @@ namespace Anchor.RivetRopeSystem
             }
 
             if (collect)
+            {
+                count++;
+            }
+
+            if (switchLead)
             {
                 count++;
             }

@@ -71,6 +71,12 @@ namespace Anchor.RivetRopeSystem
             _model.Reset(settings, leadPlayerId, secondPlayerId);
         }
 
+        public void SetNetworkSinkSource(MonoBehaviour source)
+        {
+            networkSinkSource = source;
+            ResolveSinks();
+        }
+
         public RivetOperationResult DebugPlaceLeadRivet(Vector3 position, bool validSurface = true)
         {
             var result = _model.TryPlaceRivet(new RivetPlaceRequest
@@ -143,10 +149,20 @@ namespace Anchor.RivetRopeSystem
 
         public bool TrySwitchLead(bool leadInteractive, bool secondInteractive, bool isFallResolving, out RivetRopeFailureReason failureReason)
         {
-            var switched = _model.TrySwitchLead(leadInteractive, secondInteractive, isFallResolving, out failureReason);
+            var switched = _model.TrySwitchLead(
+                leadInteractive,
+                secondInteractive,
+                isFallResolving,
+                out failureReason,
+                out var syncEvent);
             if (logOperations)
             {
                 Debug.Log($"Rivet rope switch lead: success={switched}, reason={failureReason}, lead={_model.LeadPlayerId}", this);
+            }
+
+            if (switched && syncEvent.IsValid)
+            {
+                _networkSink?.SendRivetRopeEvent(syncEvent);
             }
 
             return switched;
