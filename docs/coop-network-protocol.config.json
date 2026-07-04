@@ -52,6 +52,29 @@
         { "name": "eventType", "type": "string", "required": true },
         { "name": "actorPlayerId", "type": "string", "required": true },
         { "name": "data", "type": "object", "required": false }
+      ],
+      "eventTypes": [
+        {
+          "eventType": "rivet.place",
+          "displayName": "Rivet Placed",
+          "description": "成功打钉后同步给远端，远端创建已部署铆钉并重算只读绳路。",
+          "dataFields": [
+            { "name": "rivetId", "type": "string", "required": true },
+            { "name": "position", "type": "vector3", "required": true },
+            { "name": "inventoryAfter", "type": "integer", "required": true },
+            { "name": "ropeRevision", "type": "integer", "required": true }
+          ]
+        },
+        {
+          "eventType": "rivet.collect",
+          "displayName": "Rivet Collected",
+          "description": "成功回收已部署铆钉后同步给远端，远端移除铆钉、更新库存并重算只读绳路。",
+          "dataFields": [
+            { "name": "rivetId", "type": "string", "required": true },
+            { "name": "inventoryAfter", "type": "integer", "required": true },
+            { "name": "ropeRevision", "type": "integer", "required": true }
+          ]
+        }
       ]
     }
   ],
@@ -61,7 +84,7 @@
     "spawnAnchors 配置的是起攀主抓点名，进入 MainLevel 后由主抓点和临近抓点推导合法初始位置。",
     "game.state 是基础攀爬同步主路径，网络层应通过只读状态采样接口生成 climb-player-state.v1 payload。",
     "game.event 只用于有明确远端表现、UI 或调试需求的一次性动作。",
-    "插锚、拔锚和收绳事件类型随铆钉绳索系统实现时补充具体 payload。",
+    "成功打钉使用 game.event / climb-event.v1 / rivet.place 同步，成功回收使用 game.event / climb-event.v1 / rivet.collect 同步；失败尝试不发送成功事件。",
     "修改 game.* payload 字段或发送频率不需要重新部署 relay 服务器。",
     "修改 system.* 或 room.* 控制流程可能需要修改服务器。"
   ]

@@ -393,7 +393,58 @@ docs/coop-network-protocol.config.json
 }
 ```
 
-`eventId` 用于远端去重。插锚、拔锚和收绳是协作玩法需要的事件类型，但具体 payload、发送时机和远端表现随铆钉绳索系统实现时一起确定；当前网络层只需保留可扩展框架。
+`eventId` 用于远端去重。打钉和回收会改变双方共享的铆钉、库存和绳索路径，必须作为成功结果事件同步。失败尝试不发送成功事件。服务器只转发 `game.event`，不理解或重算铆钉规则。
+
+#### `rivet.place`
+
+本地客户端在打钉成功后发送，远端收到后创建或显示对应已部署铆钉，并重算只读绳索路径。
+
+```json
+{
+  "type": "game.event",
+  "roomId": "AB12",
+  "seq": 36,
+  "sentAt": 123457.25,
+  "schema": "climb-event.v1",
+  "payload": {
+    "eventId": "evt-rivet-0001",
+    "eventType": "rivet.place",
+    "actorPlayerId": "p_8f3a2c",
+    "data": {
+      "rivetId": "rivet-03",
+      "position": { "x": 0.2, "y": 4.8, "z": 0.0 },
+      "inventoryAfter": 3,
+      "ropeRevision": 12
+    }
+  }
+}
+```
+
+#### `rivet.collect`
+
+本地客户端在回收成功后发送，远端收到后移除对应已部署铆钉，更新库存显示，并按剩余铆钉重算只读绳索路径。
+
+```json
+{
+  "type": "game.event",
+  "roomId": "AB12",
+  "seq": 37,
+  "sentAt": 123458.10,
+  "schema": "climb-event.v1",
+  "payload": {
+    "eventId": "evt-rivet-0002",
+    "eventType": "rivet.collect",
+    "actorPlayerId": "p_14bc90",
+    "data": {
+      "rivetId": "rivet-03",
+      "inventoryAfter": 2,
+      "ropeRevision": 13
+    }
+  }
+}
+```
+
+远端客户端 MUST 按 `eventId` 去重，并 SHOULD 使用 `ropeRevision` 或等价序号处理重复/旧事件，避免重复打钉或重复回收。
 
 ## 房间流程
 
