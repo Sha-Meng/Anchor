@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b82f3bbac0ab0944801ae766a26cb19, type: 3}
-  m_Name: RivetRopeMainGameplayConfig
+  m_Name: RivetRopeVisualLabConfig
   m_EditorClassIdentifier: 
   settings:
     TotalRivets: 5
-    TotalRopeLength: 100
+    TotalRopeLength: 20
     PlaceRange: 1.2
     CollectRange: 1.5
     RescueWindowSeconds: 1.5
@@ -44,5 +44,3 @@ MonoBehaviour:
     SlackColor: {r: 0.86, g: 0.78, b: 0.58, a: 1}
     TautColor: {r: 1, g: 0.52, b: 0.34, a: 1}
     TautWidthMultiplier: 0.86
-    SortingOrder: -20
-    RenderQueue: 2000

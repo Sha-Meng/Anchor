@@ -26,9 +26,23 @@ namespace Anchor.RivetRopeSystem
         [SerializeField] private bool autoStartRescueOnFalling = true;
         [SerializeField] private bool logBinding = true;
 
+        [Header("Bone Attach")]
+        [SerializeField] private bool preferBoneAttachPoints = true;
+        [SerializeField] private bool strictBoneFollow = true;
+        [SerializeField] private bool applyPresentationOffsetToAttachPoints;
+        [SerializeField] private HumanBodyBones localAttachBone = HumanBodyBones.Hips;
+        [SerializeField] private HumanBodyBones remoteAttachBone = HumanBodyBones.Hips;
+        [SerializeField] private string attachBoneNameFallbacks = "Spine2,Spine1,Spine,Hips,Torso";
+        [SerializeField] private Vector3 boneLocalOffset = Vector3.zero;
+        [SerializeField] private bool renderRopeBehindCharacters = true;
+
         private Component _climbController;
         private PropertyInfo _torsoCenterProperty;
         private PropertyInfo _stateProperty;
+        private FieldInfo _avatarField;
+        private object _climberAvatar;
+        private Transform _localAttachBone;
+        private Transform _remoteAttachBone;
         private Transform _remoteClimberRoot;
         private Vector3 _upperVelocity;
         private Vector3 _lowerVelocity;
@@ -78,30 +92,34 @@ namespace Anchor.RivetRopeSystem
                 return;
             }
 
-            var rawUpper = (Vector3)_torsoCenterProperty.GetValue(_climbController, null) + waistOffset;
+            var rawUpper = ResolveUpperWaist();
             var rawLower = ResolveLowerWaist(rawUpper);
-            var upper = ApplyRopePresentationOffset(rawUpper);
-            var lower = ApplyRopePresentationOffset(rawLower);
+            var upper = applyPresentationOffsetToAttachPoints ? ApplyRopePresentationOffset(rawUpper) : rawUpper;
+            var lower = applyPresentationOffsetToAttachPoints ? ApplyRopePresentationOffset(rawLower) : rawLower;
             var smoothTime = Mathf.Max(0.01f, probeFollowSmoothTime);
 
             if (upperAttachPoint != null)
             {
-                upperAttachPoint.position = Vector3.SmoothDamp(upperAttachPoint.position, upper, ref _upperVelocity, smoothTime);
+                upperAttachPoint.position = strictBoneFollow
+                    ? upper
+                    : Vector3.SmoothDamp(upperAttachPoint.position, upper, ref _upperVelocity, smoothTime);
             }
 
             if (lowerAttachPoint != null)
             {
-                lowerAttachPoint.position = Vector3.SmoothDamp(lowerAttachPoint.position, lower, ref _lowerVelocity, smoothTime);
+                lowerAttachPoint.position = strictBoneFollow
+                    ? lower
+                    : Vector3.SmoothDamp(lowerAttachPoint.position, lower, ref _lowerVelocity, smoothTime);
             }
 
             if (placeFallbackPoint != null)
             {
-                placeFallbackPoint.position = ApplyRopePresentationOffset(rawUpper + Vector3.up * 0.9f);
+                placeFallbackPoint.position = rawUpper + Vector3.up * 0.9f;
             }
 
             if (collectProbePoint != null)
             {
-                collectProbePoint.position = placeFallbackPoint != null ? placeFallbackPoint.position : upper;
+                collectProbePoint.position = placeFallbackPoint != null ? placeFallbackPoint.position : rawUpper;
             }
 
             UpdateFallRescueState();
@@ -204,11 +222,35 @@ namespace Anchor.RivetRopeSystem
 
             _torsoCenterProperty = _climbController.GetType().GetProperty("TorsoCenter", BindingFlags.Instance | BindingFlags.Public);
             _stateProperty = _climbController.GetType().GetProperty("State", BindingFlags.Instance | BindingFlags.Public);
+            _avatarField = _climbController.GetType().GetField("_avatar", BindingFlags.Instance | BindingFlags.NonPublic);
+            _climberAvatar = _avatarField != null ? _avatarField.GetValue(_climbController) : null;
+            _localAttachBone = ResolveAttachBone(_climberAvatar, localAttachBone);
 
             if (logBinding)
             {
-                Debug.Log("Rivet rope main gameplay bound to Climb3C_Controller", this);
+                Debug.Log(
+                    $"Rivet rope main gameplay bound to Climb3C_Controller, local bone={(_localAttachBone != null ? _localAttachBone.name : "TorsoCenter fallback")}",
+                    this);
             }
+        }
+
+        private Vector3 ResolveUpperWaist()
+        {
+            if (preferBoneAttachPoints)
+            {
+                if (_localAttachBone == null && _climbController != null)
+                {
+                    _climberAvatar = _avatarField != null ? _avatarField.GetValue(_climbController) : _climberAvatar;
+                    _localAttachBone = ResolveAttachBone(_climberAvatar, localAttachBone);
+                }
+
+                if (_localAttachBone != null)
+                {
+                    return _localAttachBone.TransformPoint(boneLocalOffset);
+                }
+            }
+
+            return (Vector3)_torsoCenterProperty.GetValue(_climbController, null) + waistOffset;
         }
 
         private Vector3 ResolveLowerWaist(Vector3 upper)
@@ -216,10 +258,24 @@ namespace Anchor.RivetRopeSystem
             if (_remoteClimberRoot == null)
             {
                 _remoteClimberRoot = FindRemoteClimberRoot();
+                _remoteAttachBone = null;
             }
 
             if (_remoteClimberRoot != null && _remoteClimberRoot.gameObject.activeInHierarchy)
             {
+                if (preferBoneAttachPoints)
+                {
+                    if (_remoteAttachBone == null)
+                    {
+                        _remoteAttachBone = ResolveAttachBone(_remoteClimberRoot, remoteAttachBone);
+                    }
+
+                    if (_remoteAttachBone != null)
+                    {
+                        return _remoteAttachBone.TransformPoint(boneLocalOffset);
+                    }
+                }
+
                 return _remoteClimberRoot.position + waistOffset;
             }
 
@@ -234,7 +290,8 @@ namespace Anchor.RivetRopeSystem
             }
 
             var cameraTransform = targetCamera.transform;
-            var depthOffset = ropeDepthOffset > 0f ? cameraTransform.forward.normalized * ropeDepthOffset : Vector3.zero;
+            var depthSign = renderRopeBehindCharacters ? 1f : -1f;
+            var depthOffset = ropeDepthOffset > 0f ? cameraTransform.forward.normalized * (ropeDepthOffset * depthSign) : Vector3.zero;
             var sideOffset = Mathf.Abs(ropeSideOffset) > 0f ? cameraTransform.right.normalized * ropeSideOffset : Vector3.zero;
             return position + depthOffset + sideOffset;
         }
@@ -264,6 +321,93 @@ namespace Anchor.RivetRopeSystem
                 if (all[i] != null && all[i].name.StartsWith(remoteClimberNamePrefix, StringComparison.Ordinal))
                 {
                     return all[i];
+                }
+            }
+
+            return null;
+        }
+
+        private Transform ResolveAttachBone(object avatarOrRoot, HumanBodyBones humanoidBone)
+        {
+            var root = ResolveAvatarRoot(avatarOrRoot);
+            if (root == null)
+            {
+                return null;
+            }
+
+            var animator = root.GetComponentInChildren<Animator>(true);
+            if (animator != null && animator.isHuman)
+            {
+                var bone = animator.GetBoneTransform(humanoidBone);
+                if (bone != null)
+                {
+                    return bone;
+                }
+            }
+
+            return FindNamedAttachBone(root);
+        }
+
+        private static Transform ResolveAvatarRoot(object avatarOrRoot)
+        {
+            if (avatarOrRoot == null)
+            {
+                return null;
+            }
+
+            if (avatarOrRoot is Transform transform)
+            {
+                return transform;
+            }
+
+            var rootProperty = avatarOrRoot.GetType().GetProperty("Root", BindingFlags.Instance | BindingFlags.Public);
+            return rootProperty != null ? rootProperty.GetValue(avatarOrRoot, null) as Transform : null;
+        }
+
+        private Transform FindNamedAttachBone(Transform root)
+        {
+            if (root == null || string.IsNullOrEmpty(attachBoneNameFallbacks))
+            {
+                return null;
+            }
+
+            var names = attachBoneNameFallbacks.Split(',');
+            for (int i = 0; i < names.Length; i++)
+            {
+                var name = names[i].Trim();
+                if (string.IsNullOrEmpty(name))
+                {
+                    continue;
+                }
+
+                var found = FindDeep(root, name);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            if (string.Equals(root.name, name, StringComparison.Ordinal))
+            {
+                return root;
+            }
+
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var result = FindDeep(root.GetChild(i), name);
+                if (result != null)
+                {
+                    return result;
                 }
             }
 
