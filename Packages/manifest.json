@@ -2,6 +2,7 @@
   "dependencies": {
     "cn.tuanjie.codely.bridge": "1.0.66",
     "com.gamelovers.mcp-unity": "https://github.com/MaansenV/mcp-unity.git?path=/Packages/mcp-unity",
+    "com.yasirkula.ingamedebugconsole": "https://github.com/yasirkula/UnityIngameDebugConsole.git",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.feature.development": "1.0.1",
     "com.unity.textmeshpro": "3.0.9",
