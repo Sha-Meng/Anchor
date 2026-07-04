@@ -61,7 +61,7 @@ namespace Anchor.Networking
             {
                 return spawnAnchors != null && !string.IsNullOrEmpty(spawnAnchors.guestSecondAnchorName)
                     ? spawnAnchors.guestSecondAnchorName
-                    : "ScatterAnchor_001";
+                    : HostLeadAnchorName;
             }
         }
 
@@ -113,7 +113,7 @@ namespace Anchor.Networking
             return new AnchorSpawnAnchorConfig
             {
                 hostLeadAnchorName = "ScatterAnchor_003",
-                guestSecondAnchorName = "ScatterAnchor_001"
+                guestSecondAnchorName = "ScatterAnchor_003"
             };
         }
     }
