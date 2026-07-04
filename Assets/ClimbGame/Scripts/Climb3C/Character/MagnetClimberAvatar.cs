@@ -16,6 +16,8 @@ namespace ClimbGame.Climb3C.Character
         private readonly GameObject _character;
         private readonly ArmRigConfig _rig;
         private readonly RagdollFallConfig _fall;
+        private readonly Vector3 _initialEuler;
+        private readonly float _scale;
 
         private Transform _root;
         private Transform _chest;
@@ -38,11 +40,13 @@ namespace ClimbGame.Climb3C.Character
         public Vector3 HeadLookDirection => _headLookDir;
         public CapsuleCollider BodyCapsule => null;
 
-        public MagnetClimberAvatar(GameObject sceneCharacter, ArmRigConfig rig, RagdollFallConfig fall)
+        public MagnetClimberAvatar(GameObject sceneCharacter, ArmRigConfig rig, RagdollFallConfig fall, Vector3 initialEuler, float scale)
         {
             _character = sceneCharacter;
             _rig = rig;
             _fall = fall;
+            _initialEuler = initialEuler;
+            _scale = scale <= 0f ? 1f : scale;
         }
 
         public void Build(Transform parent, Vector3 center, Material bodyMat, Material handMat)
@@ -62,21 +66,43 @@ namespace ClimbGame.Climb3C.Character
             _lHand = FindDeep(_root, "LeftHand");
             _rHand = FindDeep(_root, "RightHand");
 
+            // 初始停止 ragdoll：直接禁用 RagdollAnimator2 组件；此时角色由 Animator 驱动，
+            // root.transform 的位置/旋转才会驱动可见姿态。第三帧再启用组件并切 Fall。
+            if (_animator != null) _animator.enabled = true;
+            if (_ra2 != null) _ra2.enabled = false;
             _root.position = center;
+            _root.rotation = Quaternion.Euler(_initialEuler);
+        }
 
-            // 创建左右手的运动学磁点（Magnet Point Kinematic）
-            _leftMagnet = CreateMagnet("LeftHandMagnet", _lHand, out _leftMP);
-            _rightMagnet = CreateMagnet("RightHandMagnet", _rHand, out _rightMP);
+        /// <summary>
+        /// 第二帧调用：仍在站立模式（ragdoll 停止）下确定玩家初始位置/旋转/缩放。
+        /// 此时 root.transform 才驱动可见姿态，物理未开放。
+        /// </summary>
+        public void SetInitialTransform(Vector3 position)
+        {
+            _root.position = position;
+            _root.rotation = Quaternion.Euler(_initialEuler);
+            _root.localScale = Vector3.one * _scale;
+        }
 
-            // 全程 RA2 全布娃娃：身体物理悬挂在两个磁点上
+        /// <summary>
+        /// 第三帧调用：开放 ragdoll——启用 RagdollAnimator2 组件并切换为全布娃娃，
+        /// 挂上双手运动学磁点、钉到左右抓点。此后可见姿态由物理骨骼接管，身体在两磁点力下悬挂。
+        /// </summary>
+        public void CommitClimbRagdoll(Vector3 leftHold, Vector3 rightHold)
+        {
             if (_ra2 != null)
             {
+                _ra2.enabled = true;
                 _ra2.RA2Event_SwitchToFall();
-                // 场景里的布娃娃物理骨骼在原始位置，仅移动 root 不会移动骨骼；
-                // Falling 模式下用 TranslateTo 把整套骨骼平移到起攀中心，再刷新稳定。
-                _ra2.User_TranslateTo(center);
-                _ra2.User_WarpRefresh();
             }
+
+            if (_leftMagnet == null) _leftMagnet = CreateMagnet("LeftHandMagnet", _lHand, out _leftMP);
+            if (_rightMagnet == null) _rightMagnet = CreateMagnet("RightHandMagnet", _rHand, out _rightMP);
+            _leftMagnet.position = leftHold;
+            _rightMagnet.position = rightHold;
+
+            if (_ra2 != null) _ra2.User_WarpRefresh();
         }
 
         private Transform CreateMagnet(string name, Transform toMove, out RA2MagnetPoint mp)

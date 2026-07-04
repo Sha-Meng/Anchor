@@ -52,10 +52,13 @@ namespace ClimbGame.Climb3C.Gameplay
         // 纯表现瞬态（不进 GameContext）
         private Vector2 _magnifierScreen;
         private bool _showMagnifier;
+        private float _smoothedHandZ;
+        private ClimbInputDebugSnapshot _inputDebug = ClimbInputDebugSnapshot.Inactive;
 
         public ClimbState State => _s != null ? _s.State : ClimbState.WaitingForPress;
         public ClimbHand CurrentHand => _s != null ? _s.CurrentHand : ClimbHand.None;
         public Vector3 TorsoCenter => _s != null ? _s.TorsoCenter : Vector3.zero;
+        public ClimbInputDebugSnapshot InputDebug => _inputDebug;
 
         /// <summary>某只手成功抓握锚定时触发，参数为刚锚定的手（相机可据此回到中性机位）。</summary>
         public event System.Action<ClimbHand> HandAnchored;
@@ -133,10 +136,7 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.LeftAnchor = ComputeRestAnchor(startCenter, ClimbHand.Left);
             _s.RightAnchor = ComputeRestAnchor(startCenter, ClimbHand.Right);
             _s.AttackHandCurrent = _s.LeftAnchor;
-
-            _avatar.SetTorsoCenter(startCenter);
-            _avatar.DriveArm(ClimbHand.Left, _s.LeftAnchor, true);
-            _avatar.DriveArm(ClimbHand.Right, _s.RightAnchor, true);
+            // 初始不驱动磁点/躯干：仅由 SetInitialGrips 把磁点设到抓点、由 Build 设玩家位置。
         }
 
         private void Update()
@@ -190,6 +190,7 @@ namespace ClimbGame.Climb3C.Gameplay
         {
             if (_s.State == ClimbState.WaitingForPress)
             {
+                _inputDebug = ClimbInputDebugSnapshot.Inactive;
                 // 不分左右区：任意 touch 起手，按起点离哪只手更近来决定移动哪只手。
                 if (_input.TryGetAnyNewPress(out ClimbPointer p))
                 {
@@ -221,8 +222,18 @@ namespace ClimbGame.Climb3C.Gameplay
                     // 两步移动，彻底消除 xy/z 不匹配导致的抖动：
                     // 步骤1 先移动 x/y（平滑跟随 touch，逼近到位即吸附，touch 静止则完全静止）；
                     // 步骤2 再从"移动完 x/y 后的手位置"沿 +Z 射线求与墙体交点，作为 z 落点。
-                    Vector3 movedXY = MoveHandXY(_s.AttackHandCurrent, commanded, _tuning.handFollowLerp);
+                    Vector3 movedXY = MoveHandXY(_s.AttackHandCurrent, commanded, GetHandFollowLerp());
                     _s.AttackHandCurrent = SampleWallZFromHand(movedXY);
+
+                    _inputDebug = new ClimbInputDebugSnapshot(
+                        true,
+                        p.RawScreenPos,
+                        p.ScreenPos,
+                        _s.ReachStartTouch,
+                        _s.ReachStartHand,
+                        mapped,
+                        commanded,
+                        _s.AttackHandCurrent);
 
                     if (p.Phase == ClimbPointerPhase.Ended)
                     {
@@ -248,6 +259,7 @@ namespace ClimbGame.Climb3C.Gameplay
             }
             else if (_s.State == ClimbState.Returning)
             {
+                _inputDebug = ClimbInputDebugSnapshot.Inactive;
                 Vector3 anchor = AnchorOf(_s.CurrentHand);
                 _s.AttackHandCurrent = SmoothTo(_s.AttackHandCurrent, anchor, _tuning.handReturnLerp);
                 _stamina.Drain(dt, _staminaCfg.abandonDrainMultiplier);
@@ -320,6 +332,22 @@ namespace ClimbGame.Climb3C.Gameplay
             return dx * dx + dy * dy;
         }
 
+        private float GetHandFollowLerp()
+        {
+            if (_tuning == null) return 22f;
+            if (_input != null && _input.IsUsingTouchPath)
+            {
+                return _tuning.mobileHandFollowLerp;
+            }
+
+            return _tuning.handFollowLerp;
+        }
+
+        private bool UseMobileWallZSmooth()
+        {
+            return _input != null && _input.IsUsingTouchPath && _tuning != null && _tuning.mobileWallZSmooth > 0f;
+        }
+
         /// <summary>
         /// 步骤1：只在 x/y 平面平滑跟随目标（z 保持当前手 z 不变）。逼近到位（&lt;3mm）即吸附，
         /// 保证 touch 静止时 x/y 完全不动，不再有指数平滑残差。
@@ -342,7 +370,16 @@ namespace ClimbGame.Climb3C.Gameplay
         {
             if (_wallProbe != null && _wallProbe.TrySampleSurfaceZ(hand.x, hand.y, out float surfaceZ))
             {
-                hand.z = surfaceZ;
+                if (UseMobileWallZSmooth())
+                {
+                    float t = 1f - Mathf.Exp(-_tuning.mobileWallZSmooth * Time.deltaTime);
+                    _smoothedHandZ = Mathf.Lerp(_smoothedHandZ, surfaceZ, t);
+                    hand.z = _smoothedHandZ;
+                }
+                else
+                {
+                    hand.z = surfaceZ;
+                }
             }
             return hand;
         }
@@ -492,6 +529,7 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.ReachStartTouch = _projector.Project(pointer.ScreenPos, out _);
             _s.ReachStartHand = AnchorOf(side);
             _s.AttackHandCurrent = _s.ReachStartHand;
+            _smoothedHandZ = _s.ReachStartHand.z;
             _s.State = ClimbState.Reaching;
             HandReachStarted?.Invoke(side);
         }
@@ -633,12 +671,9 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.CurrentHand = ClimbHand.None;
             _s.State = ClimbState.WaitingForPress;
             _s.AttackHandCurrent = _s.LeftAnchor;
+            _s.TorsoCenter = (_s.LeftAnchor + _s.RightAnchor) * 0.5f;
 
-            Vector3 mid = (_s.LeftAnchor + _s.RightAnchor) * 0.5f + _tuning.torsoCenterOffset;
-            mid.z = _climbZ;
-            _s.TorsoCenter = mid;
-
-            _avatar.SetupClimbPose(mid);
+            // 初始只设置两个 HandMagnet 到抓点（玩家位置由 avatar.Build 设置），其余不设。
             _avatar.DriveArm(ClimbHand.Left, _s.LeftAnchor, true);
             _avatar.DriveArm(ClimbHand.Right, _s.RightAnchor, true);
         }

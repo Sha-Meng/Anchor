@@ -25,9 +25,19 @@ namespace ClimbGame.Climb3C.Config
         [Tooltip("输入区上方裁剪（屏幕比例）")]
         [Range(0f, 0.5f)] public float zoneTopInset = 0.05f;
 
-        [Header("触点跟随")]
+        [Header("触点跟随（PC / 编辑器鼠标）")]
         [Tooltip("手跟随触点目标点的平滑速度，越大越紧跟；<=0 表示瞬间跟随")]
         public float handFollowLerp = 22f;
+
+        [Header("触点跟随（移动端 touch）")]
+        [Tooltip("移动端手跟随速度；<=0 为瞬间跟手。PC 鼠标路径仍用 handFollowLerp")]
+        public float mobileHandFollowLerp = 0f;
+
+        [Tooltip("移动端 touch 采样屏幕偏移（像素），把映射点上移以避开手指遮挡")]
+        public Vector2 mobileTouchScreenOffset = new Vector2(0f, 120f);
+
+        [Tooltip("移动端贴墙 Z 平滑速度；<=0 为每帧直接贴墙")]
+        public float mobileWallZSmooth = 18f;
 
         [Tooltip("放弃本次攀爬时，手回到默认/上一抓点的平滑速度")]
         public float handReturnLerp = 12f;
@@ -40,6 +50,9 @@ namespace ClimbGame.Climb3C.Config
         public float torsoFollowLerp = 8f;
 
         [Header("输入区可视化")]
+        [Tooltip("是否显示输入调试叠层（触点 raw/有效位、映射目标、实际手位）")]
+        public bool showInputDebug = true;
+
         [Tooltip("是否在屏幕上用色块标出左右输入区")]
         public bool showInputZones = true;
 

@@ -12,6 +12,7 @@ using ClimbGame.Climb3C.Input;
 using ClimbGame.Climb3C.State;
 using ClimbGame.Climb3C.UI;
 using DesignerSpace;
+using FIMSpace.FProceduralAnimation;
 using UnityEngine;
 
 namespace ClimbGame.Climb3C.Boot
@@ -100,6 +101,18 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("角色缩放")]
         public float characterScale = 1f;
 
+        [Tooltip("ragdoll 生效前的初始旋转（欧拉角）：把角色摆成平行于水平面/躺平，适配不同关卡攀爬面朝向")]
+        public Vector3 initialFlatRotationEuler = new Vector3(90f, 0f, 0f);
+
+        [Tooltip("是否用下面的绝对坐标覆盖角色初始位置（关闭则用抓点推导出的起攀中心）")]
+        public bool overrideCharacterInitialPosition = false;
+
+        [Tooltip("角色初始位置（世界坐标）；overrideCharacterInitialPosition 开启时生效")]
+        public Vector3 characterInitialPosition = Vector3.zero;
+
+        [Tooltip("在最终初始位置上再叠加的偏移量（覆盖与否都生效），便于微调")]
+        public Vector3 initialPositionOffset = Vector3.zero;
+
         [Header("Magnet Point 攀爬")]
         [Tooltip("两手磁点允许的最大间距（米），攻击手超出此范围会被夹取到边界")]
         public float maxHandDistance = 2f;
@@ -144,6 +157,10 @@ namespace ClimbGame.Climb3C.Boot
 
         private IEnumerator Start()
         {
+            // 时序：Build 需要等抓点就绪（可能延后若干帧），期间角色会停在场景原始位置。
+            // 为保证"第一帧"角色就位于配置的初始位置/旋转，这里在等待抓点之前先摆一次。
+            ApplyInitialPlacement();
+
             // 关卡（RouteNetwork/LevelMgr）可能在自身 Start 里运行时生成散布抓点；
             // 等待若干帧直到目标抓点出现，避免采集时抓点尚未生成而退回默认起攀点。
             for (int i = 0; i < 10; i++)
@@ -260,8 +277,11 @@ namespace ClimbGame.Climb3C.Boot
                 if (characterScale != 1f) sceneCharacter.transform.localScale = Vector3.one * characterScale;
             }
 
-            var avatar = new MagnetClimberAvatar(sceneCharacter, armRig, ragdollFall);
-            avatar.Build(null, startCenter, null, null);
+            var avatar = new MagnetClimberAvatar(sceneCharacter, armRig, ragdollFall, initialFlatRotationEuler, characterScale);
+            // 角色初始摆放位置：默认用抓点推导的起攀中心，可用绝对坐标覆盖，并再叠加偏移微调。
+            // 手部仍锚定到配置抓点（下面 SetInitialGrips），磁点会把双手拉到抓点上。
+            Vector3 characterPosition = (overrideCharacterInitialPosition ? characterInitialPosition : startCenter) + initialPositionOffset;
+            avatar.Build(null, characterPosition, null, null);
             ApplyAvatarTint(avatar.Root, bodyColor, handColor);
             SetLayerRecursive(avatar.Root, LayerIgnoreRaycast);
 
@@ -353,6 +373,26 @@ namespace ClimbGame.Climb3C.Boot
             }
             _controller.SetCameraConfig(cameraConfig);
             if (forceConfig != null) _controller.SetForceSettings(forceConfig.Settings);
+
+            var debugGo = new GameObject("Climb3C_InputDebug");
+            debugGo.transform.SetParent(servicesGo.transform, false);
+            var debugOverlay = debugGo.AddComponent<Climb3CInputDebugOverlay>();
+            debugOverlay.Build(canvas, tuning, cam, _controller);
+
+            // 启动时角色 ragdoll 保持停止（Build 已切站立/运动学）。
+            // 第二帧：仍在站立模式下设置玩家初始位置/旋转/缩放（ragdoll 仍停止）。
+            yield return null;
+            avatar.SetInitialTransform(characterPosition);
+
+            // 第三帧：开放 ragdoll——切全布娃娃并挂磁点到抓点。
+            yield return null;
+            Vector3 leftHold = leftStart != null
+                ? leftStart.GrabPosition
+                : characterPosition + new Vector3(-0.3f, 0.3f, 0f);
+            Vector3 rightHold = rightStart != null
+                ? rightStart.GrabPosition
+                : characterPosition + new Vector3(0.3f, 0.3f, 0f);
+            avatar.CommitClimbRagdoll(leftHold, rightHold);
 
             // 让角色一开始就双手抓在指定抓点上
             if (leftStart != null && rightStart != null)
@@ -449,6 +489,29 @@ namespace ClimbGame.Climb3C.Boot
                 Transform c = root.GetChild(i);
                 if (c.childCount == 0) outList.Add(c);
                 else CollectLeafPoints(c, outList);
+            }
+        }
+
+        /// <summary>
+        /// 第一帧先把场景角色摆到配置的初始旋转（始终）与初始位置（启用绝对覆盖时）。
+        /// 关键：RA2 在 Falling 模式下 root.transform 不驱动可见姿态，必须先切 Standing 模式，
+        /// root 的位置/旋转才会生效；随后 avatar.Build 会保持站立摆放，第二帧再切 Fall。
+        /// </summary>
+        private void ApplyInitialPlacement()
+        {
+            GameObject go = string.IsNullOrEmpty(sceneCharacterName) ? null : GameObject.Find(sceneCharacterName);
+            if (go == null) return;
+
+            var animator = go.GetComponentInChildren<Animator>();
+            if (animator != null) animator.enabled = true;
+            // 初始停止 ragdoll：直接禁用 RagdollAnimator2 组件，此时角色由 Animator 驱动、root.transform 生效。
+            var ra2 = go.GetComponent<RagdollAnimator2>();
+            if (ra2 != null) ra2.enabled = false;
+
+            go.transform.rotation = Quaternion.Euler(initialFlatRotationEuler);
+            if (overrideCharacterInitialPosition)
+            {
+                go.transform.position = characterInitialPosition + initialPositionOffset;
             }
         }
 

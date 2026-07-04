@@ -12,7 +12,10 @@ namespace ClimbGame.Climb3C.Input
     public struct ClimbPointer
     {
         public int Id;
+        /// <summary>参与映射的屏幕坐标（移动端含偏移）。</summary>
         public Vector2 ScreenPos;
+        /// <summary>原始触点屏幕坐标（偏移前）。</summary>
+        public Vector2 RawScreenPos;
         public ClimbPointerPhase Phase;
     }
 
@@ -30,7 +33,11 @@ namespace ClimbGame.Climb3C.Input
         private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>();
         private int _sampledFrame = -1;
         private bool _mouseStartedOverUi;
+        private bool _lastSampleUsedTouch;
         private PointerEventData _uiPointerData;
+
+        /// <summary>上一帧采样是否走 touch 路径（非鼠标回退）。</summary>
+        public bool IsUsingTouchPath => _lastSampleUsedTouch;
 
         public IReadOnlyList<ClimbPointer> Pointers
         {
@@ -53,10 +60,12 @@ namespace ClimbGame.Climb3C.Input
         private void Sample()
         {
             _pointers.Clear();
+            _lastSampleUsedTouch = false;
             if (tuning == null) return;
 
             if (UnityEngine.Input.touchSupported && UnityEngine.Input.touchCount > 0)
             {
+                _lastSampleUsedTouch = true;
                 for (int i = 0; i < UnityEngine.Input.touchCount; i++)
                 {
                     Touch t = UnityEngine.Input.GetTouch(i);
@@ -83,10 +92,12 @@ namespace ClimbGame.Climb3C.Input
                         continue;
                     }
 
+                    Vector2 raw = t.position;
                     _pointers.Add(new ClimbPointer
                     {
                         Id = t.fingerId,
-                        ScreenPos = t.position,
+                        RawScreenPos = raw,
+                        ScreenPos = ApplyMobileTouchOffset(raw),
                         Phase = phase
                     });
                 }
@@ -125,11 +136,22 @@ namespace ClimbGame.Climb3C.Input
                     _pointers.Add(new ClimbPointer
                     {
                         Id = -1,
+                        RawScreenPos = mousePosition,
                         ScreenPos = mousePosition,
                         Phase = phase
                     });
                 }
             }
+        }
+
+        private Vector2 ApplyMobileTouchOffset(Vector2 raw)
+        {
+            if (tuning == null || tuning.mobileTouchScreenOffset == Vector2.zero)
+            {
+                return raw;
+            }
+
+            return raw + tuning.mobileTouchScreenOffset;
         }
 
         private bool IsPointerOverUi(Vector2 screenPosition, int pointerId)
