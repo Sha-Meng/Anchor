@@ -50,6 +50,9 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("网络/配置指定的起攀中心。用于房主上方、非房主下方开局")]
         public Vector3 configuredStartCenter;
 
+        [Tooltip("网络/配置指定的起攀点物体名；填写后优先使用该 Transform 位置作为起攀中心")]
+        public string configuredStartPointName;
+
         [Tooltip("网络/配置指定的起攀主抓点名；启用后会自动寻找最近邻抓点组成左右手初始抓握")]
         public string primaryStartAnchorName;
 
@@ -172,6 +175,7 @@ namespace ClimbGame.Climb3C.Boot
             for (int i = 0; i < 10; i++)
             {
                 bool ready = GameObject.Find(routeRootName) != null &&
+                             (string.IsNullOrEmpty(configuredStartPointName) || GameObject.Find(configuredStartPointName) != null) &&
                              (string.IsNullOrEmpty(primaryStartAnchorName) || GameObject.Find(primaryStartAnchorName) != null) &&
                              (string.IsNullOrEmpty(leftHandStartAnchorName) || GameObject.Find(leftHandStartAnchorName) != null) &&
                              (string.IsNullOrEmpty(rightHandStartAnchorName) || GameObject.Find(rightHandStartAnchorName) != null);
@@ -244,7 +248,7 @@ namespace ClimbGame.Climb3C.Boot
             Vector3 startCenter;
             if (useConfiguredStartCenter)
             {
-                startCenter = configuredStartCenter;
+                startCenter = ResolveConfiguredStartCenter();
                 startCenter.z = planeZ - characterFrontOffset;
             }
             else if (leftStart != null && rightStart != null)
@@ -527,6 +531,24 @@ namespace ClimbGame.Climb3C.Boot
             {
                 go.transform.position = characterInitialPosition + initialPositionOffset;
             }
+            else if (useConfiguredStartCenter)
+            {
+                go.transform.position = ResolveConfiguredStartCenter() + initialPositionOffset;
+            }
+        }
+
+        private Vector3 ResolveConfiguredStartCenter()
+        {
+            if (!string.IsNullOrEmpty(configuredStartPointName))
+            {
+                var startPoint = GameObject.Find(configuredStartPointName);
+                if (startPoint != null)
+                {
+                    return startPoint.transform.position;
+                }
+            }
+
+            return configuredStartCenter;
         }
 
         private void EnsureConfigs()

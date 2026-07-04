@@ -252,9 +252,10 @@ docs/coop-network-protocol.config.json
 
 服务器向房间内玩家广播房间状态。该消息 MUST 包含 `hostId` 和 `players` 列表，客户端用它确定 MainLevel 开局身份：
 
-- `hostId` 对应玩家固定为先锋攀登者，使用配置中的上方起攀主抓点。
-- 非房主玩家固定为第二攀登者，使用配置中的下方起攀主抓点。
-- 客户端进入 MainLevel 后 MUST 找到对应主抓点和临近抓点，由这两个合法抓点推导左右手初始抓握和躯干位置。
+- `hostId` 对应玩家固定为先锋攀登者，使用配置中的 HostStartPoint，左右手磁点初始吸附到 `ScatterAnchor_007` / `ScatterAnchor_008`。
+- 非房主玩家固定为第二攀登者，使用配置中的 GuestStartPoint，左右手磁点初始吸附到 `ScatterAnchor_001` / `ScatterAnchor_002`。
+- 客户端进入 MainLevel 后 MUST 找到对应 StartPoint 作为身体出生位置，并使用该槽位配置的左右手目标抓点初始化 `LeftHandMagnet` / `RightHandMagnet`。
+- 单机直接进入 MainLevel 且没有房间身份时，客户端 MUST 按房主 / `host` 规则初始化。
 - 该映射由房间身份决定，不随某个客户端本地视角变化。也就是说，非房主在自己的客户端虽然是本地可控玩家，也仍然生成在下方；房主作为远端玩家显示在上方。
 
 ```json
@@ -485,7 +486,7 @@ docs/coop-network-protocol.config.json
 10. 两个客户端按倒计时切换到 MainLevel。
 11. 客户端发送 `room.enteredGame`。
 12. 服务器收到双方确认后广播 `room.inGame`。
-13. 双方根据 `room.updated.players` 确认房主为上方先锋攀登者、非房主为下方第二攀登者，并根据各自配置的起攀主抓点寻找临近抓点分配初始双手。
+13. 双方根据 `room.updated.players` 确认房主为上方先锋攀登者、非房主为下方第二攀登者；房主使用 HostStartPoint 且左右手磁点吸附 `ScatterAnchor_007/008`，非房主使用 GuestStartPoint 且左右手磁点吸附 `ScatterAnchor_001/002`。
 14. 双方开始发送 `game.state`，并按需发送 `game.event`。
 
 ## Demo 场景验收流程
@@ -502,7 +503,7 @@ docs/coop-network-protocol.config.json
 6. 两个客户端收到 `room.starting`，进入同一个 MainLevel。
 7. 两个客户端发送 `room.enteredGame`，服务器广播 `room.inGame`。
 8. MainLevel 中显示本地可控攀爬角色和远端只读攀爬骨架。
-9. 房主固定使用上方先锋攀登者起攀主抓点，非房主固定使用下方第二攀登者起攀主抓点，双方由主抓点和临近抓点推导合法初始姿态。
+9. 房主固定使用 HostStartPoint 与 `ScatterAnchor_007/008`，非房主固定使用 GuestStartPoint 与 `ScatterAnchor_001/002`，双方通过 `LeftHandMagnet` / `RightHandMagnet` 完成初始手部吸附。
 10. 本地玩家通过 JSON 配置定义的 `climb-player-state.v1` payload 发送基础状态。
 11. 远端客户端收到并显示对方位置、朝向、攀爬状态、左右手抓点和耐力。
 12. 若当前接入了 `climb-event.v1`，触发一个有表现或调试需求的事件，另一端能收到并在 UI、日志或表现中显示。
@@ -513,7 +514,7 @@ docs/coop-network-protocol.config.json
 - 客户端 A 能创建房间，客户端 B 能加入房间。
 - 未满员时不能开始，满员后只有房主能开始。
 - 两个客户端能进入同一个 MainLevel。
-- 房主在两端都映射为上方先锋攀登者起攀主抓点，非房主在两端都映射为下方第二攀登者起攀主抓点。
+- 房主在两端都映射为 HostStartPoint 与 `ScatterAnchor_007/008`，非房主在两端都映射为 GuestStartPoint 与 `ScatterAnchor_001/002`。
 - `game.state` 能通过 relay 转发并驱动远端表现。
 - 如实现接入 `game.event`，至少一个 `climb-event.v1` 能通过 JSON 配置定义并完成端到端收发与去重。
 

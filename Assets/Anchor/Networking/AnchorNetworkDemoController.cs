@@ -284,17 +284,21 @@ namespace Anchor.Networking
 
         private void BuildMainLevelPlayers()
         {
-            var localAnchorName = _config.HostLeadAnchorName;
-            var remoteAnchorName = localAnchorName;
-            var remotePose = ResolveAnchorStartPose(remoteAnchorName);
+            var localSpawn = _isHost ? _config.HostSpawn : _config.GuestSpawn;
+            var remoteSpawn = _isHost ? _config.GuestSpawn : _config.HostSpawn;
+            var localPose = ResolveAnchorStartPose(localSpawn, _isHost);
+            var remotePose = ResolveAnchorStartPose(remoteSpawn, !_isHost);
 
             var binderGo = new GameObject("Anchor Local Climb Binder");
             ParentToRuntimeRoot(binderGo);
             _localClimbBinder = binderGo.AddComponent<Climb3CLevelBinder>();
-            _localClimbBinder.useNearestStartAnchorPair = true;
-            _localClimbBinder.primaryStartAnchorName = localAnchorName;
-            _localClimbBinder.leftHandStartAnchorName = string.Empty;
-            _localClimbBinder.rightHandStartAnchorName = string.Empty;
+            _localClimbBinder.useConfiguredStartCenter = true;
+            _localClimbBinder.configuredStartCenter = localPose.torso;
+            _localClimbBinder.configuredStartPointName = localSpawn.StartPointName;
+            _localClimbBinder.useNearestStartAnchorPair = false;
+            _localClimbBinder.primaryStartAnchorName = string.Empty;
+            _localClimbBinder.leftHandStartAnchorName = localSpawn.LeftHandAnchorName;
+            _localClimbBinder.rightHandStartAnchorName = localSpawn.RightHandAnchorName;
             _localClimbBinder.bodyColor = _isHost ? new Color(0.2f, 0.55f, 1f) : new Color(0.2f, 0.9f, 0.65f);
             _localClimbBinder.handColor = new Color(0.95f, 0.8f, 0.65f);
 
@@ -312,7 +316,7 @@ namespace Anchor.Networking
             }
 
             StartCoroutine(ResolveLocalStateSourceNextFrame());
-            AppendLog("MainLevel 角色准备: 本地=" + _localSlot + "/" + _localClimbRole + "(" + localAnchorName + ") 远端=" + _remoteSlot + "/" + _remoteClimbRole + "(" + remoteAnchorName + ")");
+            AppendLog("MainLevel 角色准备: 本地=" + _localSlot + "/" + _localClimbRole + FormatSpawnLog(localSpawn) + " 远端=" + _remoteSlot + "/" + _remoteClimbRole + FormatSpawnLog(remoteSpawn));
         }
 
         private void ConfigureRivetRopeNetworking(bool syncEnabled)
@@ -347,32 +351,21 @@ namespace Anchor.Networking
             AppendLog("铆钉同步接入: 本地=" + localRole + " sync=" + syncEnabled);
         }
 
-        private AnchorStartPose ResolveAnchorStartPose(string primaryAnchorName)
+        private AnchorStartPose ResolveAnchorStartPose(AnchorSpawnSlotConfig spawn, bool hostFallback)
         {
-            var primary = FindAnchorTransform(primaryAnchorName);
-            var secondary = FindNearestAnchorTransform(primary);
-            if (primary == null)
-            {
-                var fallback = _isHost ? new Vector3(0f, 1f, -0.95f) : new Vector3(0f, 3f, -0.95f);
-                return new AnchorStartPose
-                {
-                    torso = fallback,
-                    leftHand = fallback + new Vector3(-0.45f, 0.25f, 0f),
-                    rightHand = fallback + new Vector3(0.45f, 0.25f, 0f)
-                };
-            }
+            var leftAnchor = FindAnchorTransform(spawn?.LeftHandAnchorName);
+            var rightAnchor = FindAnchorTransform(spawn?.RightHandAnchorName);
+            var startPoint = FindStartPointTransform(spawn);
+            var fallback = hostFallback ? new Vector3(0f, 3f, -0.95f) : new Vector3(0f, 1f, -0.95f);
 
-            if (secondary == null)
-            {
-                secondary = primary;
-            }
-
-            var left = primary.position.x <= secondary.position.x ? primary.position : secondary.position;
-            var right = primary.position.x <= secondary.position.x ? secondary.position : primary.position;
+            var left = leftAnchor != null ? leftAnchor.position : fallback + new Vector3(-0.45f, 0.25f, 0f);
+            var right = rightAnchor != null ? rightAnchor.position : fallback + new Vector3(0.45f, 0.25f, 0f);
             var mid = (left + right) * 0.5f;
+            var torso = startPoint != null ? startPoint.position : new Vector3(mid.x, mid.y - 0.35f, mid.z - 0.45f);
+
             return new AnchorStartPose
             {
-                torso = new Vector3(mid.x, mid.y - 0.35f, mid.z - 0.45f),
+                torso = torso,
                 leftHand = left,
                 rightHand = right
             };
@@ -386,28 +379,33 @@ namespace Anchor.Networking
             return go != null ? go.transform : null;
         }
 
-        private static Transform FindNearestAnchorTransform(Transform primary)
+        private static Transform FindStartPointTransform(AnchorSpawnSlotConfig spawn)
         {
-            if (primary == null) return null;
+            if (spawn == null) return null;
 
-            var allTransforms = GameObject.FindObjectsOfType<Transform>();
-            Transform best = null;
-            var bestSqr = float.PositiveInfinity;
-            var primaryPosition = primary.position;
-            for (int i = 0; i < allTransforms.Length; i++)
+            if (!string.IsNullOrEmpty(spawn.StartPointName))
             {
-                var candidate = allTransforms[i];
-                if (candidate == null || candidate == primary) continue;
-                if (!candidate.name.StartsWith("ScatterAnchor_", StringComparison.Ordinal)) continue;
-
-                var sqr = (candidate.position - primaryPosition).sqrMagnitude;
-                if (sqr >= bestSqr) continue;
-
-                bestSqr = sqr;
-                best = candidate;
+                var go = GameObject.Find(spawn.StartPointName);
+                if (go != null) return go.transform;
             }
 
-            return best;
+            var startPoints = FindObjectsOfType<StartPoint>();
+            for (int i = 0; i < startPoints.Length; i++)
+            {
+                if (startPoints[i] != null && startPoints[i].MatchesSlot(spawn.slot))
+                {
+                    return startPoints[i].transform;
+                }
+            }
+
+            return null;
+        }
+
+        private static string FormatSpawnLog(AnchorSpawnSlotConfig spawn)
+        {
+            if (spawn == null) return "(spawn=none)";
+
+            return "(" + spawn.StartPointName + " L=" + spawn.LeftHandAnchorName + " R=" + spawn.RightHandAnchorName + ")";
         }
 
         private IEnumerator ResolveLocalStateSourceNextFrame()
@@ -576,7 +574,8 @@ namespace Anchor.Networking
 
             if (_remoteClimbPlayer == null)
             {
-                var remotePose = ResolveAnchorStartPose(_config.HostLeadAnchorName);
+                var remoteSpawn = _isHost ? _config.GuestSpawn : _config.HostSpawn;
+                var remotePose = ResolveAnchorStartPose(remoteSpawn, !_isHost);
                 _remoteClimbPlayer = new AnchorRemoteClimbPlayer(
                     "Remote Climber Late",
                     remotePose.torso,
