@@ -120,6 +120,9 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("touch 目标位与磁点真实位置的差值超过该值（米）时，取消本次 touch")]
         public float handSlipCancelDistance = 0.5f;
 
+        [Tooltip("手吸附在铆钉上时，磁点沿 -Z 方向偏移的距离（米）")]
+        public float gripMagnetZOffset = 0.1f;
+
         [Tooltip("放大镜总开关（默认关闭；开启后显示攀爬手的 RT 放大镜）")]
         public bool enableMagnifier = false;
 
@@ -363,6 +366,7 @@ namespace ClimbGame.Climb3C.Boot
             _controller.SetBodyWallOffset(bodyWallOffset);
             _controller.SetMaxHandDistance(maxHandDistance);
             _controller.SetHandSlipCancelDistance(handSlipCancelDistance);
+            _controller.SetGripMagnetZOffset(gripMagnetZOffset);
             _controller.SetMagnifierEnabled(enableMagnifier);
 
             // 胶囊体防穿模：把角色胶囊体与墙体做重叠检测，穿插时沿法线推出贴合墙面
@@ -399,6 +403,11 @@ namespace ClimbGame.Climb3C.Boot
             {
                 _controller.SetInitialGrips(leftStart, rightStart);
             }
+
+            // 磁点创建后，RA2 的 dummy 需要若干帧才初始化完成；延迟 3 帧再用 TranslateTo
+            // 把布娃娃整套骨骼移动到配置的初始位置，确保生效。
+            for (int f = 0; f < 3; f++) yield return null;
+            avatar.SetRagdollPosition(characterPosition);
 
             Debug.Log($"[Climb3CLevelBinder] 攀爬 3C 已绑定到关卡：抓点 {nodes.Count} 个，起攀点 {startCenter}。");
         }
@@ -502,9 +511,10 @@ namespace ClimbGame.Climb3C.Boot
             GameObject go = string.IsNullOrEmpty(sceneCharacterName) ? null : GameObject.Find(sceneCharacterName);
             if (go == null) return;
 
+            // Animator 始终禁用（不需要任何动画）。
             var animator = go.GetComponentInChildren<Animator>();
-            if (animator != null) animator.enabled = true;
-            // 初始停止 ragdoll：直接禁用 RagdollAnimator2 组件，此时角色由 Animator 驱动、root.transform 生效。
+            if (animator != null) animator.enabled = false;
+            // 初始停止 ragdoll：直接禁用 RagdollAnimator2 组件，此时角色为静态骨骼、root.transform 生效。
             var ra2 = go.GetComponent<RagdollAnimator2>();
             if (ra2 != null) ra2.enabled = false;
 

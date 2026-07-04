@@ -41,6 +41,7 @@ namespace ClimbGame.Climb3C.Gameplay
         private float _bodyWallOffset = 0.4f;
         private float _maxHandDistance = 2f;
         private float _handSlipCancelDistance = 0.5f;
+        private float _gripMagnetZOffset = 0.1f;
         private bool _magnifierEnabled = true;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
         private readonly ClimbForceInputAdapter _forceInputAdapter = new ClimbForceInputAdapter();
@@ -53,6 +54,9 @@ namespace ClimbGame.Climb3C.Gameplay
         private Vector2 _magnifierScreen;
         private bool _showMagnifier;
         private float _smoothedHandZ;
+        // 相机视平面映射：起手屏幕点与手所在深度（本地输入用，逐帧把屏幕位移映射到该视平面）
+        private Vector2 _reachStartScreen;
+        private float _reachDepth;
         private ClimbInputDebugSnapshot _inputDebug = ClimbInputDebugSnapshot.Inactive;
 
         public ClimbState State => _s != null ? _s.State : ClimbState.WaitingForPress;
@@ -206,9 +210,11 @@ namespace ClimbGame.Climb3C.Gameplay
             {
                 if (_input.TryGetPointerById(_s.TrackedFinger, out ClimbPointer p))
                 {
-                    // 相对映射：手 = 手起点 +（触点当前位 − 触点起点）。按下瞬间位移为 0，手不跳变。
-                    Vector3 touchNow = _projector.Project(p.ScreenPos, out _);
-                    Vector3 mapped = _s.ReachStartHand + (touchNow - _s.ReachStartTouch);
+                    // 相机视平面映射：把屏幕位移换算到"手当前深度"的相机视平面（垂直于相机前向），
+                    // 使 2D 拖动与 3D 手位在画面中同向、等比跟随。手 = 起手真实手位 + 视平面位移。
+                    Vector3 worldStart = _projector.ScreenToWorldAtDepth(_reachStartScreen, _reachDepth);
+                    Vector3 worldNow = _projector.ScreenToWorldAtDepth(p.ScreenPos, _reachDepth);
+                    Vector3 mapped = _s.ReachStartHand + (worldNow - worldStart);
                     // 磁点真实位置：受两手最大距离约束，超出边界则夹取到边界。
                     Vector3 commanded = ClampToPartnerReach(mapped);
 
@@ -219,17 +225,17 @@ namespace ClimbGame.Climb3C.Gameplay
                         return;
                     }
 
-                    // 两步移动，彻底消除 xy/z 不匹配导致的抖动：
-                    // 步骤1 先移动 x/y（平滑跟随 touch，逼近到位即吸附，touch 静止则完全静止）；
-                    // 步骤2 再从"移动完 x/y 后的手位置"沿 +Z 射线求与墙体交点，作为 z 落点。
-                    Vector3 movedXY = MoveHandXY(_s.AttackHandCurrent, commanded, GetHandFollowLerp());
-                    _s.AttackHandCurrent = SampleWallZFromHand(movedXY);
+                    // 3D 平滑跟随（相机视平面内）；逼近到位即吸附，touch 静止则完全静止不抖。
+                    Vector3 follow = SmoothTo(_s.AttackHandCurrent, commanded, GetHandFollowLerp());
+                    if ((follow - commanded).sqrMagnitude < 1e-6f) follow = commanded;
+                    // 贴墙开启（stickHandToWall）时才按 +Z 采样墙面 z；关闭则保持视平面跟随的 z。
+                    _s.AttackHandCurrent = SampleWallZFromHand(follow);
 
                     _inputDebug = new ClimbInputDebugSnapshot(
                         true,
                         p.RawScreenPos,
                         p.ScreenPos,
-                        _s.ReachStartTouch,
+                        worldStart,
                         _s.ReachStartHand,
                         mapped,
                         commanded,
@@ -237,8 +243,8 @@ namespace ClimbGame.Climb3C.Gameplay
 
                     if (p.Phase == ClimbPointerPhase.Ended)
                     {
-                        // 松手：落到磁点真实位置的最终 x/y（去平滑滞后），再取该处墙面 z 做吸附判定
-                        _s.AttackHandCurrent = SampleWallZFromHand(new Vector3(commanded.x, commanded.y, _s.AttackHandCurrent.z));
+                        // 松手：落到磁点真实位置（去平滑滞后），贴墙开启时再采样墙面 z 做吸附判定
+                        _s.AttackHandCurrent = SampleWallZFromHand(commanded);
                         ResolveRelease();
                     }
                     else
@@ -309,8 +315,18 @@ namespace ClimbGame.Climb3C.Gameplay
         {
             bool attacking = hand == _s.CurrentHand &&
                              (_s.State == ClimbState.Reaching || _s.State == ClimbState.Returning);
-            return attacking ? _s.AttackHandCurrent : AnchorOf(hand);
+            // 吸附在铆钉上的手：磁点位置沿 -Z 偏移（可配置）；伸手中的手不偏移。
+            return attacking ? _s.AttackHandCurrent : GripMagnetPos(AnchorOf(hand));
         }
+
+        /// <summary>把锚定手的磁点目标沿 -Z 偏移（吸附在铆钉时用），偏移量可配置。</summary>
+        private Vector3 GripMagnetPos(Vector3 anchor)
+        {
+            anchor.z -= _gripMagnetZOffset;
+            return anchor;
+        }
+
+        public void SetGripMagnetZOffset(float offset) => _gripMagnetZOffset = offset;
 
         private RivetPoint ExcludeRivet() => _s.CurrentHand == ClimbHand.Left ? _s.LeftRivet : _s.RightRivet;
 
@@ -349,21 +365,7 @@ namespace ClimbGame.Climb3C.Gameplay
         }
 
         /// <summary>
-        /// 步骤1：只在 x/y 平面平滑跟随目标（z 保持当前手 z 不变）。逼近到位（&lt;3mm）即吸附，
-        /// 保证 touch 静止时 x/y 完全不动，不再有指数平滑残差。
-        /// </summary>
-        private static Vector3 MoveHandXY(Vector3 current, Vector3 targetXY, float lerpSpeed)
-        {
-            float t = lerpSpeed <= 0f ? 1f : 1f - Mathf.Exp(-lerpSpeed * Time.deltaTime);
-            float nx = Mathf.Lerp(current.x, targetXY.x, t);
-            float ny = Mathf.Lerp(current.y, targetXY.y, t);
-            if (Mathf.Abs(nx - targetXY.x) < 0.003f) nx = targetXY.x;
-            if (Mathf.Abs(ny - targetXY.y) < 0.003f) ny = targetXY.y;
-            return new Vector3(nx, ny, current.z);
-        }
-
-        /// <summary>
-        /// 步骤2：从手当前 (x, y) 沿 +Z 射线求与墙体的交点作为 z 落点；未命中则保持原 z。
+        /// 从手当前 (x, y) 沿 +Z 射线求与墙体的交点作为 z 落点；未命中则保持原 z。
         /// z 始终对应手实际所在的 x/y，避免 z 与 x/y 错位振荡。
         /// </summary>
         private Vector3 SampleWallZFromHand(Vector3 hand)
@@ -525,11 +527,14 @@ namespace ClimbGame.Climb3C.Gameplay
         {
             _s.CurrentHand = side;
             _s.TrackedFinger = pointer.Id;
-            // 记录按下瞬间的触点位与手位：手先不动，后续按触点位移相对移动
-            _s.ReachStartTouch = _projector.Project(pointer.ScreenPos, out _);
-            _s.ReachStartHand = AnchorOf(side);
-            _s.AttackHandCurrent = _s.ReachStartHand;
-            _smoothedHandZ = _s.ReachStartHand.z;
+            // 起手瞬间手保持在"真实位置"（而非锚点），避免跳变；仅进入攀爬状态。
+            // 记录起手屏幕点与手所在的相机深度，后续按屏幕位移在该视平面内相对移动。
+            Vector3 handStart = _avatar.GetHandPosition(side);
+            _s.ReachStartHand = handStart;
+            _s.AttackHandCurrent = handStart;
+            _reachStartScreen = pointer.ScreenPos;
+            _reachDepth = _projector.DepthOf(handStart);
+            _smoothedHandZ = handStart.z;
             _s.State = ClimbState.Reaching;
             HandReachStarted?.Invoke(side);
         }
@@ -673,9 +678,9 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.AttackHandCurrent = _s.LeftAnchor;
             _s.TorsoCenter = (_s.LeftAnchor + _s.RightAnchor) * 0.5f;
 
-            // 初始只设置两个 HandMagnet 到抓点（玩家位置由 avatar.Build 设置），其余不设。
-            _avatar.DriveArm(ClimbHand.Left, _s.LeftAnchor, true);
-            _avatar.DriveArm(ClimbHand.Right, _s.RightAnchor, true);
+            // 初始只设置两个 HandMagnet 到抓点（含 -Z 吸附偏移）；玩家位置由 avatar 设置，其余不设。
+            _avatar.DriveArm(ClimbHand.Left, GripMagnetPos(_s.LeftAnchor), true);
+            _avatar.DriveArm(ClimbHand.Right, GripMagnetPos(_s.RightAnchor), true);
         }
 
         public void SetFallDependencies(RagdollFallConfig fallConfig, ClimbCamera camera)

@@ -66,9 +66,9 @@ namespace ClimbGame.Climb3C.Character
             _lHand = FindDeep(_root, "LeftHand");
             _rHand = FindDeep(_root, "RightHand");
 
-            // 初始停止 ragdoll：直接禁用 RagdollAnimator2 组件；此时角色由 Animator 驱动，
-            // root.transform 的位置/旋转才会驱动可见姿态。第三帧再启用组件并切 Fall。
-            if (_animator != null) _animator.enabled = true;
+            // Animator 始终禁用（不需要任何动画）。初始停止 ragdoll：禁用 RagdollAnimator2 组件；
+            // 此时角色为静态骨骼，root.transform 的位置/旋转/缩放驱动可见姿态。第三帧再启用组件并切 Fall。
+            if (_animator != null) _animator.enabled = false;
             if (_ra2 != null) _ra2.enabled = false;
             _root.position = center;
             _root.rotation = Quaternion.Euler(_initialEuler);
@@ -101,8 +101,17 @@ namespace ClimbGame.Climb3C.Character
             if (_rightMagnet == null) _rightMagnet = CreateMagnet("RightHandMagnet", _rHand, out _rightMP);
             _leftMagnet.position = leftHold;
             _rightMagnet.position = rightHold;
+        }
 
-            if (_ra2 != null) _ra2.User_WarpRefresh();
+        /// <summary>
+        /// 把角色（布娃娃）整套骨骼移动到目标世界位置。需在磁点创建、RA2 就绪若干帧后调用，
+        /// 否则 Falling 模式下 dummy 尚未初始化，TranslateTo 无效。
+        /// </summary>
+        public void SetRagdollPosition(Vector3 position)
+        {
+            if (_ra2 == null) return;
+            _ra2.User_TranslateTo(position);
+            _ra2.User_WarpRefresh();
         }
 
         private Transform CreateMagnet(string name, Transform toMove, out RA2MagnetPoint mp)
