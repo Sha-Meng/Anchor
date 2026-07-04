@@ -53,15 +53,6 @@ namespace Anchor.Networking
             public bool canJoin;
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Bootstrap()
-        {
-            EnsureInstance();
-            SceneManager.sceneLoaded -= OnSceneLoaded;
-            SceneManager.sceneLoaded += OnSceneLoaded;
-            _instance.BuildForActiveScene();
-        }
-
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             EnsureInstance();
@@ -71,6 +62,8 @@ namespace Anchor.Networking
         public static void EnsureDemo()
         {
             EnsureInstance();
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
             _instance.BuildForActiveScene();
         }
 
@@ -125,9 +118,13 @@ namespace Anchor.Networking
             {
                 BuildGameScene();
             }
-            else
+            else if (sceneName == EntrySceneName)
             {
                 BuildEntryScene();
+            }
+            else
+            {
+                _inGame = false;
             }
         }
 
@@ -566,7 +563,6 @@ namespace Anchor.Networking
         {
             if (_runtimeRoot != null)
             {
-                DetachEventSystems(_runtimeRoot.transform);
                 DestroyImmediate(_runtimeRoot);
                 _runtimeRoot = null;
             }
@@ -606,15 +602,6 @@ namespace Anchor.Networking
                 || go.name == "Anchor Demo Runtime Root"
                 || go.name == "Local Player"
                 || go.name == "Remote Player";
-        }
-
-        private void DetachEventSystems(Transform root)
-        {
-            foreach (var eventSystem in root.GetComponentsInChildren<EventSystem>(true))
-            {
-                eventSystem.transform.SetParent(null, false);
-                DontDestroyOnLoad(eventSystem.gameObject);
-            }
         }
 
         private void CreateCanvas(string title)
@@ -660,9 +647,9 @@ namespace Anchor.Networking
             if (FindObjectOfType<EventSystem>() != null) return;
 
             var eventSystem = new GameObject("Anchor Demo EventSystem");
+            ParentToRuntimeRoot(eventSystem);
             eventSystem.AddComponent<EventSystem>();
             eventSystem.AddComponent<StandaloneInputModule>();
-            DontDestroyOnLoad(eventSystem);
         }
 
         private void ParentToRuntimeRoot(GameObject go)
