@@ -9,11 +9,26 @@ namespace DesignerSpace
     /// </summary>
     public class AnchorPoint : MonoBehaviour
     {
+        [Tooltip("抓点自身质量，范围 1-10。距离衰减后的查询稳定值不会超过该值。")]
+        [Range(1, 10)]
+        public int baseStability = 10;
+
         [Tooltip("仅用于编辑器 Gizmo 预览，应与 MouseFollowJitter 的 intenseRadius 保持一致")]
         public float previewIntenseRadius = 1f;
 
         [Tooltip("仅用于编辑器 Gizmo 预览，应与 MouseFollowJitter 的 slightRadius 保持一致")]
         public float previewSlightRadius = 2.5f;
+
+        public int BaseStability => Mathf.Clamp(baseStability, 1, 10);
+
+        public float GrabRadius => Mathf.Max(0f, previewSlightRadius);
+
+        private void OnValidate()
+        {
+            baseStability = Mathf.Clamp(baseStability, 1, 10);
+            previewIntenseRadius = Mathf.Max(0f, previewIntenseRadius);
+            previewSlightRadius = Mathf.Max(0f, previewSlightRadius);
+        }
 
         private void OnDrawGizmos()
         {

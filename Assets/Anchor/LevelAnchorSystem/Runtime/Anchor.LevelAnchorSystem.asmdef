@@ -1,0 +1,17 @@
+{
+  "name": "Anchor.LevelAnchorSystem",
+  "rootNamespace": "Anchor.LevelAnchorSystem",
+  "references": [
+    "Anchor.DesignerSpace",
+    "Anchor.ForceSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
