@@ -40,6 +40,7 @@ namespace ClimbGame.Climb3C.Gameplay
         private WallDepthProbe _wallProbe;
         private CapsuleWallResolver _wallResolver;
         private float _bodyWallOffset = 0.4f;
+        private float _maxHandDistance = 2f;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
         private readonly ClimbForceInputAdapter _forceInputAdapter = new ClimbForceInputAdapter();
 
@@ -139,11 +140,12 @@ namespace ClimbGame.Climb3C.Gameplay
             {
                 UpdateClimb(dt);
                 UpdateTorsoAndArms();
-                // 头部 lookat 跟随攀爬手（伸手/回收时），否则回中立
-                DriveHeadLook();
                 // 坠落判定交给 SystemValidation 的 ForceEvaluator（逐帧演算，输入来自 GameContext）
                 EvaluateForceState(dt);
             }
+
+            // 相机跟随"未参与攀爬的那只手"（摔落时跟随躯干）
+            DriveCameraFollow();
 
             if (_showMagnifier)
             {
@@ -200,6 +202,8 @@ namespace ClimbGame.Climb3C.Gameplay
                     Vector3 target = _s.ReachStartHand + (touchNow - _s.ReachStartTouch);
                     // 仅沿 Z 贴合墙面，x/y 由触点映射决定，不改变手臂可达范围
                     if (_wallProbe != null) target = _wallProbe.StickToWall(target, out _);
+                    // 约束两手磁点距离：攻击手限制在另一只手锚点的 maxHandDistance 范围内，超出则强制拉回
+                    target = ClampToPartnerReach(target);
                     _s.AttackHandCurrent = SmoothTo(_s.AttackHandCurrent, target, _tuning.handFollowLerp);
                     // 平滑插值会让 z 偏离墙面，每帧仅修正 z
                     if (_wallProbe != null) _s.AttackHandCurrent = _wallProbe.StickToWall(_s.AttackHandCurrent, out _);
@@ -284,6 +288,19 @@ namespace ClimbGame.Climb3C.Gameplay
 
         private RivetPoint ExcludeRivet() => _s.CurrentHand == ClimbHand.Left ? _s.LeftRivet : _s.RightRivet;
 
+        /// <summary>把攻击手目标限制在另一只（锚定）手的 maxHandDistance 范围内，模拟两手磁点的最大间距约束。</summary>
+        private Vector3 ClampToPartnerReach(Vector3 target)
+        {
+            if (_maxHandDistance <= 0f || _s.CurrentHand == ClimbHand.None) return target;
+            Vector3 partner = AnchorOf(_s.CurrentHand.Other());
+            Vector3 d = target - partner;
+            float m = d.magnitude;
+            if (m > _maxHandDistance && m > 1e-4f) target = partner + d * (_maxHandDistance / m);
+            return target;
+        }
+
+        public void SetMaxHandDistance(float distance) => _maxHandDistance = distance;
+
         private Vector3 ClampTorsoForAnchoredHands(Vector3 torso)
         {
             torso = ClampForHandIfAnchored(torso, ClimbHand.Left);
@@ -360,14 +377,24 @@ namespace ClimbGame.Climb3C.Gameplay
 
         public void SetCameraConfig(ClimbCameraConfig cfg) => _cameraConfig = cfg;
 
-        private void DriveHeadLook()
+        /// <summary>相机跟随未参与攀爬的手：伸手/回收/等待时跟随非攀爬手，摔落时跟随躯干，起始未定手时取双手中点。</summary>
+        private void DriveCameraFollow()
         {
-            if (_cameraConfig == null) return;
-            bool looking = (_s.State == ClimbState.Reaching || _s.State == ClimbState.Returning)
-                           && _s.CurrentHand != ClimbHand.None;
-            Vector3 handTarget = looking ? _avatar.GetHandPosition(_s.CurrentHand) : Vector3.zero;
-            _avatar.UpdateHeadLook(handTarget, looking, _cameraConfig.neutralForward,
-                _cameraConfig.headLookMaxAngle, _cameraConfig.headLookLerp);
+            if (_camera == null) return;
+            Vector3 followPos;
+            if (_s.State == ClimbState.Falling)
+            {
+                followPos = _avatar.TorsoWorldPosition;
+            }
+            else if (_s.CurrentHand != ClimbHand.None)
+            {
+                followPos = _avatar.GetHandPosition(_s.CurrentHand.Other());
+            }
+            else
+            {
+                followPos = (_avatar.GetHandPosition(ClimbHand.Left) + _avatar.GetHandPosition(ClimbHand.Right)) * 0.5f;
+            }
+            _camera.SetFollowTarget(followPos);
         }
 
         public void SetForceSettings(ForceEvaluationSettings settings) => _forceSettings = settings.Sanitized();

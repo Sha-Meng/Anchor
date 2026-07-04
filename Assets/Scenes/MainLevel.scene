@@ -1034,7 +1034,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22400762, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -0.00006866455
+      value: 0.000061035156
       objectReference: {fileID: 0}
     - target: {fileID: 22426080, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchorMax.x
@@ -1194,6 +1194,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22468896, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 22485076, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 22485076, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 22485076, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
+      propertyPath: m_SizeDelta.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 22488670, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
@@ -3268,15 +3280,18 @@ MonoBehaviour:
   leftHandStartAnchorName: ScatterAnchor_002
   rightHandStartAnchorName: ScatterAnchor_001
   cameraFollow: 1
-  overShoulderOffset: {x: 0.6, y: 0.55, z: -3.2}
+  overShoulderOffset: {x: 0.6, y: 0.55, z: -6.2}
   gripQueryRadius: 0.5
   stickHandToWall: 1
   wallSurfaceOffset: 0.05
+  wallProbeFrontStart: 25
   wallProbeDistance: 8
   forceConfig: {fileID: 0}
+  sceneCharacterName: RagDollMan
   characterPrefab: {fileID: 0}
   characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
   characterScale: 1
+  maxHandDistance: 1
   bodyColor: {r: 0.2, g: 0.5, b: 0.85, a: 1}
   handColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
   capsuleCenter: {x: 0, y: 0, z: 0}
@@ -11349,6 +11364,63 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 437068, guid: a34463068e3c7444db44f1330ddbc6da, type: 3}
   m_PrefabInstance: {fileID: 1955846541}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1956212226
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 7069800207446442250, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_Name
+      value: RagDollMan
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.112
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.254
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -2.015
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
 --- !u!1 &1962546315
 GameObject:
   m_ObjectHideFlags: 0
@@ -12742,3 +12814,4 @@ SceneRoots:
   - {fileID: 144812653}
   - {fileID: 1188006503}
   - {fileID: 2104857831}
+  - {fileID: 1956212226}

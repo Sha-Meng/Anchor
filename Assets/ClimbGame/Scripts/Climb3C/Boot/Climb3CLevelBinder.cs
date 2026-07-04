@@ -86,15 +86,22 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("坠落判定用的 ForceSystem 配置（留空则用默认阈值）")]
         public ForceSystemConfig forceConfig;
 
-        [Header("角色 Prefab")]
-        [Tooltip("正式角色 Prefab；留空则在编辑器下按下面路径加载")]
+        [Header("角色（直接使用场景中已放置的角色）")]
+        [Tooltip("场景中角色物体名（带 RagdollAnimator2）")]
+        public string sceneCharacterName = "RagDollMan";
+
+        [Tooltip("正式角色 Prefab；留空且场景中找不到 sceneCharacterName 时按下面路径实例化")]
         public GameObject characterPrefab;
 
-        [Tooltip("角色 Prefab 资源路径（编辑器下 characterPrefab 为空时使用）")]
+        [Tooltip("角色 Prefab 资源路径（编辑器下回退实例化用）")]
         public string characterPrefabPath = "Assets/Thridpart/PolyOne/FreeStickman/RagDollMan/PR_RagdollDemo_Mannequin.prefab";
 
         [Tooltip("角色缩放")]
         public float characterScale = 1f;
+
+        [Header("Magnet Point 攀爬")]
+        [Tooltip("两手磁点允许的最大间距（米），攻击手超出此范围会被强制拉回")]
+        public float maxHandDistance = 2f;
 
         [Header("角色配色（用于联机时区分本地/远端玩家）")]
         [Tooltip("躯干配色（作为色调叠加到角色渲染器上）")]
@@ -224,22 +231,29 @@ namespace ClimbGame.Climb3C.Boot
                 startCenter = new Vector3(centerX, min.y - startBelowLowest, planeZ - characterFrontOffset);
             }
 
-            // --- 角色（正式 Prefab）---
-            GameObject prefab = characterPrefab;
+            // --- 角色：直接使用场景中已放置的角色（RagDollMan），全程 RA2 全布娃娃 + 双手磁点 ---
+            GameObject sceneCharacter = string.IsNullOrEmpty(sceneCharacterName) ? null : GameObject.Find(sceneCharacterName);
+            if (sceneCharacter == null)
+            {
+                // 回退：场景里没有则实例化 Prefab（保证在纯净场景下也能跑）
+                GameObject prefab = characterPrefab;
 #if UNITY_EDITOR
-            if (prefab == null && !string.IsNullOrEmpty(characterPrefabPath))
-            {
-                prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(characterPrefabPath);
-            }
+                if (prefab == null && !string.IsNullOrEmpty(characterPrefabPath))
+                {
+                    prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(characterPrefabPath);
+                }
 #endif
-            if (prefab == null)
-            {
-                Debug.LogError("[Climb3CLevelBinder] 未指定角色 Prefab（characterPrefab 或 characterPrefabPath）。");
-                yield break;
+                if (prefab == null)
+                {
+                    Debug.LogError($"[Climb3CLevelBinder] 场景中未找到角色 '{sceneCharacterName}'，且未指定回退 Prefab。");
+                    yield break;
+                }
+                sceneCharacter = Instantiate(prefab);
+                sceneCharacter.name = string.IsNullOrEmpty(sceneCharacterName) ? prefab.name : sceneCharacterName;
+                if (characterScale != 1f) sceneCharacter.transform.localScale = Vector3.one * characterScale;
             }
 
-            var avatar = new PrefabClimberAvatar(prefab, armRig, ragdollFall,
-                characterScale, capsuleCenter, capsuleHeight, capsuleRadius);
+            var avatar = new MagnetClimberAvatar(sceneCharacter, armRig, ragdollFall);
             avatar.Build(null, startCenter, null, null);
             ApplyAvatarTint(avatar.Root, bodyColor, handColor);
             SetLayerRecursive(avatar.Root, LayerIgnoreRaycast);
@@ -316,6 +330,7 @@ namespace ClimbGame.Climb3C.Boot
             _controller.SetGripProvider(anchorRegistry);
             _controller.SetWallProbe(wallProbe);
             _controller.SetBodyWallOffset(bodyWallOffset);
+            _controller.SetMaxHandDistance(maxHandDistance);
 
             // 胶囊体防穿模：把角色胶囊体与墙体做重叠检测，穿插时沿法线推出贴合墙面
             if (resolveCapsulePenetration && avatar.BodyCapsule != null)
