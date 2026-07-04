@@ -93,6 +93,13 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("角色缩放")]
         public float characterScale = 1f;
 
+        [Header("角色配色（用于联机时区分本地/远端玩家）")]
+        [Tooltip("躯干配色（作为色调叠加到角色渲染器上）")]
+        public Color bodyColor = new Color(0.2f, 0.5f, 0.85f);
+
+        [Tooltip("手部配色（作用于手部骨骼下的渲染器，若无独立手部渲染器则忽略）")]
+        public Color handColor = new Color(0.95f, 0.8f, 0.65f);
+
         [Header("防穿模胶囊体")]
         public Vector3 capsuleCenter = new Vector3(0f, 0f, 0f);
         public float capsuleHeight = 1.6f;
@@ -231,6 +238,7 @@ namespace ClimbGame.Climb3C.Boot
             var avatar = new PrefabClimberAvatar(prefab, armRig, ragdollFall,
                 characterScale, capsuleCenter, capsuleHeight, capsuleRadius);
             avatar.Build(null, startCenter, null, null);
+            ApplyAvatarTint(avatar.Root, bodyColor, handColor);
             SetLayerRecursive(avatar.Root, LayerIgnoreRaycast);
 
             // --- Canvas / UI ---
@@ -426,6 +434,38 @@ namespace ClimbGame.Climb3C.Boot
         {
             t.gameObject.layer = layer;
             for (int i = 0; i < t.childCount; i++) SetLayerRecursive(t.GetChild(i), layer);
+        }
+
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+
+        /// <summary>
+        /// 用色调叠加区分不同玩家：整体染 bodyColor，手部骨骼（LeftHand/RightHand）下若有独立渲染器则染 handColor。
+        /// 通过 MaterialPropertyBlock 覆盖颜色，不改动共享材质，避免影响其它角色实例。
+        /// </summary>
+        private static void ApplyAvatarTint(Transform root, Color bodyColor, Color handColor)
+        {
+            if (root == null) return;
+
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            foreach (var renderer in renderers)
+            {
+                Color tint = IsUnderHand(renderer.transform, root) ? handColor : bodyColor;
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                block.SetColor(BaseColorId, tint);
+                block.SetColor(ColorId, tint);
+                renderer.SetPropertyBlock(block);
+            }
+        }
+
+        private static bool IsUnderHand(Transform node, Transform root)
+        {
+            for (Transform t = node; t != null && t != root.parent; t = t.parent)
+            {
+                if (t.name == "LeftHand" || t.name == "RightHand") return true;
+            }
+            return false;
         }
     }
 }
