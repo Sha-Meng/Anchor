@@ -83,7 +83,10 @@ namespace ClimbGame.Climb3C.UI
             if (_fill == null) return;
             ratio = Mathf.Clamp01(ratio);
             _fill.fillAmount = ratio;
-            _fill.color = Color.Lerp(lowColor, highColor, ratio);
+            // 透明度恒定；耐力降到 1/3 及以下才变红，否则用正常色
+            Color c = ratio <= 1f / 3f ? lowColor : highColor;
+            c.a = 1f;
+            _fill.color = c;
         }
 
         private void LateUpdate()

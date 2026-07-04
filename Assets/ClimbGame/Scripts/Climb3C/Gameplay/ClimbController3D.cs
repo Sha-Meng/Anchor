@@ -157,10 +157,12 @@ namespace ClimbGame.Climb3C.Gameplay
 
             if (_staminaBar != null)
             {
-                // 圆环体力条只在攀爬动作（伸手/回收）时出现，其余时刻隐藏
+                // 圆环体力条在攀爬动作（伸手/回收）或耐力未满（恢复中）时出现；
+                // 耐力满且空闲、或摔落时隐藏。
                 bool climbing = _s.State == ClimbState.Reaching || _s.State == ClimbState.Returning;
-                _staminaBar.SetVisible(climbing);
-                if (climbing)
+                bool show = _s.State != ClimbState.Falling && (climbing || _stamina.Ratio < 0.999f);
+                _staminaBar.SetVisible(show);
+                if (show)
                 {
                     Vector3 handsMid = (_avatar.GetHandPosition(ClimbHand.Left) + _avatar.GetHandPosition(ClimbHand.Right)) * 0.5f;
                     _staminaBar.SetWorldAnchor(handsMid);
