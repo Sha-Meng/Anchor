@@ -1,0 +1,21 @@
+{
+  "name": "Anchor.RivetRopeSystem.Tests",
+  "rootNamespace": "Anchor.RivetRopeSystem.Tests",
+  "references": [
+    "Anchor.RivetRopeSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": false
+}

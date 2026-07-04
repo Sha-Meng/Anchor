@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b82f3bbac0ab0944801ae766a26cb19, type: 3}
+  m_Name: RivetRopeMainGameplayConfig
+  m_EditorClassIdentifier: 
+  settings:
+    TotalRivets: 5
+    TotalRopeLength: 20
+    PlaceRange: 1.2
+    CollectRange: 1.5
+    RescueWindowSeconds: 1.5
+    RescuePullPerClick: 0.75
+    MaxRescuePull: 4
+    DamagePerMeter: 10
+    MinFallDamage: 1
+    MaxFallDamage: 100
+    ProtectedDamageMultiplier: 0.45
+    UnprotectedDamageMultiplier: 1

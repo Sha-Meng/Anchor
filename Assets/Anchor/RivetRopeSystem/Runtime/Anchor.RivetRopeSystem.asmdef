@@ -1,0 +1,17 @@
+{
+  "name": "Anchor.RivetRopeSystem",
+  "rootNamespace": "Anchor.RivetRopeSystem",
+  "references": [
+    "Anchor.ForceSystem",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

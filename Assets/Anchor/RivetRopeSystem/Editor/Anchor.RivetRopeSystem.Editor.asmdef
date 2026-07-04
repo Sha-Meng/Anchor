@@ -1,0 +1,18 @@
+{
+  "name": "Anchor.RivetRopeSystem.Editor",
+  "rootNamespace": "Anchor.RivetRopeSystem.Editor",
+  "references": [
+    "Anchor.RivetRopeSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

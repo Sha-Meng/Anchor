@@ -1,0 +1,248 @@
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace Anchor.RivetRopeSystem
+{
+    public sealed class RivetRopeMainGameplayUi : MonoBehaviour
+    {
+        [SerializeField] private RivetRopeDebugDriver driver;
+        [SerializeField] private RivetRopeMainGameplayBinder binder;
+        [SerializeField] private Vector2 panelAnchor = new Vector2(1f, 0f);
+        [SerializeField] private Vector2 panelPivot = new Vector2(1f, 0f);
+        [SerializeField] private Vector2 panelOffset = new Vector2(-32f, 180f);
+        [SerializeField] private bool showStatus = true;
+
+        private Canvas _canvas;
+        private GameObject _panelObject;
+        private RectTransform _panelRect;
+        private Text _statusText;
+        private Button _placeButton;
+        private Button _collectButton;
+        private Button _rescueButton;
+
+        private void Awake()
+        {
+            BuildUi();
+        }
+
+        private void Update()
+        {
+            RefreshState();
+        }
+
+        private void BuildUi()
+        {
+            EnsureEventSystem();
+
+            var canvasObject = new GameObject("Rivet Rope Gameplay Canvas");
+            canvasObject.transform.SetParent(transform, false);
+            _canvas = canvasObject.AddComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            var scaler = canvasObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080f, 1920f);
+            canvasObject.AddComponent<GraphicRaycaster>();
+
+            var panel = new GameObject("Rivet Rope Actions");
+            _panelObject = panel;
+            panel.transform.SetParent(canvasObject.transform, false);
+            var rect = panel.AddComponent<RectTransform>();
+            _panelRect = rect;
+            rect.anchorMin = panelAnchor;
+            rect.anchorMax = panelAnchor;
+            rect.pivot = panelPivot;
+            rect.anchoredPosition = panelOffset;
+            rect.sizeDelta = new Vector2(260f, showStatus ? 230f : 170f);
+
+            var image = panel.AddComponent<Image>();
+            image.color = new Color(0f, 0f, 0f, 0.35f);
+
+            _placeButton = AddButton(panel.transform, "插锚", new Vector2(0f, -20f), OnPlaceClicked);
+            _collectButton = AddButton(panel.transform, "回收铆钉", new Vector2(0f, -74f), OnCollectClicked);
+            _rescueButton = AddButton(panel.transform, "收绳救援", new Vector2(0f, -128f), OnRescueClicked);
+
+            if (showStatus)
+            {
+                var statusObject = new GameObject("Status");
+                statusObject.transform.SetParent(panel.transform, false);
+                _statusText = statusObject.AddComponent<Text>();
+                _statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                _statusText.fontSize = 17;
+                _statusText.alignment = TextAnchor.UpperLeft;
+                _statusText.color = Color.white;
+                var statusRect = _statusText.rectTransform;
+                statusRect.anchorMin = new Vector2(0f, 1f);
+                statusRect.anchorMax = new Vector2(1f, 1f);
+                statusRect.pivot = new Vector2(0.5f, 1f);
+                statusRect.anchoredPosition = new Vector2(0f, -178f);
+                statusRect.sizeDelta = new Vector2(-24f, 46f);
+            }
+        }
+
+        private Button AddButton(Transform parent, string label, Vector2 anchoredPosition, UnityEngine.Events.UnityAction onClick)
+        {
+            var buttonObject = new GameObject(label);
+            buttonObject.transform.SetParent(parent, false);
+
+            var image = buttonObject.AddComponent<Image>();
+            image.color = new Color(0.12f, 0.12f, 0.12f, 0.82f);
+
+            var button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(onClick);
+
+            var rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(-28f, 46f);
+
+            var textObject = new GameObject("Label");
+            textObject.transform.SetParent(buttonObject.transform, false);
+            var text = textObject.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.text = label;
+            text.fontSize = 20;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            var textRect = text.rectTransform;
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            return button;
+        }
+
+        private void RefreshState()
+        {
+            if (driver == null || binder == null)
+            {
+                SetVisible(_placeButton, false);
+                SetVisible(_collectButton, false);
+                SetVisible(_rescueButton, false);
+                if (_panelObject != null)
+                {
+                    _panelObject.SetActive(false);
+                }
+                return;
+            }
+
+            var leadInventory = driver.Model.GetInventory(driver.Model.LeadPlayerId);
+            var showPlace = binder.CanPlaceLeadRivet;
+            var showCollect = binder.TryGetNearestCollectableRivet(out _);
+            var showRescue = binder.CanRescuePull;
+            var showAny = showPlace || showCollect || showRescue;
+            var visibleCount = CountVisible(showPlace, showCollect, showRescue);
+            var showStatusNow = showStatus && (showCollect || showRescue);
+
+            if (_panelObject != null)
+            {
+                _panelObject.SetActive(showAny);
+            }
+
+            if (_panelRect != null)
+            {
+                _panelRect.sizeDelta = new Vector2(260f, 28f + visibleCount * 54f + (showStatusNow ? 58f : 0f));
+            }
+
+            SetVisible(_placeButton, showPlace);
+            SetVisible(_collectButton, showCollect);
+            SetVisible(_rescueButton, showRescue);
+            var statusY = LayoutVisibleButtons();
+
+            if (_statusText != null)
+            {
+                _statusText.gameObject.SetActive(showAny && showStatusNow);
+                _statusText.rectTransform.anchoredPosition = new Vector2(0f, statusY - 2f);
+                _statusText.text =
+                    $"铆钉 {leadInventory} / 场上 {driver.Model.PlacedRivets.Count}\n" +
+                    $"收绳 {driver.Model.RescueState.PullAmount:0.0}m";
+            }
+        }
+
+        private void OnPlaceClicked()
+        {
+            binder?.PlaceLeadRivetFromUi();
+        }
+
+        private void OnCollectClicked()
+        {
+            binder?.CollectNearestRivetFromUi();
+        }
+
+        private void OnRescueClicked()
+        {
+            binder?.RescuePullFromUi();
+            driver?.DebugResolveLeadFall();
+        }
+
+        private float LayoutVisibleButtons()
+        {
+            var y = -20f;
+            y = LayoutButton(_placeButton, y);
+            y = LayoutButton(_collectButton, y);
+            return LayoutButton(_rescueButton, y);
+        }
+
+        private static float LayoutButton(Button button, float y)
+        {
+            if (button == null || !button.gameObject.activeSelf)
+            {
+                return y;
+            }
+
+            var rect = button.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                rect.anchoredPosition = new Vector2(0f, y);
+            }
+
+            return y - 54f;
+        }
+
+        private static int CountVisible(bool place, bool collect, bool rescue)
+        {
+            var count = 0;
+            if (place)
+            {
+                count++;
+            }
+
+            if (collect)
+            {
+                count++;
+            }
+
+            if (rescue)
+            {
+                count++;
+            }
+
+            return count;
+        }
+
+        private static void SetVisible(Button button, bool visible)
+        {
+            if (button != null)
+            {
+                button.gameObject.SetActive(visible);
+                button.interactable = visible;
+            }
+        }
+
+        private static void EnsureEventSystem()
+        {
+            if (FindObjectOfType<EventSystem>() != null)
+            {
+                return;
+            }
+
+            var eventSystem = new GameObject("Rivet Rope EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<StandaloneInputModule>();
+        }
+    }
+}
