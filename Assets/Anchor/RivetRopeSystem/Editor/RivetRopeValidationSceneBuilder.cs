@@ -9,6 +9,7 @@ namespace Anchor.RivetRopeSystem.Editor
     public static class RivetRopeValidationSceneBuilder
     {
         public const string ScenePath = "Assets/Anchor/RivetRopeSystem/Scenes/RivetRopeValidation.scene";
+        public const string VisualLabScenePath = "Assets/Anchor/RivetRopeSystem/Scenes/RivetRopeVisualLab.scene";
 
         [MenuItem("Anchor/Rivet Rope/Rebuild Validation Scene")]
         public static void BuildValidationScene()
@@ -32,12 +33,15 @@ namespace Anchor.RivetRopeSystem.Editor
             var driver = systemObject.AddComponent<RivetRopeDebugDriver>();
             var line = systemObject.AddComponent<LineRenderer>();
             var visual = systemObject.AddComponent<RivetRopeLineVisual>();
+            var rivetVisual = systemObject.AddComponent<RivetRopeRivetVisual>();
             var panel = systemObject.AddComponent<RivetRopeDebugPanel>();
             var input = systemObject.AddComponent<RivetRopeInputController>();
 
             ConfigureLine(line);
+            ConfigureConfigVisuals(config);
             BindDriver(driver, config, lower, upper, panel);
-            BindVisual(visual, driver, line);
+            BindVisual(visual, config, driver, line);
+            BindRivetVisual(rivetVisual, config, driver);
             BindPanel(panel, driver, placePoint, collectProbe);
             BindInput(input, driver, placePoint, collectProbe);
 
@@ -47,10 +51,54 @@ namespace Anchor.RivetRopeSystem.Editor
             Debug.Log($"Rivet rope validation scene rebuilt at {ScenePath}");
         }
 
+        [MenuItem("Anchor/Rivet Rope/Rebuild Visual Lab Scene")]
+        public static void BuildVisualLabScene()
+        {
+            EnsureFolders();
+
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            scene.name = "RivetRopeVisualLab";
+
+            var camera = CreateVisualLabCamera();
+            CreateVisualLabBackdrop();
+            CreateDistanceTicks();
+
+            var lower = CreateMarker("Lower Waist Endpoint", new Vector3(-2.4f, -3.2f, 0f), Color.cyan, 0.34f);
+            var upper = CreateMarker("Upper Waist Endpoint", new Vector3(2.2f, 4.8f, 0f), new Color(1f, 0.55f, 0.15f), 0.34f);
+            var rivets = new[]
+            {
+                CreateMarker("Lab Rivet 01", new Vector3(0f, 0.9f, 0f), Color.yellow, 0.24f),
+                CreateMarker("Lab Rivet 02", new Vector3(0.9f, 1.5f, 0f), Color.yellow, 0.24f),
+                CreateMarker("Lab Rivet 03", new Vector3(-0.2f, 3.2f, 0f), Color.yellow, 0.24f),
+                CreateMarker("Lab Rivet 04", new Vector3(1.4f, 3.9f, 0f), Color.yellow, 0.24f)
+            };
+
+            CreateVisualLabInstructions();
+
+            var systemObject = new GameObject("Rivet Rope Visual Lab System");
+            var config = CreateConfigAsset("Assets/Anchor/RivetRopeSystem/Config/RivetRopeVisualLabConfig.asset");
+            ConfigureConfigVisuals(config);
+            var driver = systemObject.AddComponent<RivetRopeDebugDriver>();
+            var line = systemObject.AddComponent<LineRenderer>();
+            var visual = systemObject.AddComponent<RivetRopeLineVisual>();
+            var rivetVisual = systemObject.AddComponent<RivetRopeRivetVisual>();
+            var lab = systemObject.AddComponent<RivetRopeVisualLabController>();
+
+            ConfigureLine(line);
+            BindDriver(driver, config, lower, upper, null);
+            BindVisual(visual, config, driver, line);
+            BindRivetVisual(rivetVisual, config, driver);
+            BindVisualLab(lab, config, driver, visual, camera, lower, upper, rivets);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene, VisualLabScenePath);
+            AssetDatabase.Refresh();
+            Debug.Log($"Rivet rope visual lab scene rebuilt at {VisualLabScenePath}");
+        }
+
         private static void EnsureFolders()
         {
-            EnsureFolder("Assets/Anchor/RivetRopeSystem", "Scenes");
-            EnsureFolder("Assets/Anchor/RivetRopeSystem", "Config");
+            RivetRopeEditorAssetUtility.EnsureCoreFolders();
         }
 
         private static void EnsureFolder(string parent, string child)
@@ -75,6 +123,20 @@ namespace Anchor.RivetRopeSystem.Editor
             camera.backgroundColor = new Color(0.05f, 0.06f, 0.08f);
         }
 
+        private static Camera CreateVisualLabCamera()
+        {
+            var cameraObject = new GameObject("Main Camera");
+            cameraObject.tag = "MainCamera";
+            cameraObject.transform.position = new Vector3(0f, 0.8f, -15f);
+            cameraObject.transform.rotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.orthographic = true;
+            camera.orthographicSize = 6.2f;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.045f, 0.05f, 0.065f);
+            return camera;
+        }
+
         private static void CreateWall()
         {
             var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -84,19 +146,49 @@ namespace Anchor.RivetRopeSystem.Editor
             SetColor(wall, new Color(0.18f, 0.18f, 0.2f));
         }
 
+        private static void CreateVisualLabBackdrop()
+        {
+            var backdrop = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            backdrop.name = "Visual Lab Backdrop";
+            backdrop.transform.position = new Vector3(0f, 0.9f, 0.22f);
+            backdrop.transform.localScale = new Vector3(9.5f, 11.5f, 0.08f);
+            SetColor(backdrop, new Color(0.13f, 0.135f, 0.15f));
+        }
+
+        private static void CreateDistanceTicks()
+        {
+            for (int y = -4; y <= 5; y++)
+            {
+                var tick = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                tick.name = $"Distance Tick {y:+0;-0;0}";
+                tick.transform.position = new Vector3(-4.25f, y, -0.04f);
+                tick.transform.localScale = new Vector3(y == 0 ? 0.7f : 0.42f, 0.025f, 0.025f);
+                SetColor(tick, y == 0 ? new Color(0.5f, 0.62f, 0.78f) : new Color(0.32f, 0.36f, 0.42f));
+            }
+        }
+
         private static Transform CreateMarker(string name, Vector3 position, Color color)
+        {
+            return CreateMarker(name, position, color, 0.25f);
+        }
+
+        private static Transform CreateMarker(string name, Vector3 position, Color color, float size)
         {
             var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             marker.name = name;
             marker.transform.position = position;
-            marker.transform.localScale = Vector3.one * 0.25f;
+            marker.transform.localScale = Vector3.one * size;
             SetColor(marker, color);
             return marker.transform;
         }
 
         private static RivetRopeConfig CreateConfigAsset()
         {
-            const string path = "Assets/Anchor/RivetRopeSystem/Config/RivetRopeValidationConfig.asset";
+            return CreateConfigAsset("Assets/Anchor/RivetRopeSystem/Config/RivetRopeValidationConfig.asset");
+        }
+
+        private static RivetRopeConfig CreateConfigAsset(string path)
+        {
             var config = AssetDatabase.LoadAssetAtPath<RivetRopeConfig>(path);
             if (config != null)
             {
@@ -117,9 +209,21 @@ namespace Anchor.RivetRopeSystem.Editor
         private static void ConfigureLine(LineRenderer line)
         {
             line.useWorldSpace = true;
-            line.widthMultiplier = 0.04f;
+            line.widthMultiplier = 0.055f;
             line.positionCount = 0;
-            line.material = new Material(Shader.Find("Sprites/Default"));
+            line.textureMode = LineTextureMode.Tile;
+            line.numCapVertices = 4;
+            line.numCornerVertices = 4;
+            line.material = RivetRopeEditorAssetUtility.EnsureDefaultRopeMaterial();
+        }
+
+        private static void ConfigureConfigVisuals(RivetRopeConfig config)
+        {
+            var visuals = RivetRopeVisualSettings.CreateDefault();
+            visuals.RopeMaterial = RivetRopeEditorAssetUtility.EnsureDefaultRopeMaterial();
+            config.ConfigureRuntimeVisuals(visuals);
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
         }
 
         private static void CreateInstructionCanvas()
@@ -154,6 +258,37 @@ namespace Anchor.RivetRopeSystem.Editor
             rect.sizeDelta = new Vector2(760f, 120f);
         }
 
+        private static void CreateVisualLabInstructions()
+        {
+            var canvasObject = new GameObject("Rivet Rope Visual Lab Instructions");
+            var canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasObject.AddComponent<CanvasScaler>();
+            canvasObject.AddComponent<GraphicRaycaster>();
+
+            var textObject = new GameObject("Instructions");
+            textObject.transform.SetParent(canvasObject.transform, false);
+            var text = textObject.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 15;
+            text.alignment = TextAnchor.LowerRight;
+            text.color = Color.white;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.text =
+                "Rivet Rope Visual Lab\n" +
+                "左侧面板切换路径/模式/参数。\n" +
+                "拖动青色或橙色端点观察跟随、阻尼和回弹。\n" +
+                "黄色球体是铆钉路径预设点。";
+
+            var rect = text.rectTransform;
+            rect.anchorMin = new Vector2(1f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(1f, 0f);
+            rect.anchoredPosition = new Vector2(-16f, 16f);
+            rect.sizeDelta = new Vector2(420f, 96f);
+        }
+
         private static void BindDriver(
             RivetRopeDebugDriver driver,
             RivetRopeConfig config,
@@ -172,11 +307,53 @@ namespace Anchor.RivetRopeSystem.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void BindVisual(RivetRopeLineVisual visual, RivetRopeDebugDriver driver, LineRenderer line)
+        private static void BindVisual(RivetRopeLineVisual visual, RivetRopeConfig config, RivetRopeDebugDriver driver, LineRenderer line)
         {
             var serialized = new SerializedObject(visual);
+            serialized.FindProperty("config").objectReferenceValue = config;
             serialized.FindProperty("driver").objectReferenceValue = driver;
             serialized.FindProperty("lineRenderer").objectReferenceValue = line;
+            serialized.FindProperty("preferConfigSettings").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void BindRivetVisual(RivetRopeRivetVisual visual, RivetRopeConfig config, RivetRopeDebugDriver driver)
+        {
+            var serialized = new SerializedObject(visual);
+            serialized.FindProperty("config").objectReferenceValue = config;
+            serialized.FindProperty("driver").objectReferenceValue = driver;
+            serialized.FindProperty("targetCamera").objectReferenceValue = Camera.main;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void BindVisualLab(
+            RivetRopeVisualLabController lab,
+            RivetRopeConfig config,
+            RivetRopeDebugDriver driver,
+            RivetRopeLineVisual visual,
+            Camera camera,
+            Transform lower,
+            Transform upper,
+            Transform[] rivets)
+        {
+            var serialized = new SerializedObject(lab);
+            serialized.FindProperty("config").objectReferenceValue = config;
+            serialized.FindProperty("driver").objectReferenceValue = driver;
+            serialized.FindProperty("visual").objectReferenceValue = visual;
+            serialized.FindProperty("targetCamera").objectReferenceValue = camera;
+            serialized.FindProperty("lowerEndpoint").objectReferenceValue = lower;
+            serialized.FindProperty("upperEndpoint").objectReferenceValue = upper;
+
+            var markers = serialized.FindProperty("rivetMarkers");
+            markers.arraySize = rivets.Length;
+            for (int i = 0; i < rivets.Length; i++)
+            {
+                markers.GetArrayElementAtIndex(i).objectReferenceValue = rivets[i];
+            }
+
+            serialized.FindProperty("autoMoveUpper").boolValue = true;
+            serialized.FindProperty("autoMoveAmplitude").floatValue = 1.6f;
+            serialized.FindProperty("autoMoveSpeed").floatValue = 0.65f;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 

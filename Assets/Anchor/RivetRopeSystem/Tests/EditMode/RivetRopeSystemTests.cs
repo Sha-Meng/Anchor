@@ -135,6 +135,34 @@ namespace Anchor.RivetRopeSystem.Tests
         }
 
         [Test]
+        public void VisualSettingsChanges_DoNotChangeRopeRules()
+        {
+            PlaceLeadRivet(new Vector3(0f, 5f, 0f));
+            var before = _model.BuildRopePath(Vector3.zero, new Vector3(0f, 12f, 0f));
+            var beforeFall = _model.ResolveFall("lead", Vector3.zero, new Vector3(0f, 12f, 0f));
+            var config = ScriptableObject.CreateInstance<RivetRopeConfig>();
+
+            var visuals = RivetRopeVisualSettings.CreateDefault();
+            visuals.VisualMode = RivetRopeVisualMode.VerletSegments;
+            visuals.Width = 0.16f;
+            visuals.SlackSagPerMeter = 0.2f;
+            visuals.PhysicsDamping = 0.8f;
+            visuals.SwayAmplitude = 0.2f;
+            config.ConfigureRuntimeVisuals(visuals);
+
+            var after = _model.BuildRopePath(Vector3.zero, new Vector3(0f, 12f, 0f));
+            var afterFall = _model.ResolveFall("lead", Vector3.zero, new Vector3(0f, 12f, 0f));
+
+            Assert.AreEqual(before.UsedLength, after.UsedLength, 0.001f);
+            Assert.AreEqual(before.RemainingSlack, after.RemainingSlack, 0.001f);
+            Assert.AreEqual(before.ConstraintDistance, after.ConstraintDistance, 0.001f);
+            Assert.AreEqual(before.TensionState, after.TensionState);
+            Assert.AreEqual(beforeFall.ProtectionRivetId, afterFall.ProtectionRivetId);
+            Assert.AreEqual(beforeFall.SuggestedDamage, afterFall.SuggestedDamage, 0.001f);
+            UnityEngine.Object.DestroyImmediate(config);
+        }
+
+        [Test]
         public void ResolveFall_ProtectedFallDealsLessDamageThanUnprotected()
         {
             var unprotected = _model.ResolveFall("lead", Vector3.zero, new Vector3(0f, 10f, 0f));

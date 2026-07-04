@@ -27,15 +27,18 @@ namespace Anchor.RivetRopeSystem.Editor
             var collect = CreateProbe("Rivet Rope Collect Probe", root.transform, new Vector3(0f, 2.6f, -0.2f));
 
             var config = CreateConfigAsset();
+            ConfigureConfigVisuals(config);
             var driver = root.AddComponent<RivetRopeDebugDriver>();
             var line = root.AddComponent<LineRenderer>();
             var visual = root.AddComponent<RivetRopeLineVisual>();
+            var rivetVisual = root.AddComponent<RivetRopeRivetVisual>();
             var binder = root.AddComponent<RivetRopeMainGameplayBinder>();
             var ui = root.AddComponent<RivetRopeMainGameplayUi>();
 
             ConfigureLine(line);
             BindDriver(driver, config, lower, upper);
-            BindVisual(visual, driver, line);
+            BindVisual(visual, config, driver, line);
+            BindRivetVisual(rivetVisual, config, driver);
             BindMainBinder(binder, driver, upper, lower, place, collect);
             BindMainUi(ui, driver, binder);
 
@@ -83,14 +86,22 @@ namespace Anchor.RivetRopeSystem.Editor
         private static void ConfigureLine(LineRenderer line)
         {
             line.useWorldSpace = true;
-            line.widthMultiplier = 1f;
-            line.widthCurve = AnimationCurve.Constant(0f, 1f, 0.016548652f);
+            line.widthMultiplier = 0.055f;
+            line.widthCurve = AnimationCurve.Constant(0f, 1f, 1f);
             line.positionCount = 0;
-            var ropeMaterial = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/FImpossible Creations/Plugins - Animating/Ragdoll Animator 2/Ragdoll Animator 2 - Demo/Demos Assets/Materials/MAT_Demo_Wood 2.mat");
-            line.material = ropeMaterial != null
-                ? ropeMaterial
-                : new Material(Shader.Find("Sprites/Default"));
+            line.textureMode = LineTextureMode.Tile;
+            line.numCapVertices = 4;
+            line.numCornerVertices = 4;
+            line.material = RivetRopeEditorAssetUtility.EnsureDefaultRopeMaterial();
+        }
+
+        private static void ConfigureConfigVisuals(RivetRopeConfig config)
+        {
+            var visuals = RivetRopeVisualSettings.CreateDefault();
+            visuals.RopeMaterial = RivetRopeEditorAssetUtility.EnsureDefaultRopeMaterial();
+            config.ConfigureRuntimeVisuals(visuals);
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
         }
 
         private static void BindDriver(RivetRopeDebugDriver driver, RivetRopeConfig config, Transform lower, Transform upper)
@@ -105,24 +116,22 @@ namespace Anchor.RivetRopeSystem.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void BindVisual(RivetRopeLineVisual visual, RivetRopeDebugDriver driver, LineRenderer line)
+        private static void BindVisual(RivetRopeLineVisual visual, RivetRopeConfig config, RivetRopeDebugDriver driver, LineRenderer line)
         {
             var serialized = new SerializedObject(visual);
+            serialized.FindProperty("config").objectReferenceValue = config;
             serialized.FindProperty("driver").objectReferenceValue = driver;
             serialized.FindProperty("lineRenderer").objectReferenceValue = line;
-            serialized.FindProperty("slackSagPerMeter").floatValue = 0.09f;
-            serialized.FindProperty("maxSag").floatValue = 1.1f;
-            serialized.FindProperty("segmentSubdivisions").intValue = 12;
-            serialized.FindProperty("enableDynamics").boolValue = true;
-            serialized.FindProperty("springSmoothTime").floatValue = 0.18f;
-            serialized.FindProperty("physicsGravity").floatValue = 7.5f;
-            serialized.FindProperty("physicsDamping").floatValue = 0.94f;
-            serialized.FindProperty("targetFollow").floatValue = 6.5f;
-            serialized.FindProperty("constraintIterations").intValue = 6;
-            serialized.FindProperty("swayAmplitude").floatValue = 0.075f;
-            serialized.FindProperty("swaySpeed").floatValue = 1.8f;
-            serialized.FindProperty("slackColor").colorValue = Color.white;
-            serialized.FindProperty("tautColor").colorValue = Color.white;
+            serialized.FindProperty("preferConfigSettings").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void BindRivetVisual(RivetRopeRivetVisual visual, RivetRopeConfig config, RivetRopeDebugDriver driver)
+        {
+            var serialized = new SerializedObject(visual);
+            serialized.FindProperty("config").objectReferenceValue = config;
+            serialized.FindProperty("driver").objectReferenceValue = driver;
+            serialized.FindProperty("targetCamera").objectReferenceValue = Camera.main;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -141,12 +150,20 @@ namespace Anchor.RivetRopeSystem.Editor
             serialized.FindProperty("placeFallbackPoint").objectReferenceValue = place;
             serialized.FindProperty("collectProbePoint").objectReferenceValue = collect;
             serialized.FindProperty("targetCamera").objectReferenceValue = Camera.main;
-            serialized.FindProperty("waistOffset").vector3Value = new Vector3(0f, -0.75f, 0f);
-            serialized.FindProperty("ropeDepthOffset").floatValue = 0.24f;
-            serialized.FindProperty("ropeSideOffset").floatValue = 0.36f;
+            serialized.FindProperty("waistOffset").vector3Value = new Vector3(0f, -0.45f, 0f);
+            serialized.FindProperty("ropeDepthOffset").floatValue = 0f;
+            serialized.FindProperty("ropeSideOffset").floatValue = 0f;
             serialized.FindProperty("lowerOffsetFromUpper").vector3Value = new Vector3(0f, -3.2f, 0f);
-            serialized.FindProperty("probeFollowSmoothTime").floatValue = 0.14f;
+            serialized.FindProperty("probeFollowSmoothTime").floatValue = 0.08f;
             serialized.FindProperty("autoStartRescueOnFalling").boolValue = true;
+            serialized.FindProperty("preferBoneAttachPoints").boolValue = true;
+            serialized.FindProperty("strictBoneFollow").boolValue = true;
+            serialized.FindProperty("applyPresentationOffsetToAttachPoints").boolValue = false;
+            serialized.FindProperty("localAttachBone").intValue = (int)HumanBodyBones.Hips;
+            serialized.FindProperty("remoteAttachBone").intValue = (int)HumanBodyBones.Hips;
+            serialized.FindProperty("attachBoneNameFallbacks").stringValue = "Spine2,Spine1,Spine,Hips,Torso";
+            serialized.FindProperty("boneLocalOffset").vector3Value = Vector3.zero;
+            serialized.FindProperty("renderRopeBehindCharacters").boolValue = true;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 

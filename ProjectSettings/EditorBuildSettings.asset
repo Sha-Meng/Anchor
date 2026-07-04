@@ -5,12 +5,15 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
+  - enabled: 1
     path: Assets/Anchor/Scenes/NetworkDemoEntry.scene
     guid: 6a9f41f1e8d84a8e8e01d758c9c8d101
   - enabled: 0
     path: Assets/Anchor/Scenes/NetworkDemoGame.scene
     guid: f17a815f0d9a4eaf9b5bd0ce0c57d102
+  - enabled: 0
+    path: Assets/Anchor/SystemValidation/Scenes/SystemValidationTest.scene
+    guid: 9ad5b4e842f08f240b72a5886b69b955
   - enabled: 1
     path: Assets/Scenes/MainLevel.scene
     guid: 9fc0d4010bbf28b4594072e72b8655ab
