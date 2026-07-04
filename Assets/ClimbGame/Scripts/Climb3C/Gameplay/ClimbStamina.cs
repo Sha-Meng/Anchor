@@ -1,40 +1,44 @@
 using ClimbGame.Climb3C.Config;
+using ClimbGame.Climb3C.State;
 using UnityEngine;
 
 namespace ClimbGame.Climb3C.Gameplay
 {
-    /// <summary>耐力条：攀爬时下降，稳定抓握时快速恢复，归零触发摔落。</summary>
+    /// <summary>
+    /// 耐力逻辑：直接读写 <see cref="ClimberRuntimeState"/> 里的耐力字段，
+    /// 使耐力成为可同步的运行时数据的一部分（单一数据源）。
+    /// </summary>
     public sealed class ClimbStamina
     {
         private readonly StaminaConfig _config;
-        private float _current;
+        private readonly ClimberRuntimeState _state;
 
-        public ClimbStamina(StaminaConfig config)
+        public ClimbStamina(StaminaConfig config, ClimberRuntimeState state)
         {
             _config = config;
-            _current = config != null ? config.maxStamina : 100f;
+            _state = state;
+            _state.MaxStamina = config != null ? config.maxStamina : 100f;
+            _state.Stamina = _state.MaxStamina;
         }
 
-        public float Current => _current;
-        public float Max => _config != null ? _config.maxStamina : 100f;
-        public float Ratio => Max > 0f ? Mathf.Clamp01(_current / Max) : 0f;
-        public bool IsEmpty => _current <= 0f;
+        public float Ratio => _state.StaminaRatio;
+        public bool IsEmpty => _state.Stamina <= 0f;
 
         public void Drain(float dt, float multiplier = 1f)
         {
             if (_config == null) return;
-            _current = Mathf.Max(0f, _current - _config.drainPerSecond * multiplier * dt);
+            _state.Stamina = Mathf.Max(0f, _state.Stamina - _config.drainPerSecond * multiplier * dt);
         }
 
         public void Recover(float dt)
         {
             if (_config == null) return;
-            _current = Mathf.Min(Max, _current + _config.recoverPerSecond * dt);
+            _state.Stamina = Mathf.Min(_state.MaxStamina, _state.Stamina + _config.recoverPerSecond * dt);
         }
 
         public void ResetToRatio(float ratio)
         {
-            _current = Max * Mathf.Clamp01(ratio);
+            _state.Stamina = _state.MaxStamina * Mathf.Clamp01(ratio);
         }
     }
 }

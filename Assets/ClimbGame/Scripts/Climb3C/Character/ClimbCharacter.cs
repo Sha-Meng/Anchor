@@ -11,7 +11,7 @@ namespace ClimbGame.Climb3C.Character
     /// 耐力耗尽时切换为自包含布娃娃（Rigidbody + CharacterJoint）自由下落。
     /// 后续可将本类替换为 Ragdoll Animator 2 驱动的正式模型。
     /// </summary>
-    public sealed class ClimbCharacter
+    public sealed class ClimbCharacter : IClimberAvatar
     {
         private readonly ArmRigConfig _rig;
         private readonly RagdollFallConfig _fall;
@@ -68,7 +68,8 @@ namespace ClimbGame.Climb3C.Character
             // 静止姿态摆放（用于建立布娃娃关节锚点）
             ApplyRestPose();
             SetupJoints();
-            SetKinematic(true);
+            // 进入攀爬姿态：上半身运动学，双腿物理垂摆
+            SetupClimbPose(center);
         }
 
         private BodyPart MakeCapsule(string name, float length, float radius, Material mat)
@@ -185,19 +186,66 @@ namespace ClimbGame.Climb3C.Character
             var swing2 = joint.swing2Limit; swing2.limit = 40f; joint.swing2Limit = swing2;
         }
 
-        /// <summary>攀爬模式：设置躯干中心并把非手臂部件复位到相对躯干的静止位姿。</summary>
+        /// <summary>
+        /// 进入攀爬姿态：上半身（躯干/头/双臂/手）运动学，双腿切为物理动态，
+        /// 通过关节从髋部自然垂摆，形成攀爬时下半身的布娃娃表现。
+        /// </summary>
+        public void SetupClimbPose(Vector3 center)
+        {
+            _ragdoll = false;
+            _torsoCenter = center;
+
+            _torso.SetKinematic(true);
+            _head.SetKinematic(true);
+            _leftUpper.SetKinematic(true);
+            _leftFore.SetKinematic(true);
+            _leftHand.SetKinematic(true);
+            _rightUpper.SetKinematic(true);
+            _rightFore.SetKinematic(true);
+            _rightHand.SetKinematic(true);
+
+            PlacePoint(_torso, center + new Vector3(0f, 0.05f, 0f), Quaternion.identity);
+            RestoreLocal(_head, _torso.Transform);
+
+            // 双腿先复位到相对躯干的静止垂姿，再切物理让其自然摆动
+            Transform t = _torso.Transform;
+            _leftUpperLeg.SetKinematic(true);
+            _leftLowerLeg.SetKinematic(true);
+            _rightUpperLeg.SetKinematic(true);
+            _rightLowerLeg.SetKinematic(true);
+            RestoreLocal(_leftUpperLeg, t);
+            RestoreLocal(_leftLowerLeg, t);
+            RestoreLocal(_rightUpperLeg, t);
+            RestoreLocal(_rightLowerLeg, t);
+            SetLegsDynamic();
+        }
+
+        private void SetLegsDynamic()
+        {
+            SetLegDynamic(_leftUpperLeg);
+            SetLegDynamic(_leftLowerLeg);
+            SetLegDynamic(_rightUpperLeg);
+            SetLegDynamic(_rightLowerLeg);
+        }
+
+        private void SetLegDynamic(BodyPart leg)
+        {
+            leg.SetKinematic(false);
+            // 攀爬时双腿摆动的阻尼：略大以免乱甩，但保留可见的自然晃动
+            leg.Body.drag = 0.4f;
+            leg.Body.angularDrag = 1.5f;
+            leg.Body.velocity = Vector3.zero;
+            leg.Body.angularVelocity = Vector3.zero;
+        }
+
+        /// <summary>攀爬模式每帧调用：驱动运动学的躯干与头随中心移动；双腿保持物理不干预。</summary>
         public void SetTorsoCenter(Vector3 center)
         {
             _torsoCenter = center;
             if (_ragdoll) return;
 
             PlacePoint(_torso, center + new Vector3(0f, 0.05f, 0f), Quaternion.identity);
-            Transform t = _torso.Transform;
-            RestoreLocal(_head, t);
-            RestoreLocal(_leftUpperLeg, t);
-            RestoreLocal(_leftLowerLeg, t);
-            RestoreLocal(_rightUpperLeg, t);
-            RestoreLocal(_rightLowerLeg, t);
+            RestoreLocal(_head, _torso.Transform);
         }
 
         private static void RestoreLocal(BodyPart p, Transform torso)
@@ -248,7 +296,8 @@ namespace ClimbGame.Climb3C.Character
         public void EnterRagdoll(Vector3 initialVelocity)
         {
             _ragdoll = true;
-            // 先把四肢复位到相对躯干的静止姿态，使关节锚点与建立时一致，避免开启物理瞬间被约束弹飞
+            // 把上半身复位到相对躯干的静止姿态，使关节锚点与建立时一致，避免开启物理瞬间被约束弹飞。
+            // 双腿在攀爬时本就是物理动态，位置已是合法物理姿态，无需复位（避免摔落瞬间腿部跳变）。
             Transform t = _torso.Transform;
             RestoreLocal(_head, t);
             RestoreLocal(_leftUpper, t);
@@ -257,10 +306,6 @@ namespace ClimbGame.Climb3C.Character
             RestoreLocal(_rightUpper, t);
             RestoreLocal(_rightFore, t);
             RestoreLocal(_rightHand, t);
-            RestoreLocal(_leftUpperLeg, t);
-            RestoreLocal(_leftLowerLeg, t);
-            RestoreLocal(_rightUpperLeg, t);
-            RestoreLocal(_rightLowerLeg, t);
 
             foreach (var p in _all)
             {

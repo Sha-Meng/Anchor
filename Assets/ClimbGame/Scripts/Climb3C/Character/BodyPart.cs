@@ -22,13 +22,14 @@ namespace ClimbGame.Climb3C.Character
         public void SetKinematic(bool kinematic)
         {
             if (Body == null) return;
-            Body.isKinematic = kinematic;
-            Body.useGravity = !kinematic;
-            if (kinematic)
+            // 先在仍为动态时清零速度，再切运动学；避免"对运动学刚体设置速度不支持"的警告
+            if (kinematic && !Body.isKinematic)
             {
                 Body.velocity = Vector3.zero;
                 Body.angularVelocity = Vector3.zero;
             }
+            Body.isKinematic = kinematic;
+            Body.useGravity = !kinematic;
         }
     }
 }

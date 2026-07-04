@@ -1,9 +1,11 @@
+using Anchor.SystemValidation;
 using ClimbGame.Climb3C.Character;
 using ClimbGame.Climb3C.Config;
 using ClimbGame.Climb3C.Core;
 using ClimbGame.Climb3C.Feedback;
 using ClimbGame.Climb3C.Gameplay;
 using ClimbGame.Climb3C.Input;
+using ClimbGame.Climb3C.State;
 using ClimbGame.Climb3C.UI;
 using UnityEngine;
 
@@ -108,8 +110,9 @@ namespace ClimbGame.Climb3C.Boot
             var input = servicesGo.AddComponent<ClimbTouchInput>();
             input.SetTuning(tuning);
 
+            var hapticAdapter = servicesGo.AddComponent<MobileHapticFeedbackAdapter>();
             var haptics = servicesGo.AddComponent<HapticService>();
-            haptics.Configure(haptic, HapticBackendFactory.Create());
+            haptics.Configure(haptic, hapticAdapter);
 
             var magnifierGo = new GameObject("HandMagnifier");
             magnifierGo.transform.SetParent(servicesGo.transform, false);
@@ -117,15 +120,17 @@ namespace ClimbGame.Climb3C.Boot
             magnifierComp.Setup(magnifier, cam, canvas, LayerUI);
 
             var projector = new WallProjector(cam, 1 << LayerDefault, RivetZ);
-            var staminaModel = new ClimbStamina(stamina);
 
             // --- 相机连线 ---
             climbCam.Configure(cameraConfig, () => _controller != null ? _controller.TorsoCenter : startCenter);
 
+            // --- 运行时上下文（保存攀爬者运行时数据，供后续联机同步）---
+            var gameContext = new GameContext(0);
+
             // --- 控制器 ---
             var controllerGo = new GameObject("ClimbController");
             _controller = controllerGo.AddComponent<ClimbController3D>();
-            _controller.Initialize(tuning, armRig, stamina, haptic, character, staminaModel, input,
+            _controller.Initialize(gameContext, 0, tuning, armRig, stamina, haptic, character, input,
                 projector, rivetField, haptics, magnifierComp, staminaBar, startCenter);
             _controller.SetFallDependencies(ragdollFall, climbCam);
             _controller.SetZoneOverlay(zoneOverlay);

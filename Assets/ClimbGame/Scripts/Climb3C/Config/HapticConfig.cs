@@ -10,13 +10,13 @@ namespace ClimbGame.Climb3C.Config
     {
         [Header("距离分档（当前手到最近铆钉的距离）")]
         [Tooltip("<= 该距离：剧烈档")]
-        public float intenseRadius = 0.35f;
+        public float intenseRadius = 0.5f;
 
         [Tooltip("<= 该距离（且 > 剧烈档）：轻微档；再远则无反馈")]
-        public float slightRadius = 1.1f;
+        public float slightRadius = 1.4f;
 
-        [Tooltip("<= 该距离：判定抓住铆钉并完成本次攀爬")]
-        public float snapRadius = 0.14f;
+        [Tooltip("<= 该距离：判定抓住铆钉并完成本次攀爬（含抓点半径+手半径的容差）")]
+        public float snapRadius = 0.28f;
 
         [Header("连续强度映射（0..1）")]
         [Tooltip("进入 slightRadius 后，强度随距离从该下限连续升到 1")]

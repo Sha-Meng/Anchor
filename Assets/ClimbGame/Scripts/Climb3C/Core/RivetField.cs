@@ -12,6 +12,13 @@ namespace ClimbGame.Climb3C.Core
 
         public IReadOnlyList<RivetPoint> Rivets => _rivets;
 
+        /// <summary>铆钉在场内的索引（供联机同步引用）；不存在返回 -1。</summary>
+        public int IndexOf(RivetPoint rivet) => rivet == null ? -1 : _rivets.IndexOf(rivet);
+
+        /// <summary>按索引取铆钉（联机同步时用）；越界返回 null。</summary>
+        public RivetPoint GetByIndex(int index) =>
+            index >= 0 && index < _rivets.Count ? _rivets[index] : null;
+
         public void Register(RivetPoint rivet)
         {
             if (rivet != null && !_rivets.Contains(rivet))
