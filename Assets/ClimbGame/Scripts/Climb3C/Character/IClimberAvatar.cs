@@ -19,6 +19,9 @@ namespace ClimbGame.Climb3C.Character
         /// <summary>头部当前的注视方向（世界，已按最大角度夹取），供相机做二次 lookat。</summary>
         Vector3 HeadLookDirection { get; }
 
+        /// <summary>角色防穿模用的胶囊体碰撞器（可能为 null，如无碰撞体的表现型化身）。</summary>
+        CapsuleCollider BodyCapsule { get; }
+
         /// <summary>
         /// 更新头部 lookat：active 时头部朝 targetWorld 注视（相对中立朝向夹取到 maxAngleDeg），
         /// 否则平滑回到中立朝向。需在每帧摆放躯干/头之后调用。

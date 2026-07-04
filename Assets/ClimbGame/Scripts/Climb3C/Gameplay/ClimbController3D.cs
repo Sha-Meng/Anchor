@@ -38,6 +38,8 @@ namespace ClimbGame.Climb3C.Gameplay
         private InputZoneOverlayUI _zoneOverlay;
         private IGripQueryProvider _gripProvider;
         private WallDepthProbe _wallProbe;
+        private CapsuleWallResolver _wallResolver;
+        private float _bodyWallOffset = 0.4f;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
         private readonly ClimbForceInputAdapter _forceInputAdapter = new ClimbForceInputAdapter();
 
@@ -246,9 +248,27 @@ namespace ClimbGame.Climb3C.Gameplay
 
             Vector3 mid = (leftGoal + rightGoal) * 0.5f + _tuning.torsoCenterOffset;
             mid = ClampTorsoForAnchoredHands(mid);
+            // 防穿模：身体沿"背离墙面方向"退到抓点平面前方一个固定距离（确定性，不依赖射线，
+            // 避免命中无关碰撞体把角色拽飞）。手臂再从身体前方伸回墙面抓点。
+            Vector3 wallForward = _cameraConfig != null && _cameraConfig.neutralForward.sqrMagnitude > 1e-6f
+                ? _cameraConfig.neutralForward.normalized
+                : Vector3.forward;
+            mid -= wallForward * _bodyWallOffset;
             _s.TorsoCenter = SmoothTo(_s.TorsoCenter, mid, _tuning.torsoFollowLerp);
 
+            // 先按目标中心摆好胶囊体，再做胶囊体 vs 墙体去穿模：
+            // 若发生穿插，沿碰撞法线把角色推出贴合墙面，避免胶囊体陷入墙体。
             _avatar.SetTorsoCenter(_s.TorsoCenter);
+            if (_wallResolver != null)
+            {
+                Vector3 resolved = _wallResolver.Resolve(_s.TorsoCenter);
+                if ((resolved - _s.TorsoCenter).sqrMagnitude > 1e-8f)
+                {
+                    _s.TorsoCenter = resolved;
+                    _avatar.SetTorsoCenter(_s.TorsoCenter);
+                }
+            }
+
             _avatar.DriveArm(ClimbHand.Left, leftGoal, true);
             _avatar.DriveArm(ClimbHand.Right, rightGoal, true);
         }
@@ -331,6 +351,10 @@ namespace ClimbGame.Climb3C.Gameplay
         public void SetGripProvider(IGripQueryProvider provider) => _gripProvider = provider;
 
         public void SetWallProbe(WallDepthProbe probe) => _wallProbe = probe;
+
+        public void SetWallResolver(CapsuleWallResolver resolver) => _wallResolver = resolver;
+
+        public void SetBodyWallOffset(float offset) => _bodyWallOffset = offset;
 
         public void SetCameraConfig(ClimbCameraConfig cfg) => _cameraConfig = cfg;
 

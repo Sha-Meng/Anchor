@@ -21,6 +21,19 @@ namespace ClimbGame.Climb3C.Input
             _surfaceOffset = surfaceOffset;
         }
 
+        /// <summary>在 (x, y) 处沿 +Z 采样墙面表面的 z；命中返回 true。</summary>
+        public bool TrySampleSurfaceZ(float x, float y, out float surfaceZ)
+        {
+            var origin = new Vector3(x, y, _castFromZ);
+            if (Physics.Raycast(origin, Vector3.forward, out RaycastHit h, _castDistance, _wallMask, QueryTriggerInteraction.Ignore))
+            {
+                surfaceZ = h.point.z;
+                return true;
+            }
+            surfaceZ = 0f;
+            return false;
+        }
+
         /// <summary>
         /// 把 target 的 z 贴到 (target.x, target.y) 处的墙面表面（沿 +Z 打射线）。
         /// 命中则 hit=true 并更新 z；未命中保持原 z。

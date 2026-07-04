@@ -59,6 +59,7 @@
 - [x] 7.5 躯干重心跟随双手中点（含偏移/平滑），带动肩部
 - [x] 7.6 组合根 `Climb3CBootstrap`：装配相机/墙/铆钉/角色/输入区/放大镜/耐力/布娃娃并引用各 SO
 - [x] 7.7 演示场景 Editor 一键创建入口（Tools ▸ ClimbGame ▸ 3C）
+- [x] 7.8 胶囊体防穿模：`CapsuleWallResolver` 基于 `Physics.ComputePenetration` 迭代去穿模，躯干每帧摆位后沿碰撞法线推出贴合墙面；经 `IClimberAvatar.BodyCapsule` 暴露胶囊体，`Climb3CLevelBinder`/`Climb3CBootstrap` 连线并暴露墙体层/迭代次数/开关
 
 ## 8. 耐力系统
 
