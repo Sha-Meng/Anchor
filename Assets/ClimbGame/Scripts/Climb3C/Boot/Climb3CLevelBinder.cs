@@ -71,9 +71,32 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("坠落判定用的 ForceSystem 配置（留空则用默认阈值）")]
         public ForceSystemConfig forceConfig;
 
-        [Header("角色外观")]
-        public Color bodyColor = new Color(0.2f, 0.5f, 0.85f);
-        public Color handColor = new Color(0.95f, 0.8f, 0.65f);
+        [Header("角色 Prefab")]
+        [Tooltip("正式角色 Prefab；留空则在编辑器下按下面路径加载")]
+        public GameObject characterPrefab;
+
+        [Tooltip("角色 Prefab 资源路径（编辑器下 characterPrefab 为空时使用）")]
+        public string characterPrefabPath = "Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab";
+
+        [Tooltip("角色缩放")]
+        public float characterScale = 1f;
+
+        [Header("防穿模胶囊体")]
+        public Vector3 capsuleCenter = new Vector3(0f, 0f, 0f);
+        public float capsuleHeight = 1.6f;
+        public float capsuleRadius = 0.3f;
+
+        [Tooltip("身体保持在墙面前方的距离（应大于胶囊半径，避免身体陷入墙体）")]
+        public float bodyWallOffset = 0.4f;
+
+        [Tooltip("是否启用胶囊体 vs 墙体的去穿模（沿碰撞法线把角色推出贴合墙面）")]
+        public bool resolveCapsulePenetration = true;
+
+        [Tooltip("参与去穿模检测的墙体层（默认排除角色所在的 Ignore Raycast 层与 UI 层）")]
+        public LayerMask wallCollisionMask = ~((1 << 2) | (1 << 5));
+
+        [Tooltip("去穿模迭代次数：贴多面墙的角落需要多次迭代才能同时推出")]
+        public int depenetrationIterations = 4;
 
         private const int LayerIgnoreRaycast = 2;
         private const int LayerUI = 5;
@@ -159,15 +182,24 @@ namespace ClimbGame.Climb3C.Boot
                 startCenter = new Vector3(centerX, min.y - startBelowLowest, planeZ - characterFrontOffset);
             }
 
-            // --- 材质 ---
-            Shader shader = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse");
-            Material bodyMat = new Material(shader) { color = bodyColor };
-            Material handMat = new Material(shader) { color = handColor };
+            // --- 角色（正式 Prefab）---
+            GameObject prefab = characterPrefab;
+#if UNITY_EDITOR
+            if (prefab == null && !string.IsNullOrEmpty(characterPrefabPath))
+            {
+                prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(characterPrefabPath);
+            }
+#endif
+            if (prefab == null)
+            {
+                Debug.LogError("[Climb3CLevelBinder] 未指定角色 Prefab（characterPrefab 或 characterPrefabPath）。");
+                yield break;
+            }
 
-            // --- 角色 ---
-            var character = new ClimbCharacter(armRig, ragdollFall);
-            character.Build(null, startCenter, bodyMat, handMat);
-            SetLayerRecursive(character.Root, LayerIgnoreRaycast);
+            var avatar = new PrefabClimberAvatar(prefab, armRig, ragdollFall,
+                characterScale, capsuleCenter, capsuleHeight, capsuleRadius);
+            avatar.Build(null, startCenter, null, null);
+            SetLayerRecursive(avatar.Root, LayerIgnoreRaycast);
 
             // --- Canvas / UI ---
             var canvasGo = new GameObject("Climb3C_Canvas");
@@ -226,18 +258,26 @@ namespace ClimbGame.Climb3C.Boot
                 climbCam = cam.GetComponent<ClimbCamera>();
                 if (climbCam == null) climbCam = cam.gameObject.AddComponent<ClimbCamera>();
                 cameraConfig.overShoulderOffset = overShoulderOffset;
-                climbCam.Configure(cameraConfig, character);
+                climbCam.Configure(cameraConfig, avatar);
             }
 
             // --- 控制器 ---
             var controllerGo = new GameObject("Climb3C_Controller");
             _controller = controllerGo.AddComponent<ClimbController3D>();
-            _controller.Initialize(gameContext, 0, tuning, armRig, stamina, haptic, character, input,
+            _controller.Initialize(gameContext, 0, tuning, armRig, stamina, haptic, avatar, input,
                 projector, rivetField, haptics, magnifierComp, staminaBar, startCenter);
             _controller.SetFallDependencies(ragdollFall, climbCam);
             _controller.SetZoneOverlay(zoneOverlay);
             _controller.SetGripProvider(anchorRegistry);
             _controller.SetWallProbe(wallProbe);
+            _controller.SetBodyWallOffset(bodyWallOffset);
+
+            // 胶囊体防穿模：把角色胶囊体与墙体做重叠检测，穿插时沿法线推出贴合墙面
+            if (resolveCapsulePenetration && avatar.BodyCapsule != null)
+            {
+                var wallResolver = new CapsuleWallResolver(avatar.BodyCapsule, wallCollisionMask, depenetrationIterations);
+                _controller.SetWallResolver(wallResolver);
+            }
             _controller.SetCameraConfig(cameraConfig);
             if (forceConfig != null) _controller.SetForceSettings(forceConfig.Settings);
 

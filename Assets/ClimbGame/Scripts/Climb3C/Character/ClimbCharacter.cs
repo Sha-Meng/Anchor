@@ -27,6 +27,7 @@ namespace ClimbGame.Climb3C.Character
 
         private Vector3 _torsoCenter;
         private bool _ragdoll;
+        private CapsuleCollider _torsoCapsule;
 
         private const float ArmThickness = 0.07f;
         private const float LegThickness = 0.09f;
@@ -42,6 +43,7 @@ namespace ClimbGame.Climb3C.Character
 
         public Vector3 HeadWorldPosition => _head != null ? _head.Transform.position : _torsoCenter;
         public Vector3 HeadLookDirection => _headLookDir;
+        public CapsuleCollider BodyCapsule => _torsoCapsule;
 
         /// <summary>头部 lookat：active 时朝 targetWorld，夹取到中立朝向 maxAngle 内；否则回中立。</summary>
         public void UpdateHeadLook(Vector3 targetWorld, bool active, Vector3 neutralForward, float maxAngleDeg, float lerpSpeed)
@@ -85,6 +87,7 @@ namespace ClimbGame.Climb3C.Character
             _root.position = center;
 
             _torso = MakeCapsule("Torso", 0.62f, 0.17f, bodyMat);
+            _torsoCapsule = _torso.Transform.GetComponent<CapsuleCollider>();
             _head = MakeSphere("Head", 0.16f, bodyMat);
             _leftUpper = MakeCapsule("LeftUpperArm", _rig.upperArmLength, ArmThickness, bodyMat);
             _leftFore = MakeCapsule("LeftForearm", _rig.lowerArmLength, ArmThickness, bodyMat);
