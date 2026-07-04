@@ -42,6 +42,7 @@ namespace ClimbGame.Climb3C.Gameplay
         private float _maxHandDistance = 2f;
         private float _handSlipCancelDistance = 0.5f;
         private float _gripMagnetZOffset = 0.1f;
+        private float _grabSnapDistanceXY = 0.5f;
         private bool _magnifierEnabled = true;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
         private readonly ClimbForceInputAdapter _forceInputAdapter = new ClimbForceInputAdapter();
@@ -444,38 +445,22 @@ namespace ClimbGame.Climb3C.Gameplay
         }
 
         /// <summary>
-        /// 攀附判定：先从 SystemValidation 的抓握判定接口（IGripQueryProvider.TryQueryGrip，xy 投影）取抓握候选，
-        /// 再交给 ForceSystem 的 <see cref="ForceEvaluator.EvaluateHand"/> 做最终判定（综合候选/质量/耐力等规则）。
-        /// 判定参数（手掌世界位、耐力）来自 GameContext；hold 为要吸附到的铆钉（按 xy 最近选取）。
+        /// 攀附判定：直接在攀爬 3C 系统内完成。取当前移动手 xy 最近的吸附点（ScatterAnchor/铆钉），
+        /// 若两者 xy 投影距离小于阈值 <see cref="_grabSnapDistanceXY"/> 即判定吸附成功。
         /// </summary>
         private bool TryDetermineGrab(out RivetPoint hold)
         {
-            Vector3 handPos = _s.AttackHandCurrent;   // 判定参数：来自 GameContext 运行时状态
+            Vector3 handPos = _s.AttackHandCurrent;
 
-            // 只按 xy 投影选取最近铆钉（去掉 z 影响），作为吸附目标
+            // 只按 xy 投影选取最近吸附点（去掉 z 影响），作为吸附目标
             hold = _rivets.FindNearestExcludingXY(handPos, ExcludeRivet(), out float distXY);
             if (hold == null) return false;
 
-            // 红圈 = 抓取有效半径（HapticConfig.snapRadius，RivetPoint 用纯红 Gizmo 画的圈）。
-            // 手在红圈内（仅看 xy）即形成满质量抓握候选。
-            float redRadius = _hapticCfg != null ? _hapticCfg.snapRadius : 0.14f;
-            bool inRedCircle = distXY <= redRadius;
-            GripQueryResult grip = inRedCircle
-                ? GripQueryResult.Candidate(ForcePointType.ValidHold, 1f, false, Vector3.forward, hold.name, hold.name)
-                : GripQueryResult.None();
-
-            // 交给 ForceSystem 的 EvaluateHand 做攀附判定（在红圈内 + 耐力/身体正常 → 成功）
-            var handInput = HandForceInput.FromGrip(true, grip, _s.StaminaRatio, handPos);
-            var body = new BodyForceInput { IsAlreadyFalling = false, IsStunned = false };
-            ForceHandEvaluation eval = ForceEvaluator.EvaluateHand(handInput, body, _forceSettings);
-
-            bool grabbed = eval.IsEffective;
-            Debug.Log(
-                $"[Grab] hand={_s.CurrentHand} 铆钉='{hold.name}'({hold.GrabPosition}) " +
-                $"xy距离={distXY:0.###} 红圈半径={redRadius:0.###} 在红圈内={inRedCircle} " +
-                $"ForceEval={eval.IsEffective} reason={eval.FailureReason} → {(grabbed ? "抓住" : "放弃")}");
+            bool grabbed = distXY <= _grabSnapDistanceXY;
             return grabbed;
         }
+
+        public void SetGrabSnapDistanceXY(float distance) => _grabSnapDistanceXY = distance;
 
         public void SetGripProvider(IGripQueryProvider provider) => _gripProvider = provider;
 

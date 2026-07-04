@@ -123,6 +123,9 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("手吸附在铆钉上时，磁点沿 -Z 方向偏移的距离（米）")]
         public float gripMagnetZOffset = 0.1f;
 
+        [Tooltip("松手判定吸附：移动手与最近吸附点（ScatterAnchor）的 xy 投影距离小于该值即吸附成功（米）")]
+        public float grabSnapDistanceXY = 0.5f;
+
         [Tooltip("放大镜总开关（默认关闭；开启后显示攀爬手的 RT 放大镜）")]
         public bool enableMagnifier = false;
 
@@ -367,6 +370,7 @@ namespace ClimbGame.Climb3C.Boot
             _controller.SetMaxHandDistance(maxHandDistance);
             _controller.SetHandSlipCancelDistance(handSlipCancelDistance);
             _controller.SetGripMagnetZOffset(gripMagnetZOffset);
+            _controller.SetGrabSnapDistanceXY(grabSnapDistanceXY);
             _controller.SetMagnifierEnabled(enableMagnifier);
 
             // 胶囊体防穿模：把角色胶囊体与墙体做重叠检测，穿插时沿法线推出贴合墙面
