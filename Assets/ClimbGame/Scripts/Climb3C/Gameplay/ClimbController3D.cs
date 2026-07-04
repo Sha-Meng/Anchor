@@ -217,8 +217,8 @@ namespace ClimbGame.Climb3C.Gameplay
                     }
                     else
                     {
-                        // 持续伸手：只给靠近反馈，不在此吸附（吸附只在松手时判定）
-                        _rivets.FindNearestExcluding(_s.AttackHandCurrent, ExcludeRivet(), out float dist);
+                        // 持续伸手：只给靠近反馈（同样用 xy 投影距离），不在此吸附（吸附只在松手时判定）
+                        _rivets.FindNearestExcludingXY(_s.AttackHandCurrent, ExcludeRivet(), out float dist);
                         _haptics.UpdateProximity(dist);
                         _magnifierScreen = p.ScreenPos;
                         _showMagnifier = true;
@@ -390,31 +390,37 @@ namespace ClimbGame.Climb3C.Gameplay
         }
 
         /// <summary>
-        /// 吸附判定：判定逻辑交给 SystemValidation 的抓握判定接口（IGripQueryProvider.TryQueryGrip），
-        /// 其参数（手掌世界位、查询半径）从 GameContext 取。无判定接口时回退到距离判定（供 Demo）。
+        /// 攀附判定：先从 SystemValidation 的抓握判定接口（IGripQueryProvider.TryQueryGrip，xy 投影）取抓握候选，
+        /// 再交给 ForceSystem 的 <see cref="ForceEvaluator.EvaluateHand"/> 做最终判定（综合候选/质量/耐力等规则）。
+        /// 判定参数（手掌世界位、耐力）来自 GameContext；hold 为要吸附到的铆钉（按 xy 最近选取）。
         /// </summary>
         private bool TryDetermineGrab(out RivetPoint hold)
         {
             Vector3 handPos = _s.AttackHandCurrent;   // 判定参数：来自 GameContext 运行时状态
-            float radius = _ctx.GripQueryRadius;        // 判定参数：来自 GameContext
 
-            hold = _rivets.FindNearestExcluding(handPos, ExcludeRivet(), out float dist);
+            // 只按 xy 投影选取最近铆钉（去掉 z 影响），作为吸附目标
+            hold = _rivets.FindNearestExcludingXY(handPos, ExcludeRivet(), out float distXY);
             if (hold == null) return false;
 
-            bool valid;
-            if (_gripProvider != null)
-            {
-                valid = _gripProvider.TryQueryGrip(handPos, radius, out GripQueryResult grip)
-                        && grip.HasCandidate
-                        && grip.PointType == ForcePointType.ValidHold;
-            }
-            else
-            {
-                valid = dist <= _hapticCfg.snapRadius;
-            }
+            // 红圈 = 抓取有效半径（HapticConfig.snapRadius，RivetPoint 用纯红 Gizmo 画的圈）。
+            // 手在红圈内（仅看 xy）即形成满质量抓握候选。
+            float redRadius = _hapticCfg != null ? _hapticCfg.snapRadius : 0.14f;
+            bool inRedCircle = distXY <= redRadius;
+            GripQueryResult grip = inRedCircle
+                ? GripQueryResult.Candidate(ForcePointType.ValidHold, 1f, false, Vector3.forward, hold.name, hold.name)
+                : GripQueryResult.None();
 
-            // 判定通过，且吸附目标确实落在查询半径内，才吸附
-            return valid && dist <= radius;
+            // 交给 ForceSystem 的 EvaluateHand 做攀附判定（在红圈内 + 耐力/身体正常 → 成功）
+            var handInput = HandForceInput.FromGrip(true, grip, _s.StaminaRatio, handPos);
+            var body = new BodyForceInput { IsAlreadyFalling = false, IsStunned = false };
+            ForceHandEvaluation eval = ForceEvaluator.EvaluateHand(handInput, body, _forceSettings);
+
+            bool grabbed = eval.IsEffective;
+            Debug.Log(
+                $"[Grab] hand={_s.CurrentHand} 铆钉='{hold.name}'({hold.GrabPosition}) " +
+                $"xy距离={distXY:0.###} 红圈半径={redRadius:0.###} 在红圈内={inRedCircle} " +
+                $"ForceEval={eval.IsEffective} reason={eval.FailureReason} → {(grabbed ? "抓住" : "放弃")}");
+            return grabbed;
         }
 
         public void SetGripProvider(IGripQueryProvider provider) => _gripProvider = provider;
