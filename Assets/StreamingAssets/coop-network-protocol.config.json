@@ -1,0 +1,51 @@
+{
+  "version": "0.1.0",
+  "transport": {
+    "defaultEndpoint": "ws://43.156.16.10:8080/ws",
+    "fallbackEndpoint": "ws://43.156.16.10/ws"
+  },
+  "envelope": {
+    "fields": [
+      "type",
+      "requestId",
+      "roomId",
+      "senderId",
+      "seq",
+      "sentAt",
+      "schema",
+      "payload"
+    ]
+  },
+  "messages": [
+    {
+      "type": "game.state",
+      "schema": "demo-state.v1",
+      "displayName": "Demo State",
+      "sendMode": "interval",
+      "sendRateHz": 10,
+      "relay": true,
+      "payloadFields": [
+        { "name": "position", "type": "vector3", "required": true },
+        { "name": "rotationY", "type": "number", "required": false },
+        { "name": "state", "type": "string", "required": false }
+      ]
+    },
+    {
+      "type": "game.event",
+      "schema": "demo-event.v1",
+      "displayName": "Demo Event",
+      "sendMode": "event",
+      "relay": true,
+      "payloadFields": [
+        { "name": "eventId", "type": "string", "required": true },
+        { "name": "eventType", "type": "string", "required": true },
+        { "name": "data", "type": "object", "required": false }
+      ]
+    }
+  ],
+  "notes": [
+    "本文件定义 MVP 测试用的客户端 game.* payload 示例。",
+    "修改 game.* payload 字段或发送频率不需要重新部署 relay 服务器。",
+    "修改 system.* 或 room.* 控制流程可能需要修改服务器。"
+  ]
+}
