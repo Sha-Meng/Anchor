@@ -14,6 +14,12 @@ namespace ClimbGame.Climb3C.State
         /// <summary>本地玩家 id。</summary>
         public int LocalPlayerId { get; private set; }
 
+        /// <summary>
+        /// 抓握判定用的查询半径（世界单位）。作为传给 SystemValidation 判定接口
+        /// （IGripQueryProvider.TryQueryGrip / ILevelAnchorQuery）的参数之一，集中在此便于同步/调参。
+        /// </summary>
+        public float GripQueryRadius = 0.5f;
+
         public GameContext(int localPlayerId = 0)
         {
             LocalPlayerId = localPlayerId;

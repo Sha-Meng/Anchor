@@ -1,3 +1,4 @@
+using Anchor.ForceSystem;
 using ClimbGame.Climb3C.Character;
 using ClimbGame.Climb3C.Config;
 using ClimbGame.Climb3C.Core;
@@ -34,6 +35,8 @@ namespace ClimbGame.Climb3C.Gameplay
         private StaminaBarUI _staminaBar;
         private ClimbCamera _camera;
         private InputZoneOverlayUI _zoneOverlay;
+        private IGripQueryProvider _gripProvider;
+        private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
 
         private GameContext _ctx;
         private ClimberRuntimeState _s;
@@ -72,6 +75,7 @@ namespace ClimbGame.Climb3C.Gameplay
             _staminaBar = staminaBar;
 
             _stamina = new ClimbStamina(staminaCfg, _s);
+            _s.ForceMemory = ForceEvaluationMemory.CreateDefault();
 
             _s.State = ClimbState.WaitingForPress;
             _s.CurrentHand = ClimbHand.None;
@@ -105,6 +109,8 @@ namespace ClimbGame.Climb3C.Gameplay
             {
                 UpdateClimb(dt);
                 UpdateTorsoAndArms();
+                // 坠落判定交给 SystemValidation 的 ForceEvaluator（逐帧演算，输入来自 GameContext）
+                EvaluateForceState(dt);
             }
 
             if (_showMagnifier)
@@ -155,33 +161,35 @@ namespace ClimbGame.Climb3C.Gameplay
 
             if (_s.State == ClimbState.Reaching)
             {
-                if (_input.TryGetPointerById(_s.TrackedFinger, out ClimbPointer p) && p.Phase != ClimbPointerPhase.Ended)
+                if (_input.TryGetPointerById(_s.TrackedFinger, out ClimbPointer p))
                 {
-                    Vector3 target = _projector.Project(p.ScreenPos, out _);
-                    _lastTouchScreen = p.ScreenPos;
-                    _showTouchMarker = true;
+                    // 相对映射：手 = 手起点 +（触点当前位 − 触点起点）。按下瞬间位移为 0，手不跳变。
+                    Vector3 touchNow = _projector.Project(p.ScreenPos, out _);
+                    Vector3 target = _s.ReachStartHand + (touchNow - _s.ReachStartTouch);
                     _s.AttackHandCurrent = SmoothTo(_s.AttackHandCurrent, target, _tuning.handFollowLerp);
 
-                    // 抓握/靠近检测用触点的实际投影位（而非平滑滞后的手位），提升贴合灵敏度：
-                    // 手指落在抓点上即判定，不必等平滑追上。
-                    RivetPoint nearest = _rivets.FindNearestExcluding(target, ExcludeRivet(), out float dist);
-                    _haptics.UpdateProximity(dist);
-                    _magnifierScreen = p.ScreenPos;
-                    _showMagnifier = true;
-                    _stamina.Drain(dt);
-
-                    if (nearest != null && dist <= _hapticCfg.snapRadius)
+                    if (p.Phase == ClimbPointerPhase.Ended)
                     {
-                        Grab(nearest);
+                        // 松手：用相对映射的最终位（去平滑）做一次吸附判定
+                        _s.AttackHandCurrent = target;
+                        ResolveRelease();
                     }
-                    else if (_stamina.IsEmpty)
+                    else
                     {
-                        BeginFall();
+                        // 持续伸手：只给靠近反馈，不在此吸附（吸附只在松手时判定）
+                        _lastTouchScreen = p.ScreenPos;
+                        _showTouchMarker = true;
+                        _rivets.FindNearestExcluding(target, ExcludeRivet(), out float dist);
+                        _haptics.UpdateProximity(dist);
+                        _magnifierScreen = p.ScreenPos;
+                        _showMagnifier = true;
+                        _stamina.Drain(dt);
                     }
                 }
                 else
                 {
-                    BeginReturn();
+                    // 触点丢失，按松手处理
+                    ResolveRelease();
                 }
             }
             else if (_s.State == ClimbState.Returning)
@@ -195,10 +203,6 @@ namespace ClimbGame.Climb3C.Gameplay
                 if ((_s.AttackHandCurrent - anchor).sqrMagnitude < 0.0025f)
                 {
                     _s.State = ClimbState.WaitingForPress;
-                }
-                else if (_stamina.IsEmpty)
-                {
-                    BeginFall();
                 }
             }
         }
@@ -250,11 +254,98 @@ namespace ClimbGame.Climb3C.Gameplay
             return torso;
         }
 
+        /// <summary>松手瞬间：做一次吸附判定，成功则抓住对应抓点，失败则手回到原位。</summary>
+        private void ResolveRelease()
+        {
+            if (_s.State != ClimbState.Reaching) return;
+            if (TryDetermineGrab(out RivetPoint hold))
+            {
+                Grab(hold);
+            }
+            else
+            {
+                BeginReturn();
+            }
+        }
+
+        /// <summary>
+        /// 吸附判定：判定逻辑交给 SystemValidation 的抓握判定接口（IGripQueryProvider.TryQueryGrip），
+        /// 其参数（手掌世界位、查询半径）从 GameContext 取。无判定接口时回退到距离判定（供 Demo）。
+        /// </summary>
+        private bool TryDetermineGrab(out RivetPoint hold)
+        {
+            Vector3 handPos = _s.AttackHandCurrent;   // 判定参数：来自 GameContext 运行时状态
+            float radius = _ctx.GripQueryRadius;        // 判定参数：来自 GameContext
+
+            hold = _rivets.FindNearestExcluding(handPos, ExcludeRivet(), out float dist);
+            if (hold == null) return false;
+
+            bool valid;
+            if (_gripProvider != null)
+            {
+                valid = _gripProvider.TryQueryGrip(handPos, radius, out GripQueryResult grip)
+                        && grip.HasCandidate
+                        && grip.PointType == ForcePointType.ValidHold;
+            }
+            else
+            {
+                valid = dist <= _hapticCfg.snapRadius;
+            }
+
+            // 判定通过，且吸附目标确实落在查询半径内，才吸附
+            return valid && dist <= radius;
+        }
+
+        public void SetGripProvider(IGripQueryProvider provider) => _gripProvider = provider;
+
+        public void SetForceSettings(ForceEvaluationSettings settings) => _forceSettings = settings.Sanitized();
+
+        /// <summary>
+        /// 坠落判定：把当前双手抓握/耐力状态（取自 GameContext）构建为 ForceEvaluationInput，
+        /// 交给 SystemValidation 的 ForceEvaluator 演算；当它判定切入 Falling 时触发摔落。
+        /// </summary>
+        private void EvaluateForceState(float dt)
+        {
+            var input = BuildForceInput(dt);
+            var result = ForceEvaluator.Evaluate(input, ref _s.ForceMemory, _forceSettings);
+            if (result.FallTriggered)
+            {
+                BeginFall();
+            }
+        }
+
+        private ForceEvaluationInput BuildForceInput(float dt)
+        {
+            return new ForceEvaluationInput
+            {
+                LeftHand = BuildHandForceInput(ClimbHand.Left),
+                RightHand = BuildHandForceInput(ClimbHand.Right),
+                Body = new BodyForceInput { IsAlreadyFalling = _s.State == ClimbState.Falling, IsStunned = false },
+                PreviousState = _s.ForceMemory.PreviousState,
+                DeltaTime = dt
+            };
+        }
+
+        private HandForceInput BuildHandForceInput(ClimbHand hand)
+        {
+            bool attacking = hand == _s.CurrentHand &&
+                             (_s.State == ClimbState.Reaching || _s.State == ClimbState.Returning);
+            Vector3 pos = attacking ? _s.AttackHandCurrent : AnchorOf(hand);
+            // 攻击手正在伸手（未抓稳）→ 无抓握候选；锚定手视为抓在有效抓点上
+            GripQueryResult grip = attacking
+                ? GripQueryResult.None()
+                : GripQueryResult.Candidate(ForcePointType.ValidHold, 1f);
+            return HandForceInput.FromGrip(true, grip, _s.StaminaRatio, pos);
+        }
+
         private void BeginReach(ClimbHand side, ClimbPointer pointer)
         {
             _s.CurrentHand = side;
             _s.TrackedFinger = pointer.Id;
-            _s.AttackHandCurrent = AnchorOf(side);
+            // 记录按下瞬间的触点位与手位：手先不动，后续按触点位移相对移动
+            _s.ReachStartTouch = _projector.Project(pointer.ScreenPos, out _);
+            _s.ReachStartHand = AnchorOf(side);
+            _s.AttackHandCurrent = _s.ReachStartHand;
             _s.State = ClimbState.Reaching;
         }
 
@@ -335,6 +426,7 @@ namespace ClimbGame.Climb3C.Gameplay
             _avatar.DriveArm(ClimbHand.Right, _s.RightAnchor, true);
 
             _stamina.ResetToRatio(_staminaCfg != null ? _staminaCfg.recoverOnLandRatio : 0.6f);
+            _s.ForceMemory = ForceEvaluationMemory.CreateDefault();
             _s.LeftRivet = null;
             _s.RightRivet = null;
             _s.LeftRivetId = -1;
@@ -365,6 +457,40 @@ namespace ClimbGame.Climb3C.Gameplay
             if (lerpSpeed <= 0f) return target;
             float t = 1f - Mathf.Exp(-lerpSpeed * Time.deltaTime);
             return Vector3.Lerp(current, target, t);
+        }
+
+        /// <summary>
+        /// 让角色一开始就双手分别抓在指定铆钉上（而非默认位起攀）。
+        /// 躯干落在两抓点中点，双手锚定这两颗铆钉；当前手置空，等待玩家先触发一侧。
+        /// </summary>
+        public void SetInitialGrips(RivetPoint leftRivet, RivetPoint rightRivet)
+        {
+            if (_s == null) return;
+
+            if (leftRivet != null)
+            {
+                _s.LeftAnchor = leftRivet.GrabPosition;
+                _s.LeftRivet = leftRivet;
+                _s.LeftRivetId = _rivets.IndexOf(leftRivet);
+            }
+            if (rightRivet != null)
+            {
+                _s.RightAnchor = rightRivet.GrabPosition;
+                _s.RightRivet = rightRivet;
+                _s.RightRivetId = _rivets.IndexOf(rightRivet);
+            }
+
+            _s.CurrentHand = ClimbHand.None;
+            _s.State = ClimbState.WaitingForPress;
+            _s.AttackHandCurrent = _s.LeftAnchor;
+
+            Vector3 mid = (_s.LeftAnchor + _s.RightAnchor) * 0.5f + _tuning.torsoCenterOffset;
+            mid.z = _climbZ;
+            _s.TorsoCenter = mid;
+
+            _avatar.SetupClimbPose(mid);
+            _avatar.DriveArm(ClimbHand.Left, _s.LeftAnchor, true);
+            _avatar.DriveArm(ClimbHand.Right, _s.RightAnchor, true);
         }
 
         public void SetFallDependencies(RagdollFallConfig fallConfig, ClimbCamera camera)

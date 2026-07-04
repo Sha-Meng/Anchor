@@ -1,4 +1,5 @@
 using System;
+using Anchor.ForceSystem;
 using ClimbGame.Climb3C.Core;
 using ClimbGame.Climb3C.Gameplay;
 using UnityEngine;
@@ -38,8 +39,15 @@ namespace ClimbGame.Climb3C.State
         [NonSerialized] public int TrackedFinger;
         [NonSerialized] public float FallStartY;
         [NonSerialized] public float FallTimer;
+
+        // 本次伸手开始时：触点初始投影位与手初始位（用于相对位移映射，按下瞬间手不跳变）
+        [NonSerialized] public Vector3 ReachStartTouch;
+        [NonSerialized] public Vector3 ReachStartHand;
         [NonSerialized] public RivetPoint LeftRivet;
         [NonSerialized] public RivetPoint RightRivet;
+
+        /// <summary>SystemValidation 力学判定（坠落）的记忆状态，供 ForceEvaluator 逐帧演算。</summary>
+        [NonSerialized] public ForceEvaluationMemory ForceMemory;
 
         public float StaminaRatio => MaxStamina > 0f ? Mathf.Clamp01(Stamina / MaxStamina) : 0f;
     }

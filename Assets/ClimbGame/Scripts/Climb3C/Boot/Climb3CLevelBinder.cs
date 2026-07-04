@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Anchor.ForceSystem;
+using Anchor.LevelAnchorSystem;
 using Anchor.SystemValidation;
 using ClimbGame.Climb3C.Character;
 using ClimbGame.Climb3C.Config;
@@ -36,11 +38,24 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("角色躯干相对抓点平面向镜头方向的前置距离")]
         public float characterFrontOffset = 0.45f;
 
-        [Tooltip("起攀点相对最低抓点下移的高度")]
+        [Tooltip("起攀点相对最低抓点下移的高度（未指定初始双手抓点时使用）")]
         public float startBelowLowest = 0.2f;
+
+        [Header("初始双手抓点（按场景物体名查找；留空则用默认起攀点）")]
+        [Tooltip("左手初始抓住的抓点物体名")]
+        public string leftHandStartAnchorName = "ScatterAnchor_001";
+
+        [Tooltip("右手初始抓住的抓点物体名")]
+        public string rightHandStartAnchorName = "ScatterAnchor_002";
 
         [Tooltip("是否让相机跟随攀爬者上移（保留关卡原有构图角度与偏移）")]
         public bool cameraFollow = true;
+
+        [Tooltip("松手吸附判定的查询半径（传给 SystemValidation 判定接口）")]
+        public float gripQueryRadius = 0.5f;
+
+        [Tooltip("坠落判定用的 ForceSystem 配置（留空则用默认阈值）")]
+        public ForceSystemConfig forceConfig;
 
         [Header("角色外观")]
         public Color bodyColor = new Color(0.2f, 0.5f, 0.85f);
@@ -99,7 +114,25 @@ namespace ClimbGame.Climb3C.Boot
 
             float planeZ = sumZ / nodes.Count;
             float centerX = sumX / nodes.Count;
-            Vector3 startCenter = new Vector3(centerX, min.y - startBelowLowest, planeZ - characterFrontOffset);
+
+            // 初始双手抓点（按名字查找）；找到则以两点中点为起攀中心
+            RivetPoint leftStart = FindRivetByName(rivetField, leftHandStartAnchorName);
+            RivetPoint rightStart = FindRivetByName(rivetField, rightHandStartAnchorName);
+
+            Vector3 startCenter;
+            if (leftStart != null && rightStart != null)
+            {
+                Vector3 mid = (leftStart.GrabPosition + rightStart.GrabPosition) * 0.5f;
+                startCenter = new Vector3(mid.x, mid.y + tuning.torsoCenterOffset.y, planeZ - characterFrontOffset);
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(leftHandStartAnchorName) || !string.IsNullOrEmpty(rightHandStartAnchorName))
+                {
+                    Debug.LogWarning($"[Climb3CLevelBinder] 未找到初始抓点 '{leftHandStartAnchorName}' / '{rightHandStartAnchorName}'，改用默认起攀点。");
+                }
+                startCenter = new Vector3(centerX, min.y - startBelowLowest, planeZ - characterFrontOffset);
+            }
 
             // --- 材质 ---
             Shader shader = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse");
@@ -145,7 +178,12 @@ namespace ClimbGame.Climb3C.Boot
 
             // 触点映射到抓点所在平面（抓点无碰撞体，用平面投影，mask=0 强制走平面回退）
             var projector = new WallProjector(cam, 0, planeZ);
-            var gameContext = new GameContext(0);
+            var gameContext = new GameContext(0) { GripQueryRadius = gripQueryRadius };
+
+            // SystemValidation 抓握判定提供者：从场景所有 AnchorPoint（ScatterAnchors）构建
+            var anchorRegistryGo = new GameObject("Climb3C_AnchorRegistry");
+            var anchorRegistry = anchorRegistryGo.AddComponent<LevelAnchorRegistry>();
+            anchorRegistry.RebuildFromScene();
 
             // --- 相机跟随（保留关卡原有角度/偏移）---
             ClimbCamera climbCam = null;
@@ -167,8 +205,27 @@ namespace ClimbGame.Climb3C.Boot
                 projector, rivetField, haptics, magnifierComp, staminaBar, startCenter);
             _controller.SetFallDependencies(ragdollFall, climbCam);
             _controller.SetZoneOverlay(zoneOverlay);
+            _controller.SetGripProvider(anchorRegistry);
+            if (forceConfig != null) _controller.SetForceSettings(forceConfig.Settings);
+
+            // 让角色一开始就双手抓在指定抓点上
+            if (leftStart != null && rightStart != null)
+            {
+                _controller.SetInitialGrips(leftStart, rightStart);
+            }
 
             Debug.Log($"[Climb3CLevelBinder] 攀爬 3C 已绑定到关卡：抓点 {nodes.Count} 个，起攀点 {startCenter}。");
+        }
+
+        private static RivetPoint FindRivetByName(RivetField field, string objectName)
+        {
+            if (field == null || string.IsNullOrEmpty(objectName)) return null;
+            var rivets = field.Rivets;
+            for (int i = 0; i < rivets.Count; i++)
+            {
+                if (rivets[i] != null && rivets[i].name == objectName) return rivets[i];
+            }
+            return null;
         }
 
         /// <summary>递归收集叶节点（无子物体的 Transform）作为抓点。</summary>
