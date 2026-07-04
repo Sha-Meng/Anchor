@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474678fa6e3c14ea08832f7ed3c8e347, type: 3}
+  m_Name: HapticConfig
+  m_EditorClassIdentifier: 
+  intenseRadius: 0.35
+  slightRadius: 1.1
+  snapRadius: 0.14
+  minIntensity: 0.05
+  intensityExponent: 2
+  pulseIntervalFar: 0.2
+  pulseIntervalNear: 0.03
+  grabPulseMillis: 60
+  editorVisualFallback: 1
