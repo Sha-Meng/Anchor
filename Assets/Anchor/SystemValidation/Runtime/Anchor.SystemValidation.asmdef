@@ -1,0 +1,19 @@
+{
+  "name": "Anchor.SystemValidation",
+  "rootNamespace": "Anchor.SystemValidation",
+  "references": [
+    "Anchor.DesignerSpace",
+    "Anchor.ForceSystem",
+    "Anchor.LevelAnchorSystem",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

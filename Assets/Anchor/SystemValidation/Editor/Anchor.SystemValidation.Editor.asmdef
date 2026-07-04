@@ -1,0 +1,22 @@
+{
+  "name": "Anchor.SystemValidation.Editor",
+  "rootNamespace": "Anchor.SystemValidation.Editor",
+  "references": [
+    "Anchor.DesignerSpace",
+    "Anchor.ForceSystem",
+    "Anchor.LevelAnchorSystem",
+    "Anchor.SystemValidation",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
