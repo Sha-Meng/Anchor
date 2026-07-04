@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using ClimbGame.Climb3C.Gameplay;
 using UnityEngine;
 
 namespace Anchor.Networking
@@ -35,21 +36,36 @@ namespace Anchor.Networking
             return "{" + string.Join(",", fields) + "}";
         }
 
-        public static string BuildDemoStatePayload(Vector3 position, float rotationY, string state)
+        public static string BuildClimbStatePayload(
+            string playerId,
+            string slot,
+            string climbRole,
+            ClimbStateSnapshot snapshot)
         {
             return "{"
-                + "\"position\":" + BuildVector3(position) + ","
-                + "\"rotationY\":" + rotationY.ToString("0.###", CultureInfo.InvariantCulture) + ","
-                + Pair("state", state)
+                + Pair("playerId", playerId) + ","
+                + Pair("slot", slot) + ","
+                + Pair("climbRole", climbRole) + ","
+                + "\"position\":" + BuildVector3(snapshot.TorsoCenter) + ","
+                + "\"rotationY\":0,"
+                + Pair("movementState", snapshot.State.ToString()) + ","
+                + Pair("currentHand", snapshot.CurrentHand.ToString()) + ","
+                + Pair("leftHandGripId", snapshot.LeftRivetId >= 0 ? snapshot.LeftRivetId.ToString(CultureInfo.InvariantCulture) : string.Empty) + ","
+                + Pair("rightHandGripId", snapshot.RightRivetId >= 0 ? snapshot.RightRivetId.ToString(CultureInfo.InvariantCulture) : string.Empty) + ","
+                + "\"leftHandPosition\":" + BuildVector3(snapshot.LeftHandPosition) + ","
+                + "\"rightHandPosition\":" + BuildVector3(snapshot.RightHandPosition) + ","
+                + "\"stamina\":" + snapshot.StaminaRatio.ToString("0.###", CultureInfo.InvariantCulture) + ","
+                + "\"isFalling\":" + (snapshot.IsFalling ? "true" : "false")
                 + "}";
         }
 
-        public static string BuildDemoEventPayload(string eventId, string eventType, string text)
+        public static string BuildClimbEventPayload(string eventId, string eventType, string actorPlayerId, string dataJson = "{}")
         {
             return "{"
                 + Pair("eventId", eventId) + ","
                 + Pair("eventType", eventType) + ","
-                + "\"data\":{\"text\":" + Quote(text) + "}"
+                + Pair("actorPlayerId", actorPlayerId) + ","
+                + "\"data\":" + (string.IsNullOrWhiteSpace(dataJson) ? "{}" : dataJson)
                 + "}";
         }
 
