@@ -10,6 +10,7 @@ namespace Anchor.Networking
         public string version;
         public AnchorTransportConfig transport;
         public AnchorEnvelopeConfig envelope;
+        public AnchorSpawnAnchorConfig spawnAnchors;
         public AnchorMessageConfig[] messages;
         public string[] notes;
 
@@ -22,7 +23,7 @@ namespace Anchor.Networking
                     return transport.defaultEndpoint;
                 }
 
-                return "ws://127.0.0.1:8080/ws";
+                return "ws://43.156.16.10:8080/ws";
             }
         }
 
@@ -44,6 +45,26 @@ namespace Anchor.Networking
             }
         }
 
+        public string HostLeadAnchorName
+        {
+            get
+            {
+                return spawnAnchors != null && !string.IsNullOrEmpty(spawnAnchors.hostLeadAnchorName)
+                    ? spawnAnchors.hostLeadAnchorName
+                    : "ScatterAnchor_003";
+            }
+        }
+
+        public string GuestSecondAnchorName
+        {
+            get
+            {
+                return spawnAnchors != null && !string.IsNullOrEmpty(spawnAnchors.guestSecondAnchorName)
+                    ? spawnAnchors.guestSecondAnchorName
+                    : "ScatterAnchor_001";
+            }
+        }
+
         public static AnchorProtocolConfig Load()
         {
             var path = Path.Combine(Application.streamingAssetsPath, "coop-network-protocol.config.json");
@@ -59,9 +80,10 @@ namespace Anchor.Networking
                 version = "fallback",
                 transport = new AnchorTransportConfig
                 {
-                    defaultEndpoint = "ws://127.0.0.1:8080/ws",
+                    defaultEndpoint = "ws://43.156.16.10:8080/ws",
                     fallbackEndpoint = "ws://43.156.16.10:8080/ws"
                 },
+                spawnAnchors = AnchorSpawnAnchorConfig.CreateDefault(),
                 messages = Array.Empty<AnchorMessageConfig>()
             };
         }
@@ -78,6 +100,22 @@ namespace Anchor.Networking
     public class AnchorEnvelopeConfig
     {
         public string[] fields;
+    }
+
+    [Serializable]
+    public class AnchorSpawnAnchorConfig
+    {
+        public string hostLeadAnchorName;
+        public string guestSecondAnchorName;
+
+        public static AnchorSpawnAnchorConfig CreateDefault()
+        {
+            return new AnchorSpawnAnchorConfig
+            {
+                hostLeadAnchorName = "ScatterAnchor_003",
+                guestSecondAnchorName = "ScatterAnchor_001"
+            };
+        }
     }
 
     [Serializable]

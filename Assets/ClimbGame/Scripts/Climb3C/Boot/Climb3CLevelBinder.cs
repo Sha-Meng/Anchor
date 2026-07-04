@@ -42,6 +42,18 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("起攀点相对最低抓点下移的高度（未指定初始双手抓点时使用）")]
         public float startBelowLowest = 0.2f;
 
+        [Tooltip("使用网络/配置指定的起攀中心，而不是根据抓点自动推导")]
+        public bool useConfiguredStartCenter;
+
+        [Tooltip("网络/配置指定的起攀中心。用于房主上方、非房主下方开局")]
+        public Vector3 configuredStartCenter;
+
+        [Tooltip("网络/配置指定的起攀主抓点名；启用后会自动寻找最近邻抓点组成左右手初始抓握")]
+        public string primaryStartAnchorName;
+
+        [Tooltip("根据起攀主抓点自动选择最近邻抓点作为另一只手")]
+        public bool useNearestStartAnchorPair;
+
         [Header("初始双手抓点（按场景物体名查找；留空则用默认起攀点）")]
         [Tooltip("左手初始抓住的抓点物体名")]
         public string leftHandStartAnchorName = "ScatterAnchor_001";
@@ -103,6 +115,9 @@ namespace ClimbGame.Climb3C.Boot
 
         private ClimbController3D _controller;
 
+        public ClimbController3D Controller => _controller;
+        public IClimbStateSource StateSource => _controller;
+
         private IEnumerator Start()
         {
             // 关卡（RouteNetwork/LevelMgr）可能在自身 Start 里运行时生成散布抓点；
@@ -110,6 +125,7 @@ namespace ClimbGame.Climb3C.Boot
             for (int i = 0; i < 10; i++)
             {
                 bool ready = GameObject.Find(routeRootName) != null &&
+                             (string.IsNullOrEmpty(primaryStartAnchorName) || GameObject.Find(primaryStartAnchorName) != null) &&
                              (string.IsNullOrEmpty(leftHandStartAnchorName) || GameObject.Find(leftHandStartAnchorName) != null) &&
                              (string.IsNullOrEmpty(rightHandStartAnchorName) || GameObject.Find(rightHandStartAnchorName) != null);
                 if (ready) break;
@@ -163,12 +179,28 @@ namespace ClimbGame.Climb3C.Boot
             float planeZ = sumZ / nodes.Count;
             float centerX = sumX / nodes.Count;
 
-            // 初始双手抓点（按名字查找）；找到则以两点中点为起攀中心
             RivetPoint leftStart = ResolveStartAnchor(rivetField, leftHandStartAnchorName);
             RivetPoint rightStart = ResolveStartAnchor(rivetField, rightHandStartAnchorName);
+            if (useNearestStartAnchorPair && !string.IsNullOrEmpty(primaryStartAnchorName))
+            {
+                if (TryResolveNearestStartPair(rivetField, primaryStartAnchorName, out var resolvedLeft, out var resolvedRight))
+                {
+                    leftStart = resolvedLeft;
+                    rightStart = resolvedRight;
+                }
+                else
+                {
+                    Debug.LogWarning($"[Climb3CLevelBinder] 未能从主抓点 '{primaryStartAnchorName}' 推导初始双手抓点，改用显式配置或默认起攀点。");
+                }
+            }
 
             Vector3 startCenter;
-            if (leftStart != null && rightStart != null)
+            if (useConfiguredStartCenter)
+            {
+                startCenter = configuredStartCenter;
+                startCenter.z = planeZ - characterFrontOffset;
+            }
+            else if (leftStart != null && rightStart != null)
             {
                 Vector3 mid = (leftStart.GrabPosition + rightStart.GrabPosition) * 0.5f;
                 startCenter = new Vector3(mid.x, mid.y + tuning.torsoCenterOffset.y, planeZ - characterFrontOffset);
@@ -319,6 +351,53 @@ namespace ClimbGame.Climb3C.Boot
             if (rivet == null) rivet = go.AddComponent<RivetPoint>();
             field.Register(rivet);
             return rivet;
+        }
+
+        private static bool TryResolveNearestStartPair(RivetField field, string primaryName, out RivetPoint left, out RivetPoint right)
+        {
+            left = null;
+            right = null;
+            var primary = ResolveStartAnchor(field, primaryName);
+            if (primary == null) return false;
+
+            var neighbor = FindNearestRivet(field, primary);
+            if (neighbor == null) return false;
+
+            if (primary.GrabPosition.x <= neighbor.GrabPosition.x)
+            {
+                left = primary;
+                right = neighbor;
+            }
+            else
+            {
+                left = neighbor;
+                right = primary;
+            }
+
+            return true;
+        }
+
+        private static RivetPoint FindNearestRivet(RivetField field, RivetPoint origin)
+        {
+            if (field == null || origin == null) return null;
+
+            var rivets = field.Rivets;
+            RivetPoint best = null;
+            var bestSqr = float.PositiveInfinity;
+            var originPosition = origin.GrabPosition;
+            for (int i = 0; i < rivets.Count; i++)
+            {
+                var candidate = rivets[i];
+                if (candidate == null || candidate == origin) continue;
+
+                var sqr = (candidate.GrabPosition - originPosition).sqrMagnitude;
+                if (sqr >= bestSqr) continue;
+
+                bestSqr = sqr;
+                best = candidate;
+            }
+
+            return best;
         }
 
         /// <summary>递归收集叶节点（无子物体的 Transform）作为抓点。</summary>

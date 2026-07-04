@@ -17,7 +17,7 @@ namespace ClimbGame.Climb3C.Gameplay
     /// 所有运行时数据读写集中在 <see cref="GameContext"/> 的 <see cref="ClimberRuntimeState"/> 上
     /// （便于后续联机同步）。左右手交替攀爬状态机、双手中点重心、耐力与布娃娃摔落。
     /// </summary>
-    public sealed class ClimbController3D : MonoBehaviour
+    public sealed class ClimbController3D : MonoBehaviour, IClimbStateSource
     {
         private ClimbTuningConfig _tuning;
         private ArmRigConfig _rig;
@@ -41,6 +41,7 @@ namespace ClimbGame.Climb3C.Gameplay
         private CapsuleWallResolver _wallResolver;
         private float _bodyWallOffset = 0.4f;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
+        private readonly ClimbForceInputAdapter _forceInputAdapter = new ClimbForceInputAdapter();
 
         private GameContext _ctx;
         private ClimberRuntimeState _s;
@@ -55,6 +56,30 @@ namespace ClimbGame.Climb3C.Gameplay
         public ClimbState State => _s != null ? _s.State : ClimbState.WaitingForPress;
         public ClimbHand CurrentHand => _s != null ? _s.CurrentHand : ClimbHand.None;
         public Vector3 TorsoCenter => _s != null ? _s.TorsoCenter : Vector3.zero;
+
+        public bool TryGetSnapshot(out ClimbStateSnapshot snapshot)
+        {
+            if (_s == null || _avatar == null)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            snapshot = new ClimbStateSnapshot
+            {
+                PlayerId = _s.PlayerId,
+                State = _s.State,
+                CurrentHand = _s.CurrentHand,
+                TorsoCenter = _s.TorsoCenter,
+                LeftHandPosition = _avatar.GetHandPosition(ClimbHand.Left),
+                RightHandPosition = _avatar.GetHandPosition(ClimbHand.Right),
+                LeftRivetId = _s.LeftRivetId,
+                RightRivetId = _s.RightRivetId,
+                StaminaRatio = _s.StaminaRatio,
+                IsFalling = _s.State == ClimbState.Falling
+            };
+            return true;
+        }
 
         public void Initialize(
             GameContext context, int playerId,
@@ -80,6 +105,7 @@ namespace ClimbGame.Climb3C.Gameplay
 
             _stamina = new ClimbStamina(staminaCfg, _s);
             _s.ForceMemory = ForceEvaluationMemory.CreateDefault();
+            _forceInputAdapter.Configure(_s);
 
             _s.State = ClimbState.WaitingForPress;
             _s.CurrentHand = ClimbHand.None;
@@ -350,36 +376,12 @@ namespace ClimbGame.Climb3C.Gameplay
         /// </summary>
         private void EvaluateForceState(float dt)
         {
-            var input = BuildForceInput(dt);
+            var input = _forceInputAdapter.BuildInput(dt);
             var result = ForceEvaluator.Evaluate(input, ref _s.ForceMemory, _forceSettings);
             if (result.FallTriggered)
             {
                 BeginFall();
             }
-        }
-
-        private ForceEvaluationInput BuildForceInput(float dt)
-        {
-            return new ForceEvaluationInput
-            {
-                LeftHand = BuildHandForceInput(ClimbHand.Left),
-                RightHand = BuildHandForceInput(ClimbHand.Right),
-                Body = new BodyForceInput { IsAlreadyFalling = _s.State == ClimbState.Falling, IsStunned = false },
-                PreviousState = _s.ForceMemory.PreviousState,
-                DeltaTime = dt
-            };
-        }
-
-        private HandForceInput BuildHandForceInput(ClimbHand hand)
-        {
-            bool attacking = hand == _s.CurrentHand &&
-                             (_s.State == ClimbState.Reaching || _s.State == ClimbState.Returning);
-            Vector3 pos = attacking ? _s.AttackHandCurrent : AnchorOf(hand);
-            // 攻击手正在伸手（未抓稳）→ 无抓握候选；锚定手视为抓在有效抓点上
-            GripQueryResult grip = attacking
-                ? GripQueryResult.None()
-                : GripQueryResult.Candidate(ForcePointType.ValidHold, 1f);
-            return HandForceInput.FromGrip(true, grip, _s.StaminaRatio, pos);
         }
 
         private void BeginReach(ClimbHand side, ClimbPointer pointer)

@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using ClimbGame.Climb3C.Boot;
+using ClimbGame.Climb3C.Gameplay;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -11,7 +13,7 @@ namespace Anchor.Networking
     public class AnchorNetworkDemoController : MonoBehaviour
     {
         private const string EntrySceneName = "NetworkDemoEntry";
-        private const string GameSceneName = "NetworkDemoGame";
+        private const string GameSceneName = "MainLevel";
 
         private static AnchorNetworkDemoController _instance;
 
@@ -28,7 +30,21 @@ namespace Anchor.Networking
         private int _seq;
         private float _nextStateSendTime;
         private float _stateSendInterval = 0.1f;
+        private float _nextRemoteDebugLogTime;
         private readonly List<RoomListEntry> _availableRooms = new List<RoomListEntry>();
+        private readonly List<RoomPlayerEntry> _roomPlayers = new List<RoomPlayerEntry>();
+        private readonly HashSet<string> _handledEventIds = new HashSet<string>();
+        private string _hostId;
+        private string _remotePlayerId;
+        private string _localSlot = "guest";
+        private string _remoteSlot = "host";
+        private string _localClimbRole = "second";
+        private string _remoteClimbRole = "lead";
+        private bool _gameSceneReady;
+        private bool _gameSyncReady;
+        private IClimbStateSource _localStateSource;
+        private Climb3CLevelBinder _localClimbBinder;
+        private AnchorRemoteClimbPlayer _remoteClimbPlayer;
 
         private Canvas _canvas;
         private GameObject _runtimeRoot;
@@ -51,6 +67,20 @@ namespace Anchor.Networking
             public int playerCount;
             public int maxPlayers;
             public bool canJoin;
+        }
+
+        private struct RoomPlayerEntry
+        {
+            public string playerId;
+            public string role;
+            public bool isHost;
+        }
+
+        private struct AnchorStartPose
+        {
+            public Vector3 torso;
+            public Vector3 leftHand;
+            public Vector3 rightHand;
         }
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -98,13 +128,12 @@ namespace Anchor.Networking
         {
             if (!_inGame) return;
 
-            UpdateLocalPlayer();
             UpdateRemotePlayer();
 
-            if (_client != null && _client.IsConnected && Time.time >= _nextStateSendTime)
+            if (_gameSyncReady && _client != null && _client.IsConnected && Time.time >= _nextStateSendTime)
             {
                 _nextStateSendTime = Time.time + _stateSendInterval;
-                SendDemoState();
+                SendClimbState();
             }
         }
 
@@ -199,7 +228,7 @@ namespace Anchor.Networking
 
             _statusText = AddText("Status", "状态：房间中", 16, TextAnchor.MiddleLeft);
             _roomText = AddText("RoomInfo", GetRoomInfoText(), 16, TextAnchor.MiddleLeft, 34f);
-            AddText("RoleInfo", _isHost ? "你是房主。满 2 人后可开始。" : "你是访客，等待房主开始。", 15, TextAnchor.MiddleLeft, 30f);
+            AddText("RoleInfo", _isHost ? "你是房主 / 上方先锋攀。满 2 人后可开始。" : "你是非房主 / 下方第二攀登者，等待房主开始。", 15, TextAnchor.MiddleLeft, 30f);
             _startButton = AddButton("房主开始", StartRoom);
             AddButton("离开房间", LeaveRoom);
             _logText = AddText("Log", "房间日志：\n", 14, TextAnchor.UpperLeft, 160f);
@@ -210,38 +239,15 @@ namespace Anchor.Networking
         {
             BeginView("game");
             _inGame = true;
-            CreateCanvas("Anchor Network Demo Game");
+            _gameSceneReady = true;
+            _gameSyncReady = false;
+            ResolveRoomRoles();
+            CreateCanvas("Anchor MainLevel 联机");
 
-            _statusText = AddText("Status", "Demo Game", 20, TextAnchor.MiddleLeft);
-            AddButton("发送自定义 game.event", SendDemoEvent);
-            AddButton("返回房间入口", ReturnToEntry);
-            _logText = AddText("Log", "游戏日志：\n", 15, TextAnchor.UpperLeft);
+            _statusText = AddText("Status", "MainLevel 等待同步确认", 20, TextAnchor.MiddleLeft);
+            _logText = AddText("Log", GetRoomInfoText() + "\n游戏日志：\n", 15, TextAnchor.UpperLeft);
 
-            var cameraGo = new GameObject("Demo Camera");
-            ParentToRuntimeRoot(cameraGo);
-            var camera = cameraGo.AddComponent<Camera>();
-            camera.transform.position = new Vector3(0f, 6f, -8f);
-            camera.transform.rotation = Quaternion.Euler(55f, 0f, 0f);
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.08f, 0.1f, 0.14f);
-            cameraGo.tag = "MainCamera";
-
-            var lightGo = new GameObject("Demo Directional Light");
-            ParentToRuntimeRoot(lightGo);
-            var light = lightGo.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = 1.1f;
-            light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-
-            var floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            floor.name = "Demo Floor";
-            ParentToRuntimeRoot(floor);
-            floor.transform.position = new Vector3(0f, -0.05f, 0f);
-            floor.transform.localScale = new Vector3(8f, 0.1f, 5f);
-            floor.GetComponent<Renderer>().material.color = new Color(0.2f, 0.22f, 0.25f);
-
-            _localPlayer = CreatePlayerCube("Local Player", new Vector3(-2f, 0.5f, 0f), Color.cyan);
-            _remotePlayer = CreatePlayerCube("Remote Player", _remoteTarget, Color.red);
+            BuildMainLevelPlayers();
 
             SendRoomEnteredGame();
         }
@@ -255,6 +261,112 @@ namespace Anchor.Networking
             go.transform.localScale = new Vector3(0.8f, 1f, 0.8f);
             go.GetComponent<Renderer>().material.color = color;
             return go;
+        }
+
+        private void BuildMainLevelPlayers()
+        {
+            var localAnchorName = _isHost ? _config.HostLeadAnchorName : _config.GuestSecondAnchorName;
+            var remoteAnchorName = _isHost ? _config.GuestSecondAnchorName : _config.HostLeadAnchorName;
+            var remotePose = ResolveAnchorStartPose(remoteAnchorName);
+
+            var binderGo = new GameObject("Anchor Local Climb Binder");
+            ParentToRuntimeRoot(binderGo);
+            _localClimbBinder = binderGo.AddComponent<Climb3CLevelBinder>();
+            _localClimbBinder.useNearestStartAnchorPair = true;
+            _localClimbBinder.primaryStartAnchorName = localAnchorName;
+            _localClimbBinder.leftHandStartAnchorName = string.Empty;
+            _localClimbBinder.rightHandStartAnchorName = string.Empty;
+            _localClimbBinder.bodyColor = _isHost ? new Color(0.2f, 0.55f, 1f) : new Color(0.2f, 0.9f, 0.65f);
+            _localClimbBinder.handColor = new Color(0.95f, 0.8f, 0.65f);
+
+            _remoteClimbPlayer = new AnchorRemoteClimbPlayer(
+                "Remote Climber " + (_remoteSlot == "host" ? "Lead" : "Second"),
+                remotePose.torso,
+                remotePose.leftHand,
+                remotePose.rightHand,
+                _isHost ? new Color(0.9f, 0.35f, 0.25f) : new Color(0.25f, 0.5f, 1f),
+                new Color(0.95f, 0.8f, 0.65f));
+            if (_remoteClimbPlayer.Root != null)
+            {
+                _remotePlayer = _remoteClimbPlayer.Root.gameObject;
+                ParentToRuntimeRoot(_remotePlayer);
+            }
+
+            StartCoroutine(ResolveLocalStateSourceNextFrame());
+            AppendLog("MainLevel 角色准备: 本地=" + _localSlot + "/" + _localClimbRole + "(" + localAnchorName + ") 远端=" + _remoteSlot + "/" + _remoteClimbRole + "(" + remoteAnchorName + ")");
+        }
+
+        private AnchorStartPose ResolveAnchorStartPose(string primaryAnchorName)
+        {
+            var primary = FindAnchorTransform(primaryAnchorName);
+            var secondary = FindNearestAnchorTransform(primary);
+            if (primary == null)
+            {
+                var fallback = _isHost ? new Vector3(0f, 1f, -0.95f) : new Vector3(0f, 3f, -0.95f);
+                return new AnchorStartPose
+                {
+                    torso = fallback,
+                    leftHand = fallback + new Vector3(-0.45f, 0.25f, 0f),
+                    rightHand = fallback + new Vector3(0.45f, 0.25f, 0f)
+                };
+            }
+
+            if (secondary == null)
+            {
+                secondary = primary;
+            }
+
+            var left = primary.position.x <= secondary.position.x ? primary.position : secondary.position;
+            var right = primary.position.x <= secondary.position.x ? secondary.position : primary.position;
+            var mid = (left + right) * 0.5f;
+            return new AnchorStartPose
+            {
+                torso = new Vector3(mid.x, mid.y - 0.35f, mid.z - 0.45f),
+                leftHand = left,
+                rightHand = right
+            };
+        }
+
+        private static Transform FindAnchorTransform(string anchorName)
+        {
+            if (string.IsNullOrEmpty(anchorName)) return null;
+
+            var go = GameObject.Find(anchorName);
+            return go != null ? go.transform : null;
+        }
+
+        private static Transform FindNearestAnchorTransform(Transform primary)
+        {
+            if (primary == null) return null;
+
+            var allTransforms = GameObject.FindObjectsOfType<Transform>();
+            Transform best = null;
+            var bestSqr = float.PositiveInfinity;
+            var primaryPosition = primary.position;
+            for (int i = 0; i < allTransforms.Length; i++)
+            {
+                var candidate = allTransforms[i];
+                if (candidate == null || candidate == primary) continue;
+                if (!candidate.name.StartsWith("ScatterAnchor_", StringComparison.Ordinal)) continue;
+
+                var sqr = (candidate.position - primaryPosition).sqrMagnitude;
+                if (sqr >= bestSqr) continue;
+
+                bestSqr = sqr;
+                best = candidate;
+            }
+
+            return best;
+        }
+
+        private IEnumerator ResolveLocalStateSourceNextFrame()
+        {
+            yield return null;
+            _localStateSource = _localClimbBinder != null ? _localClimbBinder.StateSource : null;
+            if (_localStateSource == null)
+            {
+                AppendLog("警告: 未找到本地攀爬状态采样接口");
+            }
         }
 
         private void UpdateLocalPlayer()
@@ -272,6 +384,12 @@ namespace Anchor.Networking
 
         private void UpdateRemotePlayer()
         {
+            if (_remoteClimbPlayer != null)
+            {
+                _remoteClimbPlayer.Update(Time.deltaTime);
+                return;
+            }
+
             if (_remotePlayer == null) return;
             _remotePlayer.transform.position = Vector3.Lerp(_remotePlayer.transform.position, _remoteTarget, Time.deltaTime * 10f);
         }
@@ -329,18 +447,42 @@ namespace Anchor.Networking
         private void LeaveRoom()
         {
             Send(AnchorJson.BuildEnvelope("room.leave", requestId: NewRequestId(), roomId: _roomId));
-            _roomId = null;
-            _isHost = false;
-            _playerCount = 0;
-            _availableRooms.Clear();
+            ResetRoomState();
             BuildRoomListView();
             RequestRoomList();
         }
 
         private void ReturnToEntry()
         {
-            _inGame = false;
+            if (!string.IsNullOrEmpty(_roomId))
+            {
+                Send(AnchorJson.BuildEnvelope("room.leave", requestId: NewRequestId(), roomId: _roomId));
+            }
+
+            ResetRoomState();
             SceneManager.LoadScene(EntrySceneName);
+        }
+
+        private void ResetRoomState()
+        {
+            _roomId = null;
+            _hostId = null;
+            _remotePlayerId = null;
+            _isHost = false;
+            _inGame = false;
+            _gameSceneReady = false;
+            _gameSyncReady = false;
+            _playerCount = 0;
+            _localSlot = "guest";
+            _remoteSlot = "host";
+            _localClimbRole = "second";
+            _remoteClimbRole = "lead";
+            _roomPlayers.Clear();
+            _handledEventIds.Clear();
+            _availableRooms.Clear();
+            _localStateSource = null;
+            _localClimbBinder = null;
+            _remoteClimbPlayer = null;
         }
 
         private void SendRoomEnteredGame()
@@ -348,39 +490,76 @@ namespace Anchor.Networking
             Send(AnchorJson.BuildEnvelope("room.enteredGame", requestId: NewRequestId(), roomId: _roomId));
         }
 
-        private void SendDemoState()
+        private void SendClimbState()
         {
-            if (_localPlayer == null || string.IsNullOrEmpty(_roomId)) return;
+            if (string.IsNullOrEmpty(_roomId) || string.IsNullOrEmpty(_playerId)) return;
 
-            var payload = AnchorJson.BuildDemoStatePayload(
-                _localPlayer.transform.position,
-                _localPlayer.transform.eulerAngles.y,
-                "demo-moving");
+            if (_localStateSource == null && _localClimbBinder != null)
+            {
+                _localStateSource = _localClimbBinder.StateSource;
+            }
 
+            if (_localStateSource == null || !_localStateSource.TryGetSnapshot(out var snapshot)) return;
+
+            var payload = AnchorJson.BuildClimbStatePayload(_playerId, _localSlot, _localClimbRole, snapshot);
             Send(AnchorJson.BuildEnvelope(
                 "game.state",
                 roomId: _roomId,
                 senderId: _playerId,
                 seq: ++_seq,
                 sentAt: Time.realtimeSinceStartup,
-                schema: "demo-state.v1",
+                schema: "climb-player-state.v1",
                 payloadJson: payload));
         }
 
-        private void SendDemoEvent()
+        private void HandleClimbState(string json)
         {
-            if (string.IsNullOrEmpty(_roomId)) return;
+            var senderId = AnchorJson.GetString(json, "senderId");
+            if (string.IsNullOrEmpty(senderId) || senderId == _playerId) return;
 
-            var payload = AnchorJson.BuildDemoEventPayload(Guid.NewGuid().ToString("N"), "demo.ping", "Hello from " + _playerId);
-            Send(AnchorJson.BuildEnvelope(
-                "game.event",
-                roomId: _roomId,
-                senderId: _playerId,
-                seq: ++_seq,
-                sentAt: Time.realtimeSinceStartup,
-                schema: "demo-event.v1",
-                payloadJson: payload));
-            AppendLog("已发送自定义 game.event");
+            var statePayload = AnchorJson.GetPayload(json);
+            var seq = Mathf.RoundToInt(AnchorJson.GetFloat(json, "seq", 0f));
+            var torso = AnchorJson.GetVector3(statePayload, "position", _remoteTarget);
+            var left = AnchorJson.GetVector3(statePayload, "leftHandPosition", torso + new Vector3(-0.45f, 0.25f, 0f));
+            var right = AnchorJson.GetVector3(statePayload, "rightHandPosition", torso + new Vector3(0.45f, 0.25f, 0f));
+
+            if (_remoteClimbPlayer == null)
+            {
+                var remotePose = ResolveAnchorStartPose(_isHost ? _config.GuestSecondAnchorName : _config.HostLeadAnchorName);
+                _remoteClimbPlayer = new AnchorRemoteClimbPlayer(
+                    "Remote Climber Late",
+                    remotePose.torso,
+                    remotePose.leftHand,
+                    remotePose.rightHand,
+                    new Color(0.9f, 0.35f, 0.25f),
+                    new Color(0.95f, 0.8f, 0.65f));
+                if (_remoteClimbPlayer.Root != null)
+                {
+                    _remotePlayer = _remoteClimbPlayer.Root.gameObject;
+                    ParentToRuntimeRoot(_remotePlayer);
+                }
+            }
+
+            if (_remoteClimbPlayer.TryApplyState(seq, torso, left, right))
+            {
+                _remoteTarget = torso;
+                if (_logText != null && Time.time >= _nextRemoteDebugLogTime)
+                {
+                    _nextRemoteDebugLogTime = Time.time + 1f;
+                    var sentAt = AnchorJson.GetFloat(json, "sentAt", Time.realtimeSinceStartup);
+                    var latencyMs = Mathf.Max(0f, (Time.realtimeSinceStartup - sentAt) * 1000f);
+                    AppendLog("远端状态: " + senderId + " seq=" + seq + " 延迟≈" + latencyMs.ToString("0") + "ms " + AnchorJson.GetString(statePayload, "movementState"));
+                }
+            }
+        }
+
+        private void HandleClimbEvent(string payload)
+        {
+            var eventId = AnchorJson.GetString(payload, "eventId");
+            if (!string.IsNullOrEmpty(eventId) && !_handledEventIds.Add(eventId)) return;
+
+            var eventType = AnchorJson.GetString(payload, "eventType");
+            AppendLog("收到 climb-event: " + eventType);
         }
 
         private void Send(string json)
@@ -424,40 +603,49 @@ namespace Anchor.Networking
                 case "room.created":
                     _roomId = AnchorJson.GetString(json, "roomId") ?? AnchorJson.GetString(payload, "roomId");
                     _isHost = true;
+                    _hostId = AnchorJson.GetString(payload, "hostId") ?? _playerId;
                     _playerCount = 1;
+                    _roomPlayers.Clear();
+                    if (!string.IsNullOrEmpty(_playerId))
+                    {
+                        _roomPlayers.Add(new RoomPlayerEntry { playerId = _playerId, role = "host", isHost = true });
+                    }
+                    ResolveRoomRoles();
                     AppendLog("创建房间: " + _roomId);
                     BuildLobbyView();
                     break;
                 case "room.joined":
                     _roomId = AnchorJson.GetString(json, "roomId") ?? AnchorJson.GetString(payload, "roomId");
                     _isHost = false;
+                    _hostId = AnchorJson.GetString(payload, "hostId") ?? _hostId;
                     _playerCount = 2;
+                    ResolveRoomRoles();
                     AppendLog("加入房间: " + _roomId);
                     BuildLobbyView();
                     break;
                 case "room.updated":
-                    _roomId = AnchorJson.GetString(json, "roomId") ?? AnchorJson.GetString(payload, "roomId") ?? _roomId;
-                    _isHost = AnchorJson.GetString(payload, "hostId") == _playerId;
-                    _playerCount = Mathf.RoundToInt(AnchorJson.GetFloat(payload, "playerCount", _playerCount));
+                    ApplyRoomPayload(json, payload);
                     if (!string.IsNullOrEmpty(_roomId) && SceneManager.GetActiveScene().name != GameSceneName) BuildLobbyView();
                     break;
                 case "room.starting":
-                    AppendLog("收到开局，进入 Demo Game");
+                    AppendLog("收到开局，进入 MainLevel");
                     StartCoroutine(LoadGameSceneAfterDelay(AnchorJson.GetFloat(payload, "countdownMs", 500f) / 1000f));
                     break;
                 case "room.inGame":
                     AppendLog("房间进入游戏同步阶段");
                     _inGame = true;
+                    _gameSyncReady = _gameSceneReady;
                     break;
                 case "room.peerLeft":
-                    AppendLog("队友离开");
+                    _remotePlayerId = AnchorJson.GetString(payload, "playerId") ?? _remotePlayerId;
+                    if (_remoteClimbPlayer != null) _remoteClimbPlayer.MarkPeerLeft();
+                    AppendLog("队友离开: " + _remotePlayerId);
                     break;
                 case "game.state":
-                    var statePayload = AnchorJson.GetPayload(json);
-                    _remoteTarget = AnchorJson.GetVector3(statePayload, "position", _remoteTarget);
+                    HandleClimbState(json);
                     break;
                 case "game.event":
-                    AppendLog("收到自定义 game.event: " + AnchorJson.GetString(payload, "eventType"));
+                    HandleClimbEvent(payload);
                     break;
                 case "system.error":
                     AppendLog("错误: " + AnchorJson.GetString(payload, "code") + " " + AnchorJson.GetString(payload, "message"));
@@ -493,7 +681,7 @@ namespace Anchor.Networking
         {
             return string.IsNullOrEmpty(_roomId)
                 ? "房间：无"
-                : "房间：" + _roomId + " / " + (_isHost ? "host" : "guest") + " / " + _playerCount + "/2";
+                : "房间：" + _roomId + " / " + _localSlot + " / " + (_isHost ? "上方先锋攀" : "下方第二攀登者") + " / " + _playerCount + "/2";
         }
 
         private string FormatRoomState(string state)
@@ -540,6 +728,70 @@ namespace Anchor.Networking
             return result;
         }
 
+        private void ApplyRoomPayload(string json, string payload)
+        {
+            _roomId = AnchorJson.GetString(json, "roomId") ?? AnchorJson.GetString(payload, "roomId") ?? _roomId;
+            _hostId = AnchorJson.GetString(payload, "hostId") ?? _hostId;
+            _roomPlayers.Clear();
+            _roomPlayers.AddRange(ParseRoomPlayers(payload));
+            if (_roomPlayers.Count > 0)
+            {
+                _playerCount = _roomPlayers.Count;
+            }
+            else
+            {
+                _playerCount = Mathf.RoundToInt(AnchorJson.GetFloat(payload, "playerCount", _playerCount));
+            }
+
+            ResolveRoomRoles();
+        }
+
+        private List<RoomPlayerEntry> ParseRoomPlayers(string payload)
+        {
+            var result = new List<RoomPlayerEntry>();
+            var playersRaw = AnchorJson.GetRawProperty(payload, "players");
+            if (string.IsNullOrEmpty(playersRaw)) return result;
+
+            foreach (var rawPlayer in AnchorJson.GetObjectArrayItems(playersRaw))
+            {
+                var playerId = AnchorJson.GetString(rawPlayer, "playerId");
+                if (string.IsNullOrEmpty(playerId)) continue;
+
+                result.Add(new RoomPlayerEntry
+                {
+                    playerId = playerId,
+                    role = AnchorJson.GetString(rawPlayer, "role"),
+                    isHost = AnchorJson.GetBool(rawPlayer, "isHost", playerId == _hostId)
+                });
+            }
+
+            return result;
+        }
+
+        private void ResolveRoomRoles()
+        {
+            if (string.IsNullOrEmpty(_hostId) && _isHost)
+            {
+                _hostId = _playerId;
+            }
+
+            _isHost = !string.IsNullOrEmpty(_playerId) && _playerId == _hostId;
+            _localSlot = _isHost ? "host" : "guest";
+            _remoteSlot = _isHost ? "guest" : "host";
+            _localClimbRole = _isHost ? "lead" : "second";
+            _remoteClimbRole = _isHost ? "second" : "lead";
+            _remotePlayerId = null;
+
+            for (int i = 0; i < _roomPlayers.Count; i++)
+            {
+                if (_roomPlayers[i].playerId != _playerId)
+                {
+                    _remotePlayerId = _roomPlayers[i].playerId;
+                    break;
+                }
+            }
+        }
+
         private string NewRequestId()
         {
             return "req-" + (++_seq).ToString("0000");
@@ -582,6 +834,9 @@ namespace Anchor.Networking
             _startButton = null;
             _localPlayer = null;
             _remotePlayer = null;
+            _localStateSource = null;
+            _localClimbBinder = null;
+            _remoteClimbPlayer = null;
         }
 
         private void BeginView(string view, bool forceRebuild = false)
@@ -601,7 +856,16 @@ namespace Anchor.Networking
                 || go.name == "Anchor Demo Canvas"
                 || go.name == "Anchor Demo Runtime Root"
                 || go.name == "Local Player"
-                || go.name == "Remote Player";
+                || go.name == "Remote Player"
+                || go.name == "Anchor Local Climb Binder"
+                || go.name.StartsWith("Remote Climber", StringComparison.Ordinal)
+                || go.name == "Climber"
+                || go.name == "Climb3C_Canvas"
+                || go.name == "Climb3C_Services"
+                || go.name == "Climb3C_Controller"
+                || go.name == "Climb3C_RivetField"
+                || go.name == "Climb3C_AnchorRegistry"
+                || go.name == "HandMagnifier";
         }
 
         private void CreateCanvas(string title)
