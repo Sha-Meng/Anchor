@@ -3,7 +3,11 @@
   "WorkspaceRootPath": "F:\\Anchor\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{3F8C3344-A1F8-ACD6-F879-EB1FF1313C64}|Assembly-CSharp.csproj|f:\\anchor\\assets\\art\\liusha.shader||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "AbsoluteMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|f:\\anchor\\assets\\designerspace\\scripts\\level\\cameramgr.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|solutionrelative:assets\\designerspace\\scripts\\level\\cameramgr.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3F8C3344-A1F8-ACD6-F879-EB1FF1313C64}|Assembly-CSharp.csproj|F:\\Anchor\\assets\\art\\liusha.shader||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{3F8C3344-A1F8-ACD6-F879-EB1FF1313C64}|Assembly-CSharp.csproj|solutionrelative:assets\\art\\liusha.shader||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
@@ -18,11 +22,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "liusha.shader",
               "DocumentMoniker": "F:\\Anchor\\Assets\\Art\\liusha.shader",
               "RelativeDocumentMoniker": "Assets\\Art\\liusha.shader",
@@ -30,12 +34,24 @@
               "RelativeToolTip": "Assets\\Art\\liusha.shader",
               "ViewState": "AgIAADoAAAAAAAAAAAAuwGsAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002777|",
-              "WhenOpened": "2026-07-04T10:09:47.853Z",
+              "WhenOpened": "2026-07-04T10:09:47.853Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "CameraMgr.cs",
+              "DocumentMoniker": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "RelativeDocumentMoniker": "Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "ToolTip": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "RelativeToolTip": "Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAAACgAAAA+AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-04T15:30:45.26Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "RouteNetwork.cs",
               "DocumentMoniker": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
               "RelativeDocumentMoniker": "Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
@@ -43,7 +59,7 @@
               "RelativeToolTip": "Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-04T10:09:47.886Z"
+              "WhenOpened": "2026-07-04T15:33:29.625Z"
             }
           ]
         }

@@ -3,8 +3,12 @@
   "WorkspaceRootPath": "F:\\Anchor\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|f:\\anchor\\assets\\designerspace\\scripts\\level\\cameramgr.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|solutionrelative:assets\\designerspace\\scripts\\level\\cameramgr.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{67EE8C2D-EDB8-B0CA-AB99-F5AA5FBAF6EE}|Anchor.DesignerSpace.csproj|solutionrelative:Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -19,6 +23,19 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "CameraMgr.cs",
+              "DocumentMoniker": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "RelativeDocumentMoniker": "Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "ToolTip": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "RelativeToolTip": "Assets\\DesignerSpace\\Scripts\\Level\\CameraMgr.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAAACgAAAA+AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-04T15:30:45.26Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
               "Title": "RouteNetwork.cs",
               "DocumentMoniker": "F:\\Anchor\\Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
               "RelativeDocumentMoniker": "Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
@@ -26,8 +43,7 @@
               "RelativeToolTip": "Assets\\DesignerSpace\\Scripts\\RouteNetwork.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-04T10:07:24.842Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-07-04T15:33:29.625Z"
             }
           ]
         }

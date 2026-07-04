@@ -57,6 +57,21 @@ namespace ClimbGame.Climb3C.Gameplay
         public ClimbHand CurrentHand => _s != null ? _s.CurrentHand : ClimbHand.None;
         public Vector3 TorsoCenter => _s != null ? _s.TorsoCenter : Vector3.zero;
 
+        /// <summary>某只手成功抓握锚定时触发，参数为刚锚定的手（相机可据此回到中性机位）。</summary>
+        public event System.Action<ClimbHand> HandAnchored;
+
+        /// <summary>手指按下开始伸手（touch 脱离锚点）时触发，参数为伸出/脱离的手。</summary>
+        public event System.Action<ClimbHand> HandReachStarted;
+
+        /// <summary>左手当前锚点世界坐标。</summary>
+        public Vector3 LeftAnchor => _s != null ? _s.LeftAnchor : Vector3.zero;
+
+        /// <summary>右手当前锚点世界坐标。</summary>
+        public Vector3 RightAnchor => _s != null ? _s.RightAnchor : Vector3.zero;
+
+        /// <summary>双手锚点中点世界坐标（相机 rig 跟随目标）。</summary>
+        public Vector3 AnchorMidpoint => (LeftAnchor + RightAnchor) * 0.5f;
+
         public bool TryGetSnapshot(out ClimbStateSnapshot snapshot)
         {
             if (_s == null || _avatar == null)
@@ -459,6 +474,7 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.ReachStartHand = AnchorOf(side);
             _s.AttackHandCurrent = _s.ReachStartHand;
             _s.State = ClimbState.Reaching;
+            HandReachStarted?.Invoke(side);
         }
 
         private void BeginReturn()
@@ -470,6 +486,7 @@ namespace ClimbGame.Climb3C.Gameplay
 
         private void Grab(RivetPoint rivet)
         {
+            ClimbHand anchoredHand = _s.CurrentHand;
             SetAnchor(_s.CurrentHand, rivet.GrabPosition);
             int rivetId = _rivets.IndexOf(rivet);
             if (_s.CurrentHand == ClimbHand.Left) { _s.LeftRivet = rivet; _s.LeftRivetId = rivetId; }
@@ -482,6 +499,7 @@ namespace ClimbGame.Climb3C.Gameplay
             // 不再强制左右交替：抓稳后置空当前手，下次 touch 就近选手。
             _s.CurrentHand = ClimbHand.None;
             _s.State = ClimbState.WaitingForPress;
+            HandAnchored?.Invoke(anchoredHand);
         }
 
         private void BeginFall()
