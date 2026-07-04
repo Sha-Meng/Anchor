@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using ClimbGame.Climb3C.Config;
 using ClimbGame.Climb3C.Core;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace ClimbGame.Climb3C.Input
 {
@@ -22,9 +23,14 @@ namespace ClimbGame.Climb3C.Input
     public sealed class ClimbTouchInput : MonoBehaviour
     {
         [SerializeField] private ClimbTuningConfig tuning;
+        [SerializeField] private bool ignoreUiPointerInput = true;
 
         private readonly List<ClimbPointer> _pointers = new List<ClimbPointer>();
+        private readonly HashSet<int> _uiCapturedTouchIds = new HashSet<int>();
+        private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>();
         private int _sampledFrame = -1;
+        private bool _mouseStartedOverUi;
+        private PointerEventData _uiPointerData;
 
         public IReadOnlyList<ClimbPointer> Pointers
         {
@@ -54,11 +60,34 @@ namespace ClimbGame.Climb3C.Input
                 for (int i = 0; i < UnityEngine.Input.touchCount; i++)
                 {
                     Touch t = UnityEngine.Input.GetTouch(i);
+                    ClimbPointerPhase phase = PhaseFromTouch(t.phase);
+                    if (t.phase == TouchPhase.Began)
+                    {
+                        if (IsPointerOverUi(t.position, t.fingerId))
+                        {
+                            _uiCapturedTouchIds.Add(t.fingerId);
+                        }
+                        else
+                        {
+                            _uiCapturedTouchIds.Remove(t.fingerId);
+                        }
+                    }
+
+                    if (_uiCapturedTouchIds.Contains(t.fingerId))
+                    {
+                        if (phase == ClimbPointerPhase.Ended)
+                        {
+                            _uiCapturedTouchIds.Remove(t.fingerId);
+                        }
+
+                        continue;
+                    }
+
                     _pointers.Add(new ClimbPointer
                     {
                         Id = t.fingerId,
                         ScreenPos = t.position,
-                        Phase = PhaseFromTouch(t.phase)
+                        Phase = phase
                     });
                 }
             }
@@ -68,6 +97,27 @@ namespace ClimbGame.Climb3C.Input
                 bool down = UnityEngine.Input.GetMouseButton(0);
                 bool began = UnityEngine.Input.GetMouseButtonDown(0);
                 bool ended = UnityEngine.Input.GetMouseButtonUp(0);
+                Vector2 mousePosition = UnityEngine.Input.mousePosition;
+                if (!down && !began && !ended)
+                {
+                    _mouseStartedOverUi = false;
+                }
+
+                if (began)
+                {
+                    _mouseStartedOverUi = IsPointerOverUi(mousePosition, -1);
+                }
+
+                if (_mouseStartedOverUi)
+                {
+                    if (ended)
+                    {
+                        _mouseStartedOverUi = false;
+                    }
+
+                    return;
+                }
+
                 if (down || began || ended)
                 {
                     ClimbPointerPhase phase = began ? ClimbPointerPhase.Began
@@ -75,11 +125,37 @@ namespace ClimbGame.Climb3C.Input
                     _pointers.Add(new ClimbPointer
                     {
                         Id = -1,
-                        ScreenPos = UnityEngine.Input.mousePosition,
+                        ScreenPos = mousePosition,
                         Phase = phase
                     });
                 }
             }
+        }
+
+        private bool IsPointerOverUi(Vector2 screenPosition, int pointerId)
+        {
+            if (!ignoreUiPointerInput || EventSystem.current == null)
+            {
+                return false;
+            }
+
+            return EventSystem.current.IsPointerOverGameObject(pointerId) ||
+                RaycastUiAt(screenPosition, pointerId);
+        }
+
+        private bool RaycastUiAt(Vector2 screenPosition, int pointerId)
+        {
+            if (_uiPointerData == null)
+            {
+                _uiPointerData = new PointerEventData(EventSystem.current);
+            }
+
+            _uiPointerData.Reset();
+            _uiPointerData.pointerId = pointerId;
+            _uiPointerData.position = screenPosition;
+            _uiRaycastResults.Clear();
+            EventSystem.current.RaycastAll(_uiPointerData, _uiRaycastResults);
+            return _uiRaycastResults.Count > 0;
         }
 
         private static ClimbPointerPhase PhaseFromTouch(TouchPhase phase)

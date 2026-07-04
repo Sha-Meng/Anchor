@@ -207,7 +207,7 @@ namespace Anchor.LevelAnchorSystem
                             LastVisitedCandidateCount++;
                             var index = indices[i];
                             var data = _anchors[index];
-                            var distanceSqr = (worldPosition - data.WorldPosition).sqrMagnitude;
+                            var distanceSqr = PlanarDistanceSqr(worldPosition, data.WorldPosition);
                             if (distanceSqr > maxDistanceSqr || distanceSqr >= bestDistanceSqr)
                             {
                                 continue;
@@ -262,7 +262,7 @@ namespace Anchor.LevelAnchorSystem
                         LastVisitedCandidateCount++;
                         var index = indices[i];
                         var data = _anchors[index];
-                        var distanceSqr = (worldPosition - data.WorldPosition).sqrMagnitude;
+                        var distanceSqr = PlanarDistanceSqr(worldPosition, data.WorldPosition);
                         var distance = Mathf.Sqrt(distanceSqr);
                         var stability = CalculateStability(data, distance);
 
@@ -414,6 +414,13 @@ namespace Anchor.LevelAnchorSystem
             var normalizedDistance = Mathf.Clamp01(distance / data.GrabRadius);
             var stability = Mathf.CeilToInt(data.BaseStability * (1f - normalizedDistance));
             return Mathf.Clamp(stability, 1, data.BaseStability);
+        }
+
+        private static float PlanarDistanceSqr(Vector3 a, Vector3 b)
+        {
+            float dx = a.x - b.x;
+            float dy = a.y - b.y;
+            return dx * dx + dy * dy;
         }
     }
 

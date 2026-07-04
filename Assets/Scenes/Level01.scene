@@ -697,7 +697,7 @@ MonoBehaviour:
   wallSurfaceOffset: 0.05
   wallProbeDistance: 8
   forceConfig: {fileID: 0}
-  characterPrefab: {fileID: 0}
+  characterPrefab: {fileID: 7190392360658972332, guid: 8fba94173e2a97041a18861de4fdcc9c, type: 3}
   characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
   characterScale: 1
   bodyColor: {r: 0.2, g: 0.5, b: 0.85, a: 1}

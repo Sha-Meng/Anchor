@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Anchor.RivetRopeSystem
 {
@@ -19,6 +21,7 @@ namespace Anchor.RivetRopeSystem
         [SerializeField] private KeyCode fallKey = KeyCode.F;
         [SerializeField] private KeyCode switchLeadKey = KeyCode.Tab;
         [SerializeField] private bool enableMouseClickPlace = true;
+        [SerializeField] private bool ignoreUiPointerInput = true;
 
         [Header("Touch")]
         [SerializeField] private bool enableTouchZones = true;
@@ -31,6 +34,9 @@ namespace Anchor.RivetRopeSystem
         [SerializeField] private bool playerInteractive = true;
         [SerializeField] private bool placeSurfaceValid = true;
         [SerializeField] private bool logInputActions = true;
+
+        private PointerEventData _uiPointerData;
+        private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>();
 
         public static string DebugRunFirstInputSmokeSequence()
         {
@@ -187,7 +193,8 @@ namespace Anchor.RivetRopeSystem
 
         private void UpdateKeyboardAndMouse()
         {
-            if (Input.GetKeyDown(placeKey) || (enableMouseClickPlace && Input.GetMouseButtonDown(0)))
+            if (Input.GetKeyDown(placeKey) ||
+                (enableMouseClickPlace && Input.GetMouseButtonDown(0) && !IsPointerOverUi(Input.mousePosition)))
             {
                 TriggerPlace();
             }
@@ -228,6 +235,11 @@ namespace Anchor.RivetRopeSystem
                     continue;
                 }
 
+                if (IsPointerOverUi(touch.position, touch.fingerId))
+                {
+                    continue;
+                }
+
                 var normalizedX = touch.position.x / Mathf.Max(1f, Screen.width);
                 if (normalizedX < touchPlaceZoneMaxX)
                 {
@@ -242,6 +254,43 @@ namespace Anchor.RivetRopeSystem
                     TriggerRescuePull();
                 }
             }
+        }
+
+        private bool IsPointerOverUi(Vector2 screenPosition)
+        {
+            if (!ignoreUiPointerInput || EventSystem.current == null)
+            {
+                return false;
+            }
+
+            return EventSystem.current.IsPointerOverGameObject() ||
+                RaycastUiAt(screenPosition, -1);
+        }
+
+        private bool IsPointerOverUi(Vector2 screenPosition, int pointerId)
+        {
+            if (!ignoreUiPointerInput || EventSystem.current == null)
+            {
+                return false;
+            }
+
+            return EventSystem.current.IsPointerOverGameObject(pointerId) ||
+                RaycastUiAt(screenPosition, pointerId);
+        }
+
+        private bool RaycastUiAt(Vector2 screenPosition, int pointerId)
+        {
+            if (_uiPointerData == null)
+            {
+                _uiPointerData = new PointerEventData(EventSystem.current);
+            }
+
+            _uiPointerData.Reset();
+            _uiPointerData.pointerId = pointerId;
+            _uiPointerData.position = screenPosition;
+            _uiRaycastResults.Clear();
+            EventSystem.current.RaycastAll(_uiPointerData, _uiRaycastResults);
+            return _uiRaycastResults.Count > 0;
         }
 
         private Vector3 ResolvePlacePosition()
