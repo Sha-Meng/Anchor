@@ -247,9 +247,23 @@ namespace Anchor.Networking
             _statusText = AddText("Status", "MainLevel 等待同步确认", 20, TextAnchor.MiddleLeft);
             _logText = AddText("Log", GetRoomInfoText() + "\n游戏日志：\n", 15, TextAnchor.UpperLeft);
 
+            DisableSceneSinglePlayerClimbBinders();
             BuildMainLevelPlayers();
 
             SendRoomEnteredGame();
+        }
+
+        private void DisableSceneSinglePlayerClimbBinders()
+        {
+            var binders = FindObjectsOfType<Climb3CLevelBinder>();
+            for (int i = 0; i < binders.Length; i++)
+            {
+                var binder = binders[i];
+                if (binder == null || binder == _localClimbBinder || IsUnderRuntimeRoot(binder.transform)) continue;
+
+                binder.enabled = false;
+                AppendLog("联机模式停用场景单人 Climb3C: " + binder.gameObject.name);
+            }
         }
 
         private GameObject CreatePlayerCube(string name, Vector3 position, Color color)
@@ -866,6 +880,18 @@ namespace Anchor.Networking
                 || go.name == "Climb3C_RivetField"
                 || go.name == "Climb3C_AnchorRegistry"
                 || go.name == "HandMagnifier";
+        }
+
+        private bool IsUnderRuntimeRoot(Transform transform)
+        {
+            if (transform == null || _runtimeRoot == null) return false;
+
+            for (var current = transform; current != null; current = current.parent)
+            {
+                if (current.gameObject == _runtimeRoot) return true;
+            }
+
+            return false;
         }
 
         private void CreateCanvas(string title)
