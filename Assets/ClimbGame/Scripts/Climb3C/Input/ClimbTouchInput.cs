@@ -142,6 +142,20 @@ namespace ClimbGame.Climb3C.Input
             return false;
         }
 
+        /// <summary>查找任意位置刚按下（Began）的触点，不分左右区（用于"就近选手"起攀）。</summary>
+        public bool TryGetAnyNewPress(out ClimbPointer pointer)
+        {
+            EnsureSampled();
+            for (int i = 0; i < _pointers.Count; i++)
+            {
+                if (_pointers[i].Phase != ClimbPointerPhase.Began) continue;
+                pointer = _pointers[i];
+                return true;
+            }
+            pointer = default;
+            return false;
+        }
+
         /// <summary>查找任意一侧刚按下的触点（用于起攀首手判定）。</summary>
         public bool TryGetAnyNewPress(out ClimbPointer pointer, out ClimbHand side)
         {

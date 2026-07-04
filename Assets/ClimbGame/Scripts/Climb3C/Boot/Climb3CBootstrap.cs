@@ -97,10 +97,6 @@ namespace ClimbGame.Climb3C.Boot
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             canvasGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
-            var zoneOverlay = new GameObject("InputZoneOverlayUI").AddComponent<InputZoneOverlayUI>();
-            zoneOverlay.transform.SetParent(canvasGo.transform, false);
-            zoneOverlay.Build(canvas, tuning);
-
             var staminaBar = new GameObject("StaminaBarUI").AddComponent<StaminaBarUI>();
             staminaBar.transform.SetParent(canvasGo.transform, false);
             staminaBar.Build(canvas);
@@ -133,7 +129,6 @@ namespace ClimbGame.Climb3C.Boot
             _controller.Initialize(gameContext, 0, tuning, armRig, stamina, haptic, character, input,
                 projector, rivetField, haptics, magnifierComp, staminaBar, startCenter);
             _controller.SetFallDependencies(ragdollFall, climbCam);
-            _controller.SetZoneOverlay(zoneOverlay);
             _controller.SetCameraConfig(cameraConfig);
 
             int wallMask = ~((1 << LayerIgnoreRaycast) | (1 << LayerUI));

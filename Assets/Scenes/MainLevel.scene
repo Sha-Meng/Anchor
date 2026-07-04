@@ -1034,7 +1034,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22400762, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0.000061035156
+      value: -0.0000076293945
       objectReference: {fileID: 0}
     - target: {fileID: 22426080, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchorMax.x
@@ -3277,12 +3277,12 @@ MonoBehaviour:
   configuredStartCenter: {x: 0, y: 0, z: 0}
   primaryStartAnchorName: 
   useNearestStartAnchorPair: 0
-  leftHandStartAnchorName: ScatterAnchor_002
-  rightHandStartAnchorName: ScatterAnchor_001
+  leftHandStartAnchorName: ScatterAnchor_001
+  rightHandStartAnchorName: ScatterAnchor_002
   cameraFollow: 1
   overShoulderOffset: {x: 0.6, y: 0.55, z: -6.2}
   gripQueryRadius: 0.5
-  stickHandToWall: 1
+  stickHandToWall: 0
   wallSurfaceOffset: 0.05
   wallProbeFrontStart: 25
   wallProbeDistance: 8
@@ -3291,7 +3291,9 @@ MonoBehaviour:
   characterPrefab: {fileID: 0}
   characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
   characterScale: 1
-  maxHandDistance: 1
+  maxHandDistance: 1.7
+  handSlipCancelDistance: 3
+  enableMagnifier: 0
   bodyColor: {r: 0.2, g: 0.5, b: 0.85, a: 1}
   handColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
   capsuleCenter: {x: 0, y: 0, z: 0}
@@ -3301,7 +3303,7 @@ MonoBehaviour:
   resolveCapsulePenetration: 1
   wallCollisionMask:
     serializedVersion: 2
-    m_Bits: 4294967259
+    m_Bits: 19
   depenetrationIterations: 4
 --- !u!4 &498449945
 Transform:
@@ -11372,6 +11374,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4591144584944910794, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7069800207446442250, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_Name
       value: RagDollMan

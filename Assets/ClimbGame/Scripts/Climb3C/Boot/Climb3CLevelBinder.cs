@@ -100,8 +100,14 @@ namespace ClimbGame.Climb3C.Boot
         public float characterScale = 1f;
 
         [Header("Magnet Point 攀爬")]
-        [Tooltip("两手磁点允许的最大间距（米），攻击手超出此范围会被强制拉回")]
+        [Tooltip("两手磁点允许的最大间距（米），攻击手超出此范围会被夹取到边界")]
         public float maxHandDistance = 2f;
+
+        [Tooltip("touch 目标位与磁点真实位置的差值超过该值（米）时，取消本次 touch")]
+        public float handSlipCancelDistance = 0.5f;
+
+        [Tooltip("放大镜总开关（默认关闭；开启后显示攀爬手的 RT 放大镜）")]
+        public bool enableMagnifier = false;
 
         [Header("角色配色（用于联机时区分本地/远端玩家）")]
         [Tooltip("躯干配色（作为色调叠加到角色渲染器上）")]
@@ -268,10 +274,6 @@ namespace ClimbGame.Climb3C.Boot
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             canvasGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
-            var zoneOverlay = new GameObject("InputZoneOverlayUI").AddComponent<InputZoneOverlayUI>();
-            zoneOverlay.transform.SetParent(canvasGo.transform, false);
-            zoneOverlay.Build(canvas, tuning);
-
             var staminaBar = new GameObject("StaminaBarUI").AddComponent<StaminaBarUI>();
             staminaBar.transform.SetParent(canvasGo.transform, false);
             staminaBar.Build(canvas);
@@ -326,11 +328,12 @@ namespace ClimbGame.Climb3C.Boot
             _controller.Initialize(gameContext, 0, tuning, armRig, stamina, haptic, avatar, input,
                 projector, rivetField, haptics, magnifierComp, staminaBar, startCenter);
             _controller.SetFallDependencies(ragdollFall, climbCam);
-            _controller.SetZoneOverlay(zoneOverlay);
             _controller.SetGripProvider(anchorRegistry);
             _controller.SetWallProbe(wallProbe);
             _controller.SetBodyWallOffset(bodyWallOffset);
             _controller.SetMaxHandDistance(maxHandDistance);
+            _controller.SetHandSlipCancelDistance(handSlipCancelDistance);
+            _controller.SetMagnifierEnabled(enableMagnifier);
 
             // 胶囊体防穿模：把角色胶囊体与墙体做重叠检测，穿插时沿法线推出贴合墙面
             if (resolveCapsulePenetration && avatar.BodyCapsule != null)
