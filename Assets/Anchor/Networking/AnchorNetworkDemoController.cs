@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Anchor.RivetRopeSystem;
 using ClimbGame.Climb3C.Boot;
 using ClimbGame.Climb3C.Gameplay;
 using UnityEngine;
@@ -45,6 +46,9 @@ namespace Anchor.Networking
         private IClimbStateSource _localStateSource;
         private Climb3CLevelBinder _localClimbBinder;
         private AnchorRemoteClimbPlayer _remoteClimbPlayer;
+        private RivetRopeNetworkBridge _rivetRopeBridge;
+        private RivetRopeDebugDriver _rivetRopeDriver;
+        private RivetRopeMainGameplayBinder _rivetRopeBinder;
 
         private Canvas _canvas;
         private GameObject _runtimeRoot;
@@ -249,6 +253,7 @@ namespace Anchor.Networking
 
             DisableSceneSinglePlayerClimbBinders();
             BuildMainLevelPlayers();
+            ConfigureRivetRopeNetworking(false);
 
             SendRoomEnteredGame();
         }
@@ -308,6 +313,38 @@ namespace Anchor.Networking
 
             StartCoroutine(ResolveLocalStateSourceNextFrame());
             AppendLog("MainLevel 角色准备: 本地=" + _localSlot + "/" + _localClimbRole + "(" + localAnchorName + ") 远端=" + _remoteSlot + "/" + _remoteClimbRole + "(" + remoteAnchorName + ")");
+        }
+
+        private void ConfigureRivetRopeNetworking(bool syncEnabled)
+        {
+            _rivetRopeDriver = FindObjectOfType<RivetRopeDebugDriver>();
+            _rivetRopeBinder = FindObjectOfType<RivetRopeMainGameplayBinder>();
+
+            if (_rivetRopeDriver == null)
+            {
+                AppendLog("铆钉同步未接入: 未找到 RivetRopeDebugDriver");
+                return;
+            }
+
+            if (_rivetRopeBridge == null)
+            {
+                _rivetRopeBridge = GetComponent<RivetRopeNetworkBridge>();
+                if (_rivetRopeBridge == null)
+                {
+                    _rivetRopeBridge = gameObject.AddComponent<RivetRopeNetworkBridge>();
+                }
+            }
+
+            var localRole = _isHost ? RivetRopeLocalPlayerRole.Lead : RivetRopeLocalPlayerRole.Second;
+            if (_rivetRopeBinder != null)
+            {
+                _rivetRopeBinder.SetLocalPlayerRole(localRole);
+            }
+
+            _rivetRopeBridge.Configure(_client, _rivetRopeDriver, _roomId, _playerId, syncEnabled);
+            _rivetRopeDriver.SetNetworkSinkSource(_rivetRopeBridge);
+
+            AppendLog("铆钉同步接入: 本地=" + localRole + " sync=" + syncEnabled);
         }
 
         private AnchorStartPose ResolveAnchorStartPose(string primaryAnchorName)
@@ -649,6 +686,10 @@ namespace Anchor.Networking
                     AppendLog("房间进入游戏同步阶段");
                     _inGame = true;
                     _gameSyncReady = _gameSceneReady;
+                    if (_gameSyncReady)
+                    {
+                        ConfigureRivetRopeNetworking(true);
+                    }
                     break;
                 case "room.peerLeft":
                     _remotePlayerId = AnchorJson.GetString(payload, "playerId") ?? _remotePlayerId;
@@ -827,6 +868,11 @@ namespace Anchor.Networking
 
         private void ClearRuntimeSceneObjects()
         {
+            if (_rivetRopeBridge != null)
+            {
+                _rivetRopeBridge.SetSyncEnabled(false);
+            }
+
             if (_runtimeRoot != null)
             {
                 DestroyImmediate(_runtimeRoot);
@@ -851,6 +897,8 @@ namespace Anchor.Networking
             _localStateSource = null;
             _localClimbBinder = null;
             _remoteClimbPlayer = null;
+            _rivetRopeDriver = null;
+            _rivetRopeBinder = null;
         }
 
         private void BeginView(string view, bool forceRebuild = false)

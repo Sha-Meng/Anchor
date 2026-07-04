@@ -9,6 +9,7 @@ namespace Anchor.Networking
         [SerializeField] private RivetRopeDebugDriver rivetRopeDriver;
         [SerializeField] private string roomId;
         [SerializeField] private string localPlayerId;
+        [SerializeField] private bool syncEnabled;
         [SerializeField] private bool logEvents = true;
 
         private int _seq;
@@ -17,6 +18,36 @@ namespace Anchor.Networking
         {
             roomId = newRoomId;
             localPlayerId = newLocalPlayerId;
+        }
+
+        public void Configure(
+            AnchorRelayClient newRelayClient,
+            RivetRopeDebugDriver newRivetRopeDriver,
+            string newRoomId,
+            string newLocalPlayerId,
+            bool newSyncEnabled)
+        {
+            if (relayClient != null && relayClient != newRelayClient && isActiveAndEnabled)
+            {
+                relayClient.MessageReceived -= HandleMessage;
+            }
+
+            relayClient = newRelayClient;
+            rivetRopeDriver = newRivetRopeDriver;
+            roomId = newRoomId;
+            localPlayerId = newLocalPlayerId;
+            syncEnabled = newSyncEnabled;
+
+            if (relayClient != null && isActiveAndEnabled)
+            {
+                relayClient.MessageReceived -= HandleMessage;
+                relayClient.MessageReceived += HandleMessage;
+            }
+        }
+
+        public void SetSyncEnabled(bool enabled)
+        {
+            syncEnabled = enabled;
         }
 
         private void Awake()
@@ -45,7 +76,7 @@ namespace Anchor.Networking
 
         public void SendRivetRopeEvent(RivetRopeSyncEvent syncEvent)
         {
-            if (relayClient == null || !relayClient.IsConnected || !syncEvent.IsValid)
+            if (!syncEnabled || relayClient == null || !relayClient.IsConnected || !syncEvent.IsValid)
             {
                 return;
             }
@@ -87,7 +118,9 @@ namespace Anchor.Networking
 
             var payload = AnchorJson.GetPayload(json);
             var eventType = AnchorJson.GetString(payload, "eventType");
-            if (eventType != RivetRopeEventTypes.RivetPlace && eventType != RivetRopeEventTypes.RivetCollect)
+            if (eventType != RivetRopeEventTypes.RivetPlace &&
+                eventType != RivetRopeEventTypes.RivetCollect &&
+                eventType != RivetRopeEventTypes.LeadSwitch)
             {
                 return;
             }

@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using Anchor.ForceSystem;
 using Anchor.LevelAnchorSystem;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Anchor.SystemValidation
 {
@@ -26,6 +28,7 @@ namespace Anchor.SystemValidation
         [SerializeField] private Transform rightMarker;
         [SerializeField] private SystemValidationDebugPanel debugPanel;
         [SerializeField] private MobileHapticFeedbackAdapter haptics;
+        [SerializeField] private bool ignoreUiPointerInput = true;
         [SerializeField] private bool drawGizmos = true;
 
         private IGripQueryProvider _gripQueryProvider;
@@ -39,6 +42,8 @@ namespace Anchor.SystemValidation
         private ForceEvaluationSettings _lastSettings;
         private ForceState _lastObservedState = ForceState.Stable;
         private float _lastStateChangeTime;
+        private PointerEventData _uiPointerData;
+        private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>();
 
         public ValidationHandInputState LeftHand => _leftHand;
         public ValidationHandInputState RightHand => _rightHand;
@@ -172,6 +177,15 @@ namespace Anchor.SystemValidation
         private void UpdateMouseInput()
         {
             var screenPosition = (Vector2)Input.mousePosition;
+            if (IsPointerOverUi(screenPosition))
+            {
+                _leftHand.Clear(screenPosition);
+                _rightHand.Clear(screenPosition);
+                SetMarker(leftMarker, _leftHand);
+                SetMarker(rightMarker, _rightHand);
+                return;
+            }
+
             if (Input.GetMouseButton(0))
             {
                 UpdateHandFromScreen(ref _leftHand, screenPosition);
@@ -207,6 +221,22 @@ namespace Anchor.SystemValidation
                 var side = touch.position.x < Screen.width * 0.5f
                     ? ValidationHandSide.Left
                     : ValidationHandSide.Right;
+
+                if (IsPointerOverUi(touch.position, touch.fingerId))
+                {
+                    if (side == ValidationHandSide.Left)
+                    {
+                        _leftHand.Clear(touch.position);
+                        sawLeft = true;
+                    }
+                    else
+                    {
+                        _rightHand.Clear(touch.position);
+                        sawRight = true;
+                    }
+
+                    continue;
+                }
 
                 if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
                 {
@@ -250,6 +280,43 @@ namespace Anchor.SystemValidation
 
             SetMarker(leftMarker, _leftHand);
             SetMarker(rightMarker, _rightHand);
+        }
+
+        private bool IsPointerOverUi(Vector2 screenPosition)
+        {
+            if (!ignoreUiPointerInput || EventSystem.current == null)
+            {
+                return false;
+            }
+
+            return EventSystem.current.IsPointerOverGameObject() ||
+                RaycastUiAt(screenPosition, -1);
+        }
+
+        private bool IsPointerOverUi(Vector2 screenPosition, int pointerId)
+        {
+            if (!ignoreUiPointerInput || EventSystem.current == null)
+            {
+                return false;
+            }
+
+            return EventSystem.current.IsPointerOverGameObject(pointerId) ||
+                RaycastUiAt(screenPosition, pointerId);
+        }
+
+        private bool RaycastUiAt(Vector2 screenPosition, int pointerId)
+        {
+            if (_uiPointerData == null)
+            {
+                _uiPointerData = new PointerEventData(EventSystem.current);
+            }
+
+            _uiPointerData.Reset();
+            _uiPointerData.pointerId = pointerId;
+            _uiPointerData.position = screenPosition;
+            _uiRaycastResults.Clear();
+            EventSystem.current.RaycastAll(_uiPointerData, _uiRaycastResults);
+            return _uiRaycastResults.Count > 0;
         }
 
         private void UpdateHandFromScreen(ref ValidationHandInputState hand, Vector2 screenPosition)

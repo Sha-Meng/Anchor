@@ -446,6 +446,31 @@ docs/coop-network-protocol.config.json
 
 远端客户端 MUST 按 `eventId` 去重，并 SHOULD 使用 `ropeRevision` 或等价序号处理重复/旧事件，避免重复打钉或重复回收。
 
+#### `rivet.leadSwitch`
+
+当前领攀者成功换领后发送，远端收到后交换领攀/后攀身份，但不移动任何玩家库存。初始 Lead/Second 由服务器房间身份决定：`hostId` 对应先锋攀登者，非房主对应第二攀登者；进入玩法后换领属于共享玩法状态，必须通过该事件同步。
+
+```json
+{
+  "type": "game.event",
+  "roomId": "AB12",
+  "seq": 38,
+  "sentAt": 123459.20,
+  "schema": "climb-event.v1",
+  "payload": {
+    "eventId": "evt-rivet-0003",
+    "eventType": "rivet.leadSwitch",
+    "actorPlayerId": "lead",
+    "data": {
+      "inventoryAfter": 0,
+      "ropeRevision": 14
+    }
+  }
+}
+```
+
+客户端 UI 只应向当前本地玩家也是模型当前 `LeadPlayerId` 的一端显示换领入口；非领攀者不显示换领按钮。换领成功后，原第二攀登者成为新的领攀者，原领攀者成为新的后攀者，双方各自携带的铆钉数量保持不变。
+
 ## 房间流程
 
 1. 客户端连接 WebSocket。

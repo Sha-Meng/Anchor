@@ -150,6 +150,7 @@ namespace Anchor.RivetRopeSystem.Editor
             serialized.FindProperty("placeFallbackPoint").objectReferenceValue = place;
             serialized.FindProperty("collectProbePoint").objectReferenceValue = collect;
             serialized.FindProperty("targetCamera").objectReferenceValue = Camera.main;
+            serialized.FindProperty("localPlayerRole").intValue = (int)RivetRopeLocalPlayerRole.Lead;
             serialized.FindProperty("waistOffset").vector3Value = new Vector3(0f, -0.45f, 0f);
             serialized.FindProperty("ropeDepthOffset").floatValue = 0f;
             serialized.FindProperty("ropeSideOffset").floatValue = 0f;

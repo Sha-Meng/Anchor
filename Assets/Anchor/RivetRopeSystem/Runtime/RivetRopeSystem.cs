@@ -8,6 +8,7 @@ namespace Anchor.RivetRopeSystem
     {
         public const string RivetPlace = "rivet.place";
         public const string RivetCollect = "rivet.collect";
+        public const string LeadSwitch = "rivet.leadSwitch";
     }
 
     public enum RivetRopeFailureReason
@@ -299,6 +300,31 @@ namespace Anchor.RivetRopeSystem
             var previousLead = _leadPlayerId;
             _leadPlayerId = _secondPlayerId;
             _secondPlayerId = previousLead;
+            return true;
+        }
+
+        public bool TrySwitchLead(
+            bool leadInteractive,
+            bool secondInteractive,
+            bool isFallResolving,
+            out RivetRopeFailureReason failureReason,
+            out RivetRopeSyncEvent syncEvent)
+        {
+            var actorPlayerId = _leadPlayerId;
+            syncEvent = default;
+
+            if (!TrySwitchLead(leadInteractive, secondInteractive, isFallResolving, out failureReason))
+            {
+                return false;
+            }
+
+            RopeRevision++;
+            syncEvent = CreateSyncEvent(
+                RivetRopeEventTypes.LeadSwitch,
+                actorPlayerId,
+                string.Empty,
+                Vector3.zero,
+                GetInventory(actorPlayerId));
             return true;
         }
 
@@ -658,6 +684,26 @@ namespace Anchor.RivetRopeSystem
                     FailureReason = RivetRopeFailureReason.None,
                     Rivet = rivet,
                     InventoryAfter = _inventoryByPlayer[syncEvent.ActorPlayerId],
+                    RopeRevision = RopeRevision,
+                    SyncEvent = syncEvent
+                };
+            }
+
+            if (syncEvent.EventType == RivetRopeEventTypes.LeadSwitch)
+            {
+                if (!TrySwitchLead(true, true, false, out var failureReason))
+                {
+                    return RivetOperationResult.Failed(failureReason);
+                }
+
+                RopeRevision = syncEvent.RopeRevision;
+
+                return new RivetOperationResult
+                {
+                    Success = true,
+                    FailureReason = RivetRopeFailureReason.None,
+                    Rivet = default,
+                    InventoryAfter = GetInventory(syncEvent.ActorPlayerId),
                     RopeRevision = RopeRevision,
                     SyncEvent = syncEvent
                 };

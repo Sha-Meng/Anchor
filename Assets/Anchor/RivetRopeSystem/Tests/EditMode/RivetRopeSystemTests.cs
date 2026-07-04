@@ -85,6 +85,26 @@ namespace Anchor.RivetRopeSystem.Tests
         }
 
         [Test]
+        public void TryCollectRivet_CreditsTheCollectingPlayer()
+        {
+            var placed = PlaceLeadRivet(new Vector3(0f, 2f, 0f)).Rivet;
+
+            var collectedByLead = _model.TryCollectRivet(new RivetCollectRequest
+            {
+                PlayerId = "lead",
+                RivetId = placed.RivetId,
+                PlayerPosition = placed.Position,
+                IsPlayerStable = true,
+                IsPlayerInteractive = true
+            });
+
+            Assert.IsTrue(collectedByLead.Success);
+            Assert.AreEqual(_settings.TotalRivets, _model.GetInventory("lead"));
+            Assert.AreEqual(0, _model.GetInventory("second"));
+            Assert.AreEqual(_settings.TotalRivets, _model.TotalInventoryAndPlacedCount());
+        }
+
+        [Test]
         public void TrySwitchLead_SwapsRolesWithoutMovingInventory()
         {
             var leadInventory = _model.GetInventory("lead");
@@ -109,6 +129,66 @@ namespace Anchor.RivetRopeSystem.Tests
             Assert.AreEqual(RivetRopeFailureReason.PlayerNotInteractive, failureReason);
             Assert.AreEqual("lead", _model.LeadPlayerId);
             Assert.AreEqual("second", _model.SecondPlayerId);
+        }
+
+        [Test]
+        public void LeadSwitchEvent_AppliesOnRemoteWithoutMovingInventory()
+        {
+            var switched = _model.TrySwitchLead(
+                true,
+                true,
+                false,
+                out var failureReason,
+                out var syncEvent);
+            var remote = new RivetRopeModel();
+            remote.Reset(_settings, "lead", "second");
+
+            var applied = remote.ApplyRemoteEvent(syncEvent);
+
+            Assert.IsTrue(switched);
+            Assert.AreEqual(RivetRopeFailureReason.None, failureReason);
+            Assert.AreEqual(RivetRopeEventTypes.LeadSwitch, syncEvent.EventType);
+            Assert.IsTrue(applied.Success);
+            Assert.AreEqual("second", remote.LeadPlayerId);
+            Assert.AreEqual("lead", remote.SecondPlayerId);
+            Assert.AreEqual(_settings.TotalRivets, remote.GetInventory("lead"));
+            Assert.AreEqual(0, remote.GetInventory("second"));
+        }
+
+        [Test]
+        public void RecoveredRivets_BecomePlaceableAfterSwitchingLead()
+        {
+            var placed = new PlacedRivet[_settings.TotalRivets];
+            for (int i = 0; i < placed.Length; i++)
+            {
+                placed[i] = PlaceLeadRivet(new Vector3(0f, i, 0f)).Rivet;
+            }
+
+            Assert.IsTrue(CollectSecondRivet(placed[0].RivetId, placed[0].Position, true).Success);
+            Assert.IsTrue(CollectSecondRivet(placed[1].RivetId, placed[1].Position, true).Success);
+
+            var stillOriginalLead = PlaceLeadRivet(new Vector3(0f, 99f, 0f));
+            Assert.IsFalse(stillOriginalLead.Success);
+            Assert.AreEqual(RivetRopeFailureReason.NoInventory, stillOriginalLead.FailureReason);
+            Assert.AreEqual(0, _model.GetInventory("lead"));
+            Assert.AreEqual(2, _model.GetInventory("second"));
+            Assert.AreEqual(_settings.TotalRivets, _model.TotalInventoryAndPlacedCount());
+
+            Assert.IsTrue(_model.TrySwitchLead(true, true, false, out var failureReason));
+            Assert.AreEqual(RivetRopeFailureReason.None, failureReason);
+            Assert.AreEqual("second", _model.LeadPlayerId);
+
+            var newLeadPlace = _model.TryPlaceRivet(new RivetPlaceRequest
+            {
+                PlayerId = _model.LeadPlayerId,
+                Position = new Vector3(0f, 99f, 0f),
+                IsValidSurface = true,
+                IsPlayerInteractive = true
+            });
+
+            Assert.IsTrue(newLeadPlace.Success);
+            Assert.AreEqual(1, _model.GetInventory("second"));
+            Assert.AreEqual(_settings.TotalRivets, _model.TotalInventoryAndPlacedCount());
         }
 
         [Test]
