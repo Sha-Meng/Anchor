@@ -77,7 +77,7 @@ namespace Anchor.LevelAnchorSystem.Tests
         }
 
         [Test]
-        public void Queries_Use3DWorldDistanceAfterPlanarCellLookup()
+        public void Queries_IgnoreZDistanceAfterPlanarCellLookup()
         {
             var raised = CreateAnchor("raised", new Vector3(0f, 0f, 3f), 10, 2.5f);
             var map = BuildMap(raised);
@@ -85,10 +85,10 @@ namespace Anchor.LevelAnchorSystem.Tests
             var stability = map.GetStability(Vector3.zero);
             var found = map.TryFindNearestAnchor(Vector3.zero, out var nearest);
 
-            Assert.AreEqual(0, stability);
+            Assert.AreEqual(10, stability);
             Assert.IsTrue(found);
-            Assert.AreEqual(3f, nearest.Distance, 0.001f);
-            Assert.AreEqual(0, nearest.CurrentStability);
+            Assert.AreEqual(0f, nearest.Distance, 0.001f);
+            Assert.AreEqual(10, nearest.CurrentStability);
         }
 
         [Test]
