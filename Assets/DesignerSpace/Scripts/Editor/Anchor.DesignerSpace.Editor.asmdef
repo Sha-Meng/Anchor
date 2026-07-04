@@ -1,0 +1,18 @@
+{
+  "name": "Anchor.DesignerSpace.Editor",
+  "rootNamespace": "DesignerSpace.EditorTools",
+  "references": [
+    "Anchor.DesignerSpace"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
