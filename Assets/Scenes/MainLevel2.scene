@@ -1899,7 +1899,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22400762, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -0.000030517578
+      value: -0.00004196167
       objectReference: {fileID: 0}
     - target: {fileID: 22426080, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchorMax.x
@@ -5048,8 +5048,8 @@ MonoBehaviour:
   configuredStartCenter: {x: 0, y: 0, z: 0}
   primaryStartAnchorName: 
   useNearestStartAnchorPair: 0
-  leftHandStartAnchorName: ScatterAnchor_001
-  rightHandStartAnchorName: ScatterAnchor_002
+  leftHandStartAnchorName: ScatterAnchor_009
+  rightHandStartAnchorName: ScatterAnchor_007
   cameraFollow: 1
   overShoulderOffset: {x: 0.6, y: 0.55, z: -6.2}
   gripQueryRadius: 0.5
@@ -5062,6 +5062,10 @@ MonoBehaviour:
   characterPrefab: {fileID: 0}
   characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
   characterScale: 1
+  initialFlatRotationEuler: {x: 0, y: 0, z: 0}
+  overrideCharacterInitialPosition: 0
+  characterInitialPosition: {x: 0, y: 0, z: 0}
+  initialPositionOffset: {x: 0, y: 0, z: 0}
   maxHandDistance: 1.7
   handSlipCancelDistance: 3
   enableMagnifier: 0
@@ -19194,15 +19198,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 1.112
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.254
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -2.015
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_LocalRotation.w

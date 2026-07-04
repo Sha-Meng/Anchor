@@ -284,8 +284,8 @@ namespace Anchor.Networking
 
         private void BuildMainLevelPlayers()
         {
-            var localAnchorName = _isHost ? _config.HostLeadAnchorName : _config.GuestSecondAnchorName;
-            var remoteAnchorName = _isHost ? _config.GuestSecondAnchorName : _config.HostLeadAnchorName;
+            var localAnchorName = _config.HostLeadAnchorName;
+            var remoteAnchorName = localAnchorName;
             var remotePose = ResolveAnchorStartPose(remoteAnchorName);
 
             var binderGo = new GameObject("Anchor Local Climb Binder");
@@ -576,7 +576,7 @@ namespace Anchor.Networking
 
             if (_remoteClimbPlayer == null)
             {
-                var remotePose = ResolveAnchorStartPose(_isHost ? _config.GuestSecondAnchorName : _config.HostLeadAnchorName);
+                var remotePose = ResolveAnchorStartPose(_config.HostLeadAnchorName);
                 _remoteClimbPlayer = new AnchorRemoteClimbPlayer(
                     "Remote Climber Late",
                     remotePose.torso,

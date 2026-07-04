@@ -68,6 +68,32 @@ namespace ClimbGame.Climb3C.Core
             return best;
         }
 
+        /// <summary>
+        /// 只按 xy 平面投影距离求最近、且不等于 exclude 的铆钉（去掉 z 深度影响）。
+        /// out 距离为 xy 投影距离。
+        /// </summary>
+        public RivetPoint FindNearestExcludingXY(Vector3 worldPos, RivetPoint exclude, out float distance)
+        {
+            RivetPoint best = null;
+            float bestSqr = float.PositiveInfinity;
+            for (int i = 0; i < _rivets.Count; i++)
+            {
+                RivetPoint r = _rivets[i];
+                if (r == null || r == exclude) continue;
+                float dx = r.GrabPosition.x - worldPos.x;
+                float dy = r.GrabPosition.y - worldPos.y;
+                float sqr = dx * dx + dy * dy;
+                if (sqr < bestSqr)
+                {
+                    bestSqr = sqr;
+                    best = r;
+                }
+            }
+
+            distance = best != null ? Mathf.Sqrt(bestSqr) : float.PositiveInfinity;
+            return best;
+        }
+
         /// <summary>在 y 值低于 referenceY 的铆钉中找最近的（用于摔落后向下吸附）。</summary>
         public RivetPoint FindNearestBelow(Vector3 worldPos, float referenceY, out float distance)
         {

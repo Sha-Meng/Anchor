@@ -40,8 +40,7 @@ namespace ClimbGame.Climb3C.State
         [NonSerialized] public float FallStartY;
         [NonSerialized] public float FallTimer;
 
-        // 本次伸手开始时：触点初始投影位与手初始位（用于相对位移映射，按下瞬间手不跳变）
-        [NonSerialized] public Vector3 ReachStartTouch;
+        // 本次伸手开始时手的真实世界位（用于相对位移映射，按下瞬间手不跳变）
         [NonSerialized] public Vector3 ReachStartHand;
         [NonSerialized] public RivetPoint LeftRivet;
         [NonSerialized] public RivetPoint RightRivet;
