@@ -1,0 +1,17 @@
+[Unit]
+Description=Anchor MVP Relay Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/anchor-relay
+ExecStart=/usr/bin/node /opt/anchor-relay/server.js
+Restart=always
+RestartSec=3
+Environment=HOST=127.0.0.1
+Environment=PORT=8080
+Environment=MAX_MESSAGE_BYTES=65536
+Environment=MAX_ROOMS=100
+
+[Install]
+WantedBy=multi-user.target
