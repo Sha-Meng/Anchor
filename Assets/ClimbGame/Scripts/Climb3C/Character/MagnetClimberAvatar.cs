@@ -105,9 +105,9 @@ namespace ClimbGame.Climb3C.Character
 
         public Vector3 DriveArm(ClimbHand hand, Vector3 handTarget, bool applySway)
         {
-            // 移动磁点位置来驱动手（替代 IK）
-            Transform magnet = hand == ClimbHand.Left ? _leftMagnet : _rightMagnet;
-            if (magnet != null) magnet.position = handTarget;
+            // 手部磁点的控制已交给 HandFollowController/ControllerMgr（磁点跟随指针小球），
+            // 此处不再由攀爬控制器移动磁点，避免两者同帧争抢磁点位置。
+            // 磁点的吸附强度（DragPower）保持不变，仍由布娃娃把手骨拽到磁点位置。
             return GetHandPosition(hand);
         }
 

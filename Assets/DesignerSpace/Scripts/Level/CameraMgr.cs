@@ -9,8 +9,9 @@ namespace DesignerSpace
     /// RuntimeControlled 模式保留给 ClimbCamera 等运行时相机脚本接管相机。
     ///
     /// 平滑模式（smoothCameraTransition）下：
-    /// - fixedPointCameraRig 会 lerp 跟随外部设置的跟随点（如攀爬双手锚点中点），
-    ///   机位作为 rig 的子物体随之整体平移；
+    /// - fixedPointCameraRig 会 lerp 跟随跟随点，机位作为 rig 的子物体随之整体平移；
+    /// - 跟随点默认由 LeftHandMagnet 与 RightHandMagnet 的中点实时计算（useHandMagnetMidpoint），
+    ///   无需外部推送；关闭该开关时回退到外部通过 <see cref="SetFollowTarget"/> 设置的跟随点；
     /// - 相机在机位之间以 lerp/slerp 平滑过渡，而非瞬移。
     /// 取消勾选则回退到旧方案：相机瞬移到机位、rig 不做跟随，行为与历史一致。
     /// </summary>
@@ -56,8 +57,24 @@ namespace DesignerSpace
         [Tooltip("勾选：相机在机位间 lerp 平滑过渡、rig 跟随跟随点；取消：兼容旧方案（相机瞬移，rig 不跟随）")]
         [SerializeField] private bool smoothCameraTransition = true;
 
-        [Tooltip("是否让 fixedPointCameraRig 平滑跟随外部设置的跟随点（如双手锚点中点）。仅平滑模式生效")]
+        [Tooltip("是否让 fixedPointCameraRig 平滑跟随跟随点（双手磁点中点或外部设置点）。仅平滑模式生效")]
         [SerializeField] private bool followRigToTarget = true;
+
+        [Header("跟随点来源（双手磁点中点）")]
+        [Tooltip("勾选：rig 跟随点由 LeftHandMagnet 与 RightHandMagnet 的中点实时计算，无需外部推送；取消：使用外部 SetFollowTarget 设置的点")]
+        [SerializeField] private bool useHandMagnetMidpoint = true;
+
+        [Tooltip("左手磁点 Transform（可手动指定；留空则按名自动解析，磁点常在运行时创建）")]
+        [SerializeField] private Transform leftHandMagnet;
+
+        [Tooltip("右手磁点 Transform（可手动指定；留空则按名自动解析，磁点常在运行时创建）")]
+        [SerializeField] private Transform rightHandMagnet;
+
+        [Tooltip("左手磁点在场景中的对象名（用于自动解析）")]
+        [SerializeField] private string leftMagnetName = "LeftHandMagnet";
+
+        [Tooltip("右手磁点在场景中的对象名（用于自动解析）")]
+        [SerializeField] private string rightMagnetName = "RightHandMagnet";
 
         [Tooltip("rig 跟随跟随点的插值速度，数值越大跟随越紧；<= 0 表示瞬间跟随")]
         [SerializeField] private float followLerpSpeed = 8f;
@@ -180,11 +197,20 @@ namespace DesignerSpace
             return ApplyFixedPose(_currentIndex);
         }
 
-        /// <summary>让 rig 平滑跟随跟随点。仅平滑模式且启用跟随、且已收到跟随点时生效。</summary>
+        /// <summary>让 rig 平滑跟随跟随点。仅平滑模式且启用跟随、且已有跟随点时生效。</summary>
         private void UpdateRigFollow()
         {
             if (!smoothCameraTransition || !followRigToTarget) return;
-            if (fixedPointCameraRig == null || !_hasFollowTarget) return;
+            if (fixedPointCameraRig == null) return;
+
+            // 优先使用双手磁点中点作为跟随点；解析不到磁点时回退到外部设置的跟随点。
+            if (useHandMagnetMidpoint && TryResolveHandMidpoint(out Vector3 midpoint))
+            {
+                _followTarget = midpoint;
+                _hasFollowTarget = true;
+            }
+
+            if (!_hasFollowTarget) return;
 
             if (followLerpSpeed <= 0f)
             {
@@ -194,6 +220,61 @@ namespace DesignerSpace
 
             float t = 1f - Mathf.Exp(-followLerpSpeed * Time.deltaTime);
             fixedPointCameraRig.position = Vector3.Lerp(fixedPointCameraRig.position, _followTarget, t);
+        }
+
+        /// <summary>
+        /// 计算 LeftHandMagnet 与 RightHandMagnet 的世界中点作为跟随点。
+        /// 两个磁点都在时取中点；仅有其一时取该点；都解析不到则返回 false（交由外部跟随点兜底）。
+        /// </summary>
+        private bool TryResolveHandMidpoint(out Vector3 midpoint)
+        {
+            Transform left = ResolveLeftMagnet();
+            Transform right = ResolveRightMagnet();
+
+            if (left != null && right != null)
+            {
+                midpoint = (left.position + right.position) * 0.5f;
+                return true;
+            }
+
+            if (left != null)
+            {
+                midpoint = left.position;
+                return true;
+            }
+
+            if (right != null)
+            {
+                midpoint = right.position;
+                return true;
+            }
+
+            midpoint = default;
+            return false;
+        }
+
+        /// <summary>返回左手磁点，必要时按名自动解析（磁点常在运行时创建）。</summary>
+        private Transform ResolveLeftMagnet()
+        {
+            if (leftHandMagnet == null && !string.IsNullOrEmpty(leftMagnetName))
+            {
+                GameObject go = GameObject.Find(leftMagnetName);
+                if (go != null) leftHandMagnet = go.transform;
+            }
+
+            return leftHandMagnet;
+        }
+
+        /// <summary>返回右手磁点，必要时按名自动解析（磁点常在运行时创建）。</summary>
+        private Transform ResolveRightMagnet()
+        {
+            if (rightHandMagnet == null && !string.IsNullOrEmpty(rightMagnetName))
+            {
+                GameObject go = GameObject.Find(rightMagnetName);
+                if (go != null) rightHandMagnet = go.transform;
+            }
+
+            return rightHandMagnet;
         }
 
         private bool ApplyFixedPose(int index)
