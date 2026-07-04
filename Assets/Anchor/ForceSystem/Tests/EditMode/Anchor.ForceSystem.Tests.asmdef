@@ -1,0 +1,21 @@
+{
+  "name": "Anchor.ForceSystem.Tests",
+  "rootNamespace": "Anchor.ForceSystem.Tests",
+  "references": [
+    "Anchor.ForceSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": false
+}
