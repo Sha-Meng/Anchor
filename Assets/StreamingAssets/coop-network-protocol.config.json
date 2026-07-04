@@ -18,7 +18,7 @@
   },
   "spawnAnchors": {
     "hostLeadAnchorName": "ScatterAnchor_003",
-    "guestSecondAnchorName": "ScatterAnchor_001"
+    "guestSecondAnchorName": "ScatterAnchor_003"
   },
   "messages": [
     {
@@ -58,7 +58,7 @@
   "notes": [
     "本文件定义 MainLevel MVP 客户端 game.* payload 示例。",
     "host/房主固定为上方先锋攀登者，guest/非房主固定为下方第二攀登者；该映射不随本地玩家视角变化。",
-    "spawnAnchors 配置的是起攀主抓点名，进入 MainLevel 后由主抓点和临近抓点推导合法初始位置。",
+    "spawnAnchors 配置的是起攀主抓点名，进入 MainLevel 后由主抓点和临近抓点推导合法初始位置；当前双人使用同一主抓点以保证初始表现一致。",
     "game.state 是基础攀爬同步主路径，网络层应通过只读状态采样接口生成 climb-player-state.v1 payload。",
     "game.event 只用于有明确远端表现、UI 或调试需求的一次性动作。",
     "插锚、拔锚和收绳事件类型随铆钉绳索系统实现时补充具体 payload。",
