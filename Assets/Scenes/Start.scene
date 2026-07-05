@@ -548,8 +548,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f90, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneToLoad: {fileID: 0}
-  sceneName: 
+  sceneToLoad: {fileID: 102900000, guid: 6a9f41f1e8d84a8e8e01d758c9c8d101, type: 3}
+  sceneName: NetworkDemoEntry
   showCursorOnStart: 1
 --- !u!4 &1000000502
 Transform:
