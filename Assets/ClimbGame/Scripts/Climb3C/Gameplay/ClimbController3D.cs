@@ -51,6 +51,9 @@ namespace ClimbGame.Climb3C.Gameplay
         private ClimberRuntimeState _s;
         private float _climbZ;
 
+        // 手部磁点控制器（外环松手扣耐力事件来源）；订阅其耐力惩罚事件，OnDestroy 退订。
+        private DesignerSpace.HandFollowController _handFollow;
+
         // 纯表现瞬态（不进 GameContext）
         private Vector2 _magnifierScreen;
         private bool _showMagnifier;
@@ -142,6 +145,28 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.RightAnchor = ComputeRestAnchor(startCenter, ClimbHand.Right);
             _s.AttackHandCurrent = _s.LeftAnchor;
             // 初始不驱动磁点/躯干：仅由 SetInitialGrips 把磁点设到抓点、由 Build 设玩家位置。
+
+            // 订阅手部磁点控制器的外环松手耐力惩罚（无该控制器则静默跳过，磁力逻辑仍工作）。
+            _handFollow = FindObjectOfType<DesignerSpace.HandFollowController>();
+            if (_handFollow != null)
+            {
+                _handFollow.StaminaPenaltyRequested += OnStaminaPenaltyRequested;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_handFollow != null)
+            {
+                _handFollow.StaminaPenaltyRequested -= OnStaminaPenaltyRequested;
+                _handFollow = null;
+            }
+        }
+
+        /// <summary>手部磁点控制器请求扣减耐力（外环勉强抓握）时回调，按最大耐力比例扣减。</summary>
+        private void OnStaminaPenaltyRequested(float fraction)
+        {
+            _stamina?.DrainFraction(fraction);
         }
 
         private void Update()

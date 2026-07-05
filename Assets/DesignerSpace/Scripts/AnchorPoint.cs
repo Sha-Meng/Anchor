@@ -3,9 +3,10 @@ using UnityEngine;
 namespace DesignerSpace
 {
     /// <summary>
-    /// 预研：场景中离散分布的锚点标记。
-    /// 本身不含任何运行时逻辑，仅作为 MouseFollowJitter 检索的目标，
-    /// 并在编辑器中绘制两档阈值半径方便可视化校验。
+    /// 场景中离散分布的锚点标记。
+    /// 两档半径既用于编辑器 Gizmo 预览，也是运行时抓握区域判定的事实来源：
+    /// <see cref="CoreRadius"/> 为核心区域上界，<see cref="OuterRadius"/> 为外环区域上界，
+    /// 供 MouseFollowJitter 分档以及 HandFollowController 的 hook 松手区域判定共用。
     /// </summary>
     public class AnchorPoint : MonoBehaviour
     {
@@ -13,13 +14,19 @@ namespace DesignerSpace
         [Range(1, 10)]
         public int baseStability = 10;
 
-        [Tooltip("仅用于编辑器 Gizmo 预览，应与 MouseFollowJitter 的 intenseRadius 保持一致")]
+        [Tooltip("核心区域半径：距离 <= 该值视为核心区域（编辑器预览 + 运行时区域判定共用）")]
         public float previewIntenseRadius = 1f;
 
-        [Tooltip("仅用于编辑器 Gizmo 预览，应与 MouseFollowJitter 的 slightRadius 保持一致")]
+        [Tooltip("外环区域半径：核心半径 < 距离 <= 该值视为外环区域，超出则脱离（编辑器预览 + 运行时区域判定共用）")]
         public float previewSlightRadius = 2.5f;
 
         public int BaseStability => Mathf.Clamp(baseStability, 1, 10);
+
+        /// <summary>核心区域半径（运行时判定用），等价于 <see cref="previewIntenseRadius"/>。</summary>
+        public float CoreRadius => Mathf.Max(0f, previewIntenseRadius);
+
+        /// <summary>外环区域半径（运行时判定用），等价于 <see cref="previewSlightRadius"/>。</summary>
+        public float OuterRadius => Mathf.Max(0f, previewSlightRadius);
 
         public float GrabRadius => Mathf.Max(0f, previewSlightRadius);
 

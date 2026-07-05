@@ -1403,6 +1403,7 @@ MonoBehaviour:
   ballColorA: {r: 1, g: 0.35, b: 0.2, a: 1}
   ballColorB: {r: 0.2, g: 0.55, b: 1, a: 1}
   screenSplit: 0.5
+  maxBallDistance: 2
   maxRayDistance: 1000
   raycastMask:
     serializedVersion: 2
@@ -1899,7 +1900,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22400762, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -0.00004196167
+      value: -0.000022888184
       objectReference: {fileID: 0}
     - target: {fileID: 22426080, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchorMax.x
@@ -5068,6 +5069,8 @@ MonoBehaviour:
   initialPositionOffset: {x: 0, y: 0, z: 0}
   maxHandDistance: 1.7
   handSlipCancelDistance: 3
+  gripMagnetZOffset: 0.1
+  grabSnapDistanceXY: 0.5
   enableMagnifier: 0
   bodyColor: {r: 0.2, g: 0.5, b: 0.85, a: 1}
   handColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
@@ -6483,13 +6486,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 657100514}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.04132469, y: -0.26229194, z: -0.015364586, w: -0.9639809}
-  m_LocalPosition: {x: -1.46, y: 0.01, z: -2.09}
+  m_LocalRotation: {x: 0.03598049, y: -0.0054460727, z: -0.025479505, w: -0.9990128}
+  m_LocalPosition: {x: -0.21, y: -1.36, z: 0.52}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1646831481}
-  m_LocalEulerAnglesHint: {x: -5.033, y: 30.422, z: 0.457}
+  m_LocalEulerAnglesHint: {x: -4.138, y: 0.52, z: 2.903}
 --- !u!1 &665686938
 GameObject:
   m_ObjectHideFlags: 0
@@ -9445,13 +9448,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 952584541}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.04657995, y: 0.17055304, z: 0.00817681, w: -0.984213}
-  m_LocalPosition: {x: 1.13, y: 0.14, z: -2.32}
+  m_LocalRotation: {x: 0.04367097, y: -0.048444342, z: 0.018149326, w: -0.9977057}
+  m_LocalPosition: {x: -3.079, y: -0.783, z: -0.197}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1646831481}
-  m_LocalEulerAnglesHint: {x: -5.421, y: -19.662, z: -0.012}
+  m_LocalEulerAnglesHint: {x: -4.898, y: 5.659, z: -2.327}
 --- !u!1 &963101732
 GameObject:
   m_ObjectHideFlags: 0
@@ -16005,6 +16008,11 @@ MonoBehaviour:
   keepApplyingFixedPose: 1
   smoothCameraTransition: 1
   followRigToTarget: 1
+  useHandMagnetMidpoint: 1
+  leftHandMagnet: {fileID: 0}
+  rightHandMagnet: {fileID: 0}
+  leftMagnetName: LeftHandMagnet
+  rightMagnetName: RightHandMagnet
   followLerpSpeed: 8
   poseLerpSpeed: 6
 --- !u!4 &1646831481
@@ -16016,7 +16024,7 @@ Transform:
   m_GameObject: {fileID: 1646831479}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.121, y: 2.672, z: -2.089}
+  m_LocalPosition: {x: 0.011, y: 1.4, z: -2.089}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -19194,7 +19202,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7069800207446442250, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7590581293795269552, guid: addbab9a4cc564294b3798cf3778fddb, type: 3}
       propertyPath: m_LocalPosition.x
@@ -19528,6 +19536,11 @@ MonoBehaviour:
   keepApplyingFixedPose: 1
   smoothCameraTransition: 1
   followRigToTarget: 1
+  useHandMagnetMidpoint: 1
+  leftHandMagnet: {fileID: 0}
+  rightHandMagnet: {fileID: 0}
+  leftMagnetName: LeftHandMagnet
+  rightMagnetName: RightHandMagnet
   followLerpSpeed: 8
   poseLerpSpeed: 6
 --- !u!4 &2008784687
@@ -20284,6 +20297,11 @@ MonoBehaviour:
   rightMagnetName: RightHandMagnet
   followLerpSpeed: 20
   snapDistance: 0.003
+  magnetDragPowerOn: 2
+  magnetDragPowerOff: 0
+  staminaPenaltyFraction: 0.3
+  hookOverDistanceFactor: 0.8
+  hookBreakDistanceFactor: 0.85
 --- !u!4 &2089343467
 Transform:
   m_ObjectHideFlags: 0
@@ -21051,6 +21069,10 @@ PrefabInstance:
     - target: {fileID: 6521067181631724518, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
       propertyPath: m_Layer
       value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 6521067181631724518, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6605858534911762866, guid: 887648b93c8c2114eb8f4c980231f46c, type: 3}
       propertyPath: m_Layer

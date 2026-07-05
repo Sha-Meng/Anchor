@@ -149,11 +149,11 @@ namespace ClimbGame.Climb3C.Character
         {
             // 有外部磁点控制器（HandFollowController）时不驱动磁点，避免两套系统争抢；
             // 否则由攀爬控制器移动磁点到目标位（磁点再由布娃娃把手骨拽过去）。
-            if (!_externalHandControl)
-            {
-                Transform magnet = hand == ClimbHand.Left ? _leftMagnet : _rightMagnet;
-                if (magnet != null) magnet.position = handTarget;
-            }
+           // if (!_externalHandControl)
+            //{
+             //   Transform magnet = hand == ClimbHand.Left ? _leftMagnet : _rightMagnet;
+              //  if (magnet != null) magnet.position = handTarget;
+            //}
             return GetHandPosition(hand);
         }
 

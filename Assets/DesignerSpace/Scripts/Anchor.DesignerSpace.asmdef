@@ -1,7 +1,10 @@
 {
   "name": "Anchor.DesignerSpace",
   "rootNamespace": "DesignerSpace",
-  "references": [],
+  "references": [
+    "AD_FimpAnimating",
+    "AD_FimpShared"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

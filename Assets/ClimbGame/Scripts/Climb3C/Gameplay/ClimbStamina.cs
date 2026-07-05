@@ -30,6 +30,12 @@ namespace ClimbGame.Climb3C.Gameplay
             _state.Stamina = Mathf.Max(0f, _state.Stamina - _config.drainPerSecond * multiplier * dt);
         }
 
+        /// <summary>一次性按最大耐力的比例扣减（如外环勉强抓握扣 30%）。fraction 取 [0,1]。</summary>
+        public void DrainFraction(float fraction)
+        {
+            _state.Stamina = Mathf.Max(0f, _state.Stamina - _state.MaxStamina * Mathf.Clamp01(fraction));
+        }
+
         public void Recover(float dt)
         {
             if (_config == null) return;

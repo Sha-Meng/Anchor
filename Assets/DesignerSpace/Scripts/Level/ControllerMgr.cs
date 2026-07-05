@@ -40,6 +40,10 @@ namespace DesignerSpace
         [Tooltip("屏幕宽度的归一化分界：指针 x 小于该比例算左侧（A 球），否则算右侧（B 球）")]
         [SerializeField] private float screenSplit = 0.5f;
 
+        [Header("双球约束")]
+        [Tooltip("两个小球之间的最大距离（米）。超出后由 HandFollowController 断开被拖动侧的磁力。")]
+        [SerializeField] private float maxBallDistance = 2f;
+
         [Header("射线")]
         [Tooltip("射线最大检测距离")]
         [SerializeField] private float maxRayDistance = 1000f;
@@ -83,6 +87,40 @@ namespace DesignerSpace
         /// <summary>本帧右侧（B 球）是否被有效驱动（有指针在右半屏且命中场景）。</summary>
         public bool IsBActive { get; private set; }
 
+        /// <summary>本帧左侧（A 球）是否被指针按住（左半屏有指针按下，与是否命中场景无关）。</summary>
+        public bool IsAHeld { get; private set; }
+
+        /// <summary>本帧右侧（B 球）是否被指针按住（右半屏有指针按下，与是否命中场景无关）。</summary>
+        public bool IsBHeld { get; private set; }
+
+        /// <summary>两个小球之间的最大距离（米），供距离约束判定使用。</summary>
+        public float MaxBallDistance => maxBallDistance;
+
+        /// <summary>A、B 两球当前的世界距离；任一球缺失时返回 0。</summary>
+        public float BallDistance
+        {
+            get
+            {
+                if (_ballA == null || _ballB == null)
+                {
+                    return 0f;
+                }
+
+                return Vector3.Distance(_ballA.position, _ballB.position);
+            }
+        }
+
+        /// <summary>两球距离是否超出 <see cref="MaxBallDistance"/> 乘以给定因子（如 1.0 判越界、1.1 判断磁力）。</summary>
+        public bool IsOverMaxDistance(float factor = 1f)
+        {
+            if (_ballA == null || _ballB == null)
+            {
+                return false;
+            }
+
+            return BallDistance > maxBallDistance * factor;
+        }
+
         private void Start()
         {
             _ballA = CreateBall("ControllerBallA", ballSpawnPositionA, ballColorA);
@@ -93,11 +131,27 @@ namespace DesignerSpace
         {
             IsAActive = false;
             IsBActive = false;
+            IsAHeld = false;
+            IsBHeld = false;
 
             CollectHeldPointers(_heldPointers);
             if (_heldPointers.Count == 0)
             {
                 return;
+            }
+
+            // 先按半屏记录“按住”状态（与射线命中无关），供 HandFollowController 判定 hook / 松手。
+            float splitX = Screen.width * screenSplit;
+            for (int i = 0; i < _heldPointers.Count; i++)
+            {
+                if (_heldPointers[i].x < splitX)
+                {
+                    IsAHeld = true;
+                }
+                else
+                {
+                    IsBHeld = true;
+                }
             }
 
             Camera camera = ResolveCamera();
@@ -107,7 +161,6 @@ namespace DesignerSpace
                 return;
             }
 
-            float splitX = Screen.width * screenSplit;
             for (int i = 0; i < _heldPointers.Count; i++)
             {
                 Vector2 screenPosition = _heldPointers[i];
@@ -250,6 +303,11 @@ namespace DesignerSpace
             if (ballRadius < 0.001f)
             {
                 ballRadius = 0.001f;
+            }
+
+            if (maxBallDistance < 0f)
+            {
+                maxBallDistance = 0f;
             }
         }
     }
