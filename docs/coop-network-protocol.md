@@ -91,9 +91,10 @@ docs/coop-network-protocol.config.json
 - 消息类型，例如 `game.state`、`game.event`。
 - schema 名称，例如 `player-state.v1`。
 - payload 字段说明。
-- 发送频率，例如 `10Hz`、事件触发、手动发送。
+- 发送频率，例如 `20Hz`、事件触发、手动发送。
 - 是否允许 relay 转发。
 - 调试显示名称。
+- MainLevel 槽位出生点与左右手抓点，以及 MainLevel2 等场景的 `sceneSpawnAnchors` 覆盖配置。
 
 运行时代码应使用统一 `NetworkMessage` 信封。具体玩法模块只负责构造和读取 payload，避免在多个脚本里硬编码协议字段。
 
@@ -255,6 +256,7 @@ docs/coop-network-protocol.config.json
 - `hostId` 对应玩家固定为先锋攀登者，使用配置中的 HostStartPoint，左右手磁点初始吸附到 `ScatterAnchor_007` / `ScatterAnchor_008`。
 - 非房主玩家固定为第二攀登者，使用配置中的 GuestStartPoint，左右手磁点初始吸附到 `ScatterAnchor_001` / `ScatterAnchor_002`。
 - 客户端进入 MainLevel 后 MUST 找到对应 StartPoint 作为身体出生位置，并使用该槽位配置的左右手目标抓点初始化 `LeftHandMagnet` / `RightHandMagnet`。
+- 若进入 MainLevel2，客户端 MUST 优先使用 `sceneSpawnAnchors` 中的场景覆盖；当前 MainLevel2 房主使用 `HostStartPoint` + `ScatterAnchor_009` / `ScatterAnchor_007`，非房主仍使用 `GuestStartPoint` + `ScatterAnchor_001` / `ScatterAnchor_002`。
 - 单机直接进入 MainLevel 且没有房间身份时，客户端 MUST 按房主 / `host` 规则初始化。
 - 该映射由房间身份决定，不随某个客户端本地视角变化。也就是说，非房主在自己的客户端虽然是本地可控玩家，也仍然生成在下方；房主作为远端玩家显示在上方。
 

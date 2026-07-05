@@ -16,8 +16,12 @@ namespace Anchor.Networking
         public bool IsConnected => _socket != null && _socket.State == WebSocketState.Open;
 
         private readonly ConcurrentQueue<string> _incoming = new ConcurrentQueue<string>();
+        private readonly ConcurrentQueue<string> _outgoing = new ConcurrentQueue<string>();
+        private readonly object _latestStateLock = new object();
         private ClientWebSocket _socket;
         private CancellationTokenSource _cts;
+        private string _latestStateMessage;
+        private bool _isSending;
 
         public async void Connect(string endpoint)
         {
@@ -62,7 +66,7 @@ namespace Anchor.Networking
             }
         }
 
-        public async void SendText(string json)
+        public void SendText(string json)
         {
             if (!IsConnected)
             {
@@ -70,23 +74,83 @@ namespace Anchor.Networking
                 return;
             }
 
+            if (IsGameStateMessage(json))
+            {
+                lock (_latestStateLock)
+                {
+                    _latestStateMessage = json;
+                }
+                return;
+            }
+
+            _outgoing.Enqueue(json);
+        }
+
+        private void Update()
+        {
+            if (!_isSending && IsConnected && HasQueuedMessage())
+            {
+                _ = SendQueuedMessages(_cts.Token);
+            }
+
+            while (_incoming.TryDequeue(out var message))
+            {
+                MessageReceived?.Invoke(message);
+            }
+        }
+
+        private async Task SendQueuedMessages(CancellationToken token)
+        {
+            if (_isSending) return;
+            _isSending = true;
+
             try
             {
-                var bytes = Encoding.UTF8.GetBytes(json);
-                await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cts.Token);
+                while (!token.IsCancellationRequested && IsConnected && TryDequeueNextMessage(out var json))
+                {
+                    var bytes = Encoding.UTF8.GetBytes(json);
+                    await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when disconnecting or changing scenes.
             }
             catch (Exception ex)
             {
                 StatusChanged?.Invoke("发送失败: " + ex.Message);
             }
+            finally
+            {
+                _isSending = false;
+            }
         }
 
-        private void Update()
+        private bool HasQueuedMessage()
         {
-            while (_incoming.TryDequeue(out var message))
+            if (!_outgoing.IsEmpty) return true;
+
+            lock (_latestStateLock)
             {
-                MessageReceived?.Invoke(message);
+                return !string.IsNullOrEmpty(_latestStateMessage);
             }
+        }
+
+        private bool TryDequeueNextMessage(out string json)
+        {
+            if (_outgoing.TryDequeue(out json)) return true;
+
+            lock (_latestStateLock)
+            {
+                json = _latestStateMessage;
+                _latestStateMessage = null;
+                return !string.IsNullOrEmpty(json);
+            }
+        }
+
+        private static bool IsGameStateMessage(string json)
+        {
+            return string.Equals(AnchorJson.GetString(json, "type"), "game.state", StringComparison.Ordinal);
         }
 
         private async Task ReceiveLoop(CancellationToken token)

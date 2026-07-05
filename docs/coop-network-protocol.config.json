@@ -32,13 +32,34 @@
     "hostLeadAnchorName": "ScatterAnchor_007",
     "guestSecondAnchorName": "ScatterAnchor_001"
   },
+  "sceneSpawnAnchors": [
+    {
+      "sceneName": "MainLevel2",
+      "spawnAnchors": {
+        "host": {
+          "slot": "host",
+          "startPointName": "HostStartPoint",
+          "leftHandAnchorName": "ScatterAnchor_009",
+          "rightHandAnchorName": "ScatterAnchor_007"
+        },
+        "guest": {
+          "slot": "guest",
+          "startPointName": "GuestStartPoint",
+          "leftHandAnchorName": "ScatterAnchor_001",
+          "rightHandAnchorName": "ScatterAnchor_002"
+        },
+        "hostLeadAnchorName": "ScatterAnchor_009",
+        "guestSecondAnchorName": "ScatterAnchor_001"
+      }
+    }
+  ],
   "messages": [
     {
       "type": "game.state",
       "schema": "climb-player-state.v1",
       "displayName": "Climb Player State",
       "sendMode": "interval",
-      "sendRateHz": 10,
+      "sendRateHz": 20,
       "relay": true,
       "payloadFields": [
         { "name": "playerId", "type": "string", "required": true },
@@ -102,7 +123,7 @@
   "notes": [
     "本文件定义 MainLevel MVP 客户端 game.* payload 示例。",
     "host/房主固定为上方先锋攀登者，guest/非房主固定为下方第二攀登者；该映射不随本地玩家视角变化。",
-    "spawnAnchors 配置 MainLevel 的槽位出生点与左右手磁点目标：host 使用 HostStartPoint + ScatterAnchor_007/008，guest 使用 GuestStartPoint + ScatterAnchor_001/002；单机直接进入 MainLevel 时按 host 规则处理。",
+    "spawnAnchors 配置 MainLevel 的槽位出生点与左右手磁点目标：host 使用 HostStartPoint + ScatterAnchor_007/008，guest 使用 GuestStartPoint + ScatterAnchor_001/002；sceneSpawnAnchors 可为 MainLevel2 等场景覆盖同名槽位配置。",
     "game.state 是基础攀爬同步主路径，网络层应通过只读状态采样接口生成 climb-player-state.v1 payload。",
     "game.event 只用于有明确远端表现、UI 或调试需求的一次性动作。",
     "成功打钉使用 game.event / climb-event.v1 / rivet.place 同步，成功回收使用 game.event / climb-event.v1 / rivet.collect 同步，成功换领使用 game.event / climb-event.v1 / rivet.leadSwitch 同步；失败尝试不发送成功事件。",
