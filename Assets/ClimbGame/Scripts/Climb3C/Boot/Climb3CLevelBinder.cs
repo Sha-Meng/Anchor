@@ -448,11 +448,6 @@ namespace ClimbGame.Climb3C.Boot
             _controller.SetCameraConfig(cameraConfig);
             if (forceConfig != null) _controller.SetForceSettings(forceConfig.Settings);
 
-            var debugGo = new GameObject("Climb3C_InputDebug");
-            debugGo.transform.SetParent(servicesGo.transform, false);
-            var debugOverlay = debugGo.AddComponent<Climb3CInputDebugOverlay>();
-            debugOverlay.Build(canvas, tuning, cam, _controller);
-
             // 启动时角色 ragdoll 保持停止（Build 已切站立/运动学）。
             // 第二帧：仍在站立模式下设置玩家初始位置/旋转/缩放（ragdoll 仍停止）。
             yield return null;

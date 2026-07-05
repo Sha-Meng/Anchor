@@ -50,9 +50,6 @@ namespace ClimbGame.Climb3C.Config
         public float torsoFollowLerp = 8f;
 
         [Header("输入区可视化")]
-        [Tooltip("是否显示输入调试叠层（触点 raw/有效位、映射目标、实际手位）")]
-        public bool showInputDebug = true;
-
         [Tooltip("是否在屏幕上用色块标出左右输入区")]
         public bool showInputZones = false;
 
