@@ -131,6 +131,9 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("角色缩放")]
         public float characterScale = 1f;
 
+        [Tooltip("是否启用手机震动反馈（默认关闭=屏蔽震动）")]
+        public bool enableHaptics = false;
+
         [Tooltip("ragdoll 生效前的初始旋转（欧拉角）：把角色摆成平行于水平面/躺平，适配不同关卡攀爬面朝向")]
         public Vector3 initialFlatRotationEuler = new Vector3(90f, 0f, 0f);
 
@@ -391,6 +394,7 @@ namespace ClimbGame.Climb3C.Boot
             var hapticAdapter = servicesGo.AddComponent<MobileHapticFeedbackAdapter>();
             var haptics = servicesGo.AddComponent<HapticService>();
             haptics.Configure(haptic, hapticAdapter);
+            haptics.SetMuted(!enableHaptics);
 
             var magnifierGo = new GameObject("HandMagnifier");
             magnifierGo.transform.SetParent(servicesGo.transform, false);
@@ -489,6 +493,7 @@ namespace ClimbGame.Climb3C.Boot
             avatar.SetRagdollPosition(characterPosition);
 
             Debug.Log($"[Climb3CLevelBinder] 攀爬 3C 已绑定到关卡：抓点 {nodes.Count} 个，起攀点 {startCenter}。");
+            LevelSettlement.BeginSession();
         }
 
         private static RivetPoint FindRivetByName(RivetField field, string objectName)

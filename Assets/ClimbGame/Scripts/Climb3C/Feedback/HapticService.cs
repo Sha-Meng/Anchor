@@ -14,6 +14,8 @@ namespace ClimbGame.Climb3C.Feedback
     {
         [SerializeField] private HapticConfig config;
         private MobileHapticFeedbackAdapter _adapter;
+        // 屏蔽开关：为 true 时不向设备输出任何震动（默认屏蔽）。可视化强度/档位仍照常计算。
+        private bool _muted = true;
 
         public HapticTier CurrentTier { get; private set; } = HapticTier.None;
         public float CurrentIntensity01 { get; private set; }
@@ -22,6 +24,13 @@ namespace ClimbGame.Climb3C.Feedback
         {
             config = cfg;
             _adapter = adapter;
+        }
+
+        /// <summary>屏蔽/恢复设备震动输出（true=屏蔽）。</summary>
+        public void SetMuted(bool muted)
+        {
+            _muted = muted;
+            if (_muted) _adapter?.SetStrength(0f);
         }
 
         /// <summary>喂入当前手到最近铆钉的距离（世界单位）。</summary>
@@ -50,7 +59,7 @@ namespace ClimbGame.Climb3C.Feedback
                 CurrentIntensity01 = Mathf.Lerp(config.minIntensity, 1f, t);
             }
 
-            _adapter?.SetStrength(CurrentIntensity01);
+            _adapter?.SetStrength(_muted ? 0f : CurrentIntensity01);
         }
 
         /// <summary>停止靠近反馈。</summary>
@@ -64,7 +73,7 @@ namespace ClimbGame.Climb3C.Feedback
         /// <summary>抓住铆钉的一次强反馈（拉满强度让 adapter 密集脉冲一下）。</summary>
         public void GrabPulse()
         {
-            _adapter?.SetStrength(1f);
+            _adapter?.SetStrength(_muted ? 0f : 1f);
         }
     }
 }

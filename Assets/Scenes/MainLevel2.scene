@@ -618,6 +618,7 @@ GameObject:
   m_Component:
   - component: {fileID: 43115356}
   - component: {fileID: 43115357}
+  - component: {fileID: 43115358}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ScatterAnchor_270
@@ -656,6 +657,18 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.15
   previewSlightRadius: 0.3
+--- !u!114 &43115358
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 43115355}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e2a9f8b1d4563e0f1a2b3c4d5e6f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &45769834
 GameObject:
   m_ObjectHideFlags: 0
@@ -1882,7 +1895,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22400762, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -0.000022888184
+      value: -0.000045776367
       objectReference: {fileID: 0}
     - target: {fileID: 22426080, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchorMax.x
@@ -5003,6 +5016,7 @@ MonoBehaviour:
   characterPrefab: {fileID: 0}
   characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
   characterScale: 1
+  enableHaptics: 0
   initialFlatRotationEuler: {x: 90, y: 0, z: 0}
   overrideCharacterInitialPosition: 0
   characterInitialPosition: {x: 0, y: 0, z: 0}
@@ -5096,6 +5110,7 @@ GameObject:
   m_Component:
   - component: {fileID: 501340828}
   - component: {fileID: 501340829}
+  - component: {fileID: 501340830}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ScatterAnchor_269
@@ -5134,6 +5149,18 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.15
   previewSlightRadius: 0.3
+--- !u!114 &501340830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 501340827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e2a9f8b1d4563e0f1a2b3c4d5e6f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &504332266
 GameObject:
   m_ObjectHideFlags: 0
@@ -6090,6 +6117,7 @@ GameObject:
   m_Component:
   - component: {fileID: 607833910}
   - component: {fileID: 607833911}
+  - component: {fileID: 607833912}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ScatterAnchor_271
@@ -6128,6 +6156,18 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.15
   previewSlightRadius: 0.3
+--- !u!114 &607833912
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607833909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e2a9f8b1d4563e0f1a2b3c4d5e6f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &615105230
 GameObject:
   m_ObjectHideFlags: 0
@@ -9209,6 +9249,7 @@ GameObject:
   m_Component:
   - component: {fileID: 950261213}
   - component: {fileID: 950261214}
+  - component: {fileID: 950261215}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ScatterAnchor_274
@@ -9247,6 +9288,18 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.15
   previewSlightRadius: 0.3
+--- !u!114 &950261215
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 950261212}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e2a9f8b1d4563e0f1a2b3c4d5e6f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &951878543
 GameObject:
   m_ObjectHideFlags: 0
@@ -16977,6 +17030,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1761818433}
   - component: {fileID: 1761818434}
+  - component: {fileID: 1761818435}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ScatterAnchor_272
@@ -17015,6 +17069,18 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.15
   previewSlightRadius: 0.3
+--- !u!114 &1761818435
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1761818432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e2a9f8b1d4563e0f1a2b3c4d5e6f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1770684876
 GameObject:
   m_ObjectHideFlags: 0
@@ -18151,6 +18217,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1885206085}
   - component: {fileID: 1885206086}
+  - component: {fileID: 1885206087}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ScatterAnchor_273
@@ -18189,6 +18256,18 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.15
   previewSlightRadius: 0.3
+--- !u!114 &1885206087
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1885206084}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4e2a9f8b1d4563e0f1a2b3c4d5e6f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1906861400
 GameObject:
   m_ObjectHideFlags: 0

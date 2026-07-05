@@ -337,6 +337,7 @@ namespace DesignerSpace
                 runtime.State = ControllerBallState.Anchored;
                 runtime.HasReleaseTarget = false;
 
+                LevelSettlement.RequestSettlement(anchorPoint);
                 return;
             }
 

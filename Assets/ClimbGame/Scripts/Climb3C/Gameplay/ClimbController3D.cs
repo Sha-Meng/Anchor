@@ -755,6 +755,12 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.CurrentHand = ClimbHand.None;
             _s.State = ClimbState.WaitingForPress;
             HandAnchored?.Invoke(anchoredHand);
+
+            var anchorPoint = rivet.GetComponent<AnchorPoint>();
+            if (anchorPoint != null)
+            {
+                LevelSettlement.RequestSettlement(anchorPoint);
+            }
         }
 
         private void BeginFall()
