@@ -48,6 +48,8 @@ namespace Anchor.Networking
         private string _remoteClimbRole = "lead";
         private bool _gameSceneReady;
         private bool _gameSyncReady;
+        private bool _gameLoadStarted;
+        private bool _roomInGameReceived;
         private IClimbStateSource _localStateSource;
         private Climb3CLevelBinder _localClimbBinder;
         private AnchorRemoteClimbPlayer _remoteClimbPlayer;
@@ -271,19 +273,21 @@ namespace Anchor.Networking
             _inGame = true;
             _gameSceneReady = true;
             _gameSyncReady = false;
+            _gameLoadStarted = true;
             ResolveRoomRoles();
             var sceneName = SceneManager.GetActiveScene().name;
-            CreateCanvas("Anchor " + sceneName + " 联机");
+            CreateGameOverlayCanvas("Anchor " + sceneName + " 联机");
 
             _statusText = AddText("Status", sceneName + " 等待同步确认", 20, TextAnchor.MiddleLeft);
             AddButton("退出到主界面", ExitMultiplayerToStart);
-            _logText = AddText("Log", GetRoomInfoText() + "\n游戏日志：\n", 15, TextAnchor.UpperLeft);
+            _logText = AddText("Log", GetRoomInfoText() + "\n游戏日志：\n", 15, TextAnchor.UpperLeft, 92f);
 
             DisableSceneSinglePlayerClimbBinders();
             BuildMainLevelPlayers();
             ConfigureRivetRopeNetworking(false);
 
-            SendRoomEnteredGame();
+            StartCoroutine(SendRoomEnteredGameUntilReady());
+            TryEnableGameSync();
         }
 
         private void DisableSceneSinglePlayerClimbBinders()
@@ -691,6 +695,8 @@ namespace Anchor.Networking
             _inGame = false;
             _gameSceneReady = false;
             _gameSyncReady = false;
+            _gameLoadStarted = false;
+            _roomInGameReceived = false;
             _playerCount = 0;
             _seq = 0;
             _nextStateSendTime = 0f;
@@ -712,7 +718,21 @@ namespace Anchor.Networking
 
         private void SendRoomEnteredGame()
         {
+            if (string.IsNullOrEmpty(_roomId))
+            {
+                return;
+            }
+
             Send(AnchorJson.BuildEnvelope("room.enteredGame", requestId: NewRequestId(), roomId: _roomId));
+        }
+
+        private IEnumerator SendRoomEnteredGameUntilReady()
+        {
+            for (int attempt = 0; attempt < 10 && !_gameSyncReady; attempt++)
+            {
+                SendRoomEnteredGame();
+                yield return new WaitForSeconds(0.5f);
+            }
         }
 
         private void SendClimbState()
@@ -862,17 +882,22 @@ namespace Anchor.Networking
                     if (!string.IsNullOrEmpty(_roomId) && !IsGameSceneName(SceneManager.GetActiveScene().name)) BuildLobbyView();
                     break;
                 case "room.starting":
+                    if (_gameLoadStarted)
+                    {
+                        AppendLog("开局流程已启动，等待进入游戏场景");
+                        break;
+                    }
+                    _gameLoadStarted = true;
+                    _roomInGameReceived = false;
+                    RefreshStartButton();
                     AppendLog("收到开局，准备进入游戏场景");
                     StartCoroutine(LoadGameSceneAfterDelay(AnchorJson.GetFloat(payload, "countdownMs", 500f) / 1000f));
                     break;
                 case "room.inGame":
                     AppendLog("房间进入游戏同步阶段");
+                    _roomInGameReceived = true;
                     _inGame = true;
-                    _gameSyncReady = _gameSceneReady;
-                    if (_gameSyncReady)
-                    {
-                        ConfigureRivetRopeNetworking(true);
-                    }
+                    TryEnableGameSync();
                     break;
                 case "room.peerLeft":
                     _remotePlayerId = AnchorJson.GetString(payload, "playerId") ?? _remotePlayerId;
@@ -901,6 +926,8 @@ namespace Anchor.Networking
             if (string.IsNullOrEmpty(sceneName))
             {
                 AppendLog("错误: 当前构建未包含 MainLevel 或 MainLevel2，无法进入多人主关卡");
+                _gameLoadStarted = false;
+                RefreshStartButton();
                 yield break;
             }
 
@@ -911,6 +938,17 @@ namespace Anchor.Networking
         private static bool IsGameSceneName(string sceneName)
         {
             return sceneName == MainLevelSceneName || sceneName == MainLevel2SceneName;
+        }
+
+        private void TryEnableGameSync()
+        {
+            if (!_roomInGameReceived || !_gameSceneReady || _gameSyncReady)
+            {
+                return;
+            }
+
+            _gameSyncReady = true;
+            ConfigureRivetRopeNetworking(true);
         }
 
         private static string ResolveBuildGameSceneName()
@@ -940,7 +978,7 @@ namespace Anchor.Networking
 
         private void RefreshStartButton()
         {
-            if (_startButton != null) _startButton.interactable = _isHost && !string.IsNullOrEmpty(_roomId) && _playerCount >= 2;
+            if (_startButton != null) _startButton.interactable = _isHost && !string.IsNullOrEmpty(_roomId) && _playerCount >= 2 && !_gameLoadStarted;
         }
 
         private string GetRoomInfoText()
@@ -1180,6 +1218,49 @@ namespace Anchor.Networking
             AddTitle(title);
             AddSubtitle("双人攀登联机入口");
             _nextUiY = -126f;
+        }
+
+        private void CreateGameOverlayCanvas(string title)
+        {
+            EnsureEventSystem();
+            _nextUiY = -54f;
+            _contentRoot = null;
+
+            var root = new GameObject("Anchor Demo Canvas");
+            ParentToRuntimeRoot(root);
+            _canvas = root.AddComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            var scaler = root.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1280f, 720f);
+            scaler.matchWidthOrHeight = 0.5f;
+            root.AddComponent<GraphicRaycaster>();
+
+            var panel = new GameObject("Anchor Demo Game Overlay");
+            panel.transform.SetParent(root.transform, false);
+            var image = panel.AddComponent<Image>();
+            image.color = new Color(0.02f, 0.035f, 0.05f, 0.52f);
+            var outline = panel.AddComponent<Outline>();
+            outline.effectColor = new Color(0.28f, 0.62f, 0.82f, 0.28f);
+            outline.effectDistance = new Vector2(1f, -1f);
+
+            _contentRoot = panel.GetComponent<RectTransform>();
+            _contentRoot.anchorMin = new Vector2(0f, 1f);
+            _contentRoot.anchorMax = new Vector2(0f, 1f);
+            _contentRoot.pivot = new Vector2(0f, 1f);
+            _contentRoot.anchoredPosition = new Vector2(18f, -18f);
+            _contentRoot.sizeDelta = new Vector2(440f, 224f);
+
+            var label = CreateText("Anchor Demo Game Title", title, 18, TextAnchor.MiddleLeft, GoldAccentColor);
+            label.fontStyle = FontStyle.Bold;
+            AddTextShadow(label);
+            var rect = label.rectTransform;
+            rect.SetParent(_contentRoot, false);
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(16f, -12f);
+            rect.sizeDelta = new Vector2(-32f, 28f);
         }
 
         private void AddScreenBackground(Transform parent)
