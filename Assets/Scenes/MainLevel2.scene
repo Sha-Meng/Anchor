@@ -1392,6 +1392,8 @@ MonoBehaviour:
   triggerInteraction: 1
   hookLoopClip: {fileID: 8300000, guid: c82581551264e254990b87cb47b453e0, type: 3}
   hookLoopVolume: 1
+  hookHaptics: {fileID: 0}
+  hookHapticIntensityExponent: 1
 --- !u!4 &117245913
 Transform:
   m_ObjectHideFlags: 0
@@ -10850,6 +10852,9 @@ MonoBehaviour:
   panelPivot: {x: 1, y: 0}
   panelOffset: {x: -32, y: 220}
   showStatus: 1
+  showLookButtons: 1
+  lookUpPoseIndex: 3
+  lookDownPoseIndex: 4
 --- !u!114 &1117413491
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10879,6 +10884,8 @@ MonoBehaviour:
   probeFollowSmoothTime: 0.08
   autoStartRescueOnFalling: 1
   logBinding: 1
+  placeRivetClip: {fileID: 0}
+  placeRivetVolume: 1
   preferBoneAttachPoints: 1
   strictBoneFollow: 1
   applyPresentationOffsetToAttachPoints: 0
@@ -15725,8 +15732,8 @@ MonoBehaviour:
   - {fileID: 330234784}
   - {fileID: 952584542}
   - {fileID: 657100515}
-  - {fileID: 571446386}
   - {fileID: 322351901}
+  - {fileID: 571446386}
   startIndex: 0
   applyStartPose: 1
   keepApplyingFixedPose: 1
