@@ -3446,6 +3446,13 @@ MonoBehaviour:
   leftHandStartAnchorName: ScatterAnchor_007
   rightHandStartAnchorName: ScatterAnchor_008
   cameraFollow: 1
+  enableRopeForceFeedback: 1
+  ropeDebugDriver: {fileID: 1117413495}
+  ropeFallSpring: 7.5
+  ropeFallDamping: 1.8
+  ropeFallImpulse: 0.65
+  ropeFallImpulseStretch: 0.28
+  ropeFallMaxVelocityChange: 3.2
   overShoulderOffset: {x: 0.6, y: 0.55, z: -6.2}
   gripQueryRadius: 0.5
   stickHandToWall: 0

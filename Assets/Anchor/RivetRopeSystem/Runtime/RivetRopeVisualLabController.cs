@@ -38,7 +38,10 @@ namespace Anchor.RivetRopeSystem
         [SerializeField] private float fallGravity = 2f;
         [SerializeField] private float fallInitialDownSpeed;
         [SerializeField] private float maxFallSpeed = 6f;
-        [SerializeField] private float fallCatchImpulse = 2.2f;
+        [SerializeField] private float fallCatchImpulse = 0.65f;
+        [SerializeField] private float fallCatchSpring = 7.5f;
+        [SerializeField] private float fallCatchDamping = 1.8f;
+        [SerializeField] private float fallCatchImpulseStretch = 0.28f;
         [SerializeField] private bool loopFallCatchPreview = true;
         [SerializeField] private float fallReplayDelay = 1.4f;
 
@@ -56,6 +59,7 @@ namespace Anchor.RivetRopeSystem
         private Vector3 _fallVelocity;
         private bool _hasLastUpperPosition;
         private bool _fallWasCaught;
+        private bool _fallReboundTriggered;
         private float _fallCaughtAt;
 
         public static string DebugRunFirstFallCatchTest()
@@ -153,7 +157,7 @@ namespace Anchor.RivetRopeSystem
             GUILayout.EndHorizontal();
             loopFallCatchPreview = GUILayout.Toggle(loopFallCatchPreview, "循环播放下坠/拉住");
             GUILayout.Label("青色点=保护点，角色从上方下坠，绳长耗尽后 Spine2 被拉住。");
-            GUILayout.Label($"Catch: caught={_fallWasCaught} impulse={fallCatchImpulse:0.00} replay={fallReplayDelay:0.00}s");
+            GUILayout.Label($"Catch: caught={_fallWasCaught} rebound={_fallReboundTriggered} impulse={fallCatchImpulse:0.00} replay={fallReplayDelay:0.00}s");
 
             GUILayout.Space(6f);
             GUILayout.Label("Visual Mode");
@@ -166,9 +170,12 @@ namespace Anchor.RivetRopeSystem
             DrawSlider("绳长", ref _settings.TotalRopeLength, 2f, 12f, true);
             DrawSlider("预拉紧阈值", ref _settings.ForcePreTensionThreshold, 0f, 3f, true);
             DrawSlider("最大修正", ref _settings.ForceMaxConstraintCorrection, 0f, 1.5f, true);
+            DrawSlider("弹性余量", ref _settings.ForceElasticStretch, 0f, 1.2f, true);
             DrawSlider("张力/米", ref _settings.ForceTensionStrengthPerMeter, 0f, 8f, true);
             DrawSlider("速度阻尼", ref _settings.ForceVelocityDamping, 0f, 2.5f, true);
             DrawSlider("轻回弹", ref _settings.ForceReboundStrength, 0f, 1.5f, true);
+            DrawSlider("底部弹簧", ref fallCatchSpring, 0f, 16f, false);
+            DrawSlider("底部阻尼", ref fallCatchDamping, 0f, 6f, false);
             DrawSlider("宽度", ref _visualSettings.Width, 0.01f, 0.18f, false);
             DrawSlider("下垂/米", ref _visualSettings.SlackSagPerMeter, 0f, 0.22f, false);
             DrawSlider("最大下垂", ref _visualSettings.MaxSag, 0f, 2.4f, false);
@@ -497,8 +504,15 @@ namespace Anchor.RivetRopeSystem
 
             if (feedbackDrivesUpperEndpoint)
             {
-                ApplyFeedbackDisplacement(displacement);
-                ApplyFeedbackToFallVelocity();
+                if (simulateFallCatch)
+                {
+                    ApplyFeedbackToFallVelocity();
+                }
+                else
+                {
+                    ApplyFeedbackDisplacement(displacement);
+                }
+
                 _upperBasePosition = upperEndpoint.position;
             }
         }
@@ -514,16 +528,20 @@ namespace Anchor.RivetRopeSystem
             fallGravity = 2f;
             fallInitialDownSpeed = 0f;
             maxFallSpeed = 6f;
-            fallCatchImpulse = 2.2f;
+            fallCatchImpulse = 0.65f;
+            fallCatchSpring = 7.5f;
+            fallCatchDamping = 1.8f;
+            fallCatchImpulseStretch = 0.28f;
             fallReplayDelay = 1.4f;
 
             _settings.TotalRopeLength = 3.35f;
             _settings.ForcePreTensionThreshold = 0f;
-            _settings.ForceMaxConstraintCorrection = 1.25f;
-            _settings.ForceTensionStrengthPerMeter = 6f;
-            _settings.ForceVelocityDamping = 1.25f;
-            _settings.ForceReboundStrength = 1.1f;
-            _settings.ForceMaxFeedbackStrength = 16f;
+            _settings.ForceMaxConstraintCorrection = 0.85f;
+            _settings.ForceElasticStretch = 0.55f;
+            _settings.ForceTensionStrengthPerMeter = 4.8f;
+            _settings.ForceVelocityDamping = 0.75f;
+            _settings.ForceReboundStrength = 0.48f;
+            _settings.ForceMaxFeedbackStrength = 12f;
             ApplyRuntimeSettings(true);
 
             if (lowerEndpoint != null)
@@ -537,6 +555,7 @@ namespace Anchor.RivetRopeSystem
             _hasLastUpperPosition = upperEndpoint != null;
             _fallVelocity = Vector3.down * fallInitialDownSpeed;
             _fallWasCaught = false;
+            _fallReboundTriggered = false;
             _fallCaughtAt = 0f;
 
             if (driver != null)
@@ -582,6 +601,7 @@ namespace Anchor.RivetRopeSystem
                 useCharacterForceTarget = true;
                 _fallVelocity = Vector3.down * Mathf.Max(0f, fallInitialDownSpeed);
                 _fallWasCaught = false;
+                _fallReboundTriggered = false;
                 _fallCaughtAt = 0f;
             }
             else
@@ -589,6 +609,7 @@ namespace Anchor.RivetRopeSystem
                 simulateFallCatch = false;
                 _fallVelocity = Vector3.zero;
                 _fallWasCaught = false;
+                _fallReboundTriggered = false;
             }
         }
 
@@ -618,19 +639,34 @@ namespace Anchor.RivetRopeSystem
                 return;
             }
 
-            if (!_fallWasCaught && _feedback.Reason == RopeForceFeedbackReason.Taut)
+            if (_feedback.Reason != RopeForceFeedbackReason.Taut)
+            {
+                return;
+            }
+
+            if (!_fallWasCaught)
             {
                 _fallWasCaught = true;
                 _fallCaughtAt = Time.time;
-                _fallVelocity += _feedback.TensionDirection.normalized * Mathf.Max(0f, fallCatchImpulse);
             }
 
             var dt = Mathf.Max(0.0001f, Time.deltaTime);
-            _fallVelocity += _feedback.SuggestedVelocityCorrection * dt;
-            var awaySpeed = Vector3.Dot(_fallVelocity, -_feedback.TensionDirection);
-            if (awaySpeed > 0f)
+            var direction = _feedback.TensionDirection.sqrMagnitude > 0.000001f
+                ? _feedback.TensionDirection.normalized
+                : Vector3.up;
+            var stretch = Mathf.Max(0f, _feedback.ConstraintDistance);
+            var awaySpeed = Mathf.Max(0f, Vector3.Dot(_fallVelocity, -direction));
+
+            _fallVelocity += direction * stretch * Mathf.Max(0f, fallCatchSpring) * dt;
+            if (stretch > 0.02f && awaySpeed > 0f)
             {
-                _fallVelocity += _feedback.TensionDirection * awaySpeed * 0.65f;
+                _fallVelocity += direction * awaySpeed * Mathf.Max(0f, fallCatchDamping) * dt;
+            }
+
+            if (!_fallReboundTriggered && stretch >= Mathf.Max(0.01f, fallCatchImpulseStretch))
+            {
+                _fallReboundTriggered = true;
+                _fallVelocity += direction * Mathf.Max(0f, fallCatchImpulse);
             }
 
             _fallVelocity = Vector3.ClampMagnitude(_fallVelocity, Mathf.Max(0.1f, maxFallSpeed));

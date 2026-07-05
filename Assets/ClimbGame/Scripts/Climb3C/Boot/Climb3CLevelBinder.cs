@@ -70,12 +70,27 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("是否启用旧的 ClimbCamera 越肩跟随相机。若场景由 CameraMgr（cam0/1/2 机位）接管相机，请保持关闭，避免两者同帧抢写 Main Camera 导致抖动")]
         public bool cameraFollow = false;
 
-        [Header("绳索力反馈（默认关闭，先在绳索测试关卡验收）")]
-        [Tooltip("测试关卡验收通过后再开启：把 RivetRopeDebugDriver 输出的绳索力反馈交给 3C 消费")]
-        public bool enableRopeForceFeedback = false;
+        [Header("绳索力反馈")]
+        [Tooltip("把 RivetRopeDebugDriver 输出的绳索力反馈交给 3C 消费；Slack 下坠不介入，Taut 后只做底部轻回弹")]
+        public bool enableRopeForceFeedback = true;
 
         [Tooltip("提供绳索力反馈结果的调试驱动；留空时运行时尝试查找场景中的 RivetRopeDebugDriver")]
         public RivetRopeDebugDriver ropeDebugDriver;
+
+        [Tooltip("下坠到底部后的绳索弹簧强度；只在绳索 Taut 后生效")]
+        public float ropeFallSpring = 7.5f;
+
+        [Tooltip("底部回弹阻尼；值越高，回弹越快收住")]
+        public float ropeFallDamping = 1.8f;
+
+        [Tooltip("首次拉伸达到阈值时的轻微向上回弹速度")]
+        public float ropeFallImpulse = 0.65f;
+
+        [Tooltip("触发首次回弹所需的绳索拉伸距离")]
+        public float ropeFallImpulseStretch = 0.28f;
+
+        [Tooltip("单帧绳索对布娃娃追加速度变化上限，避免摔落速度被过度改写")]
+        public float ropeFallMaxVelocityChange = 3.2f;
 
         [Tooltip("相机初始越肩偏移（相对角色头部：x 肩侧、y 上、z 后）")]
         public Vector3 overShoulderOffset = new Vector3(0.6f, 0.55f, -3.2f);
@@ -186,6 +201,12 @@ namespace ClimbGame.Climb3C.Boot
             }
 
             _controller.SetRopeForceFeedbackEnabled(true);
+            _controller.SetRopeFallFeedbackSettings(
+                ropeFallSpring,
+                ropeFallDamping,
+                ropeFallImpulse,
+                ropeFallImpulseStretch,
+                ropeFallMaxVelocityChange);
 
             if (ropeDebugDriver == null)
             {

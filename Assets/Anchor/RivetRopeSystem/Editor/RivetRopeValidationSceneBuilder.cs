@@ -383,7 +383,10 @@ namespace Anchor.RivetRopeSystem.Editor
             serialized.FindProperty("fallGravity").floatValue = 2f;
             serialized.FindProperty("fallInitialDownSpeed").floatValue = 0f;
             serialized.FindProperty("maxFallSpeed").floatValue = 6f;
-            serialized.FindProperty("fallCatchImpulse").floatValue = 2.2f;
+            serialized.FindProperty("fallCatchImpulse").floatValue = 0.65f;
+            serialized.FindProperty("fallCatchSpring").floatValue = 7.5f;
+            serialized.FindProperty("fallCatchDamping").floatValue = 1.8f;
+            serialized.FindProperty("fallCatchImpulseStretch").floatValue = 0.28f;
             serialized.FindProperty("loopFallCatchPreview").boolValue = true;
             serialized.FindProperty("fallReplayDelay").floatValue = 1.4f;
             serialized.ApplyModifiedPropertiesWithoutUndo();

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   settings:
     TotalRivets: 5
-    TotalRopeLength: 100
+    TotalRopeLength: 4.25
     PlaceRange: 1.2
     CollectRange: 1.5
     RescueWindowSeconds: 1.5
@@ -25,6 +25,14 @@ MonoBehaviour:
     MaxFallDamage: 100
     ProtectedDamageMultiplier: 0.45
     UnprotectedDamageMultiplier: 1
+    EnableForceFeedback: 1
+    ForcePreTensionThreshold: 0
+    ForceMaxConstraintCorrection: 0.85
+    ForceElasticStretch: 0.55
+    ForceTensionStrengthPerMeter: 4.8
+    ForceVelocityDamping: 0.75
+    ForceReboundStrength: 0.48
+    ForceMaxFeedbackStrength: 12
   visualSettings:
     VisualMode: 0
     RopeMaterial: {fileID: 2100000, guid: 9e09fa67999ce104a86c6b89ceeef767, type: 2}

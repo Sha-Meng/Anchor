@@ -65,6 +65,7 @@ namespace Anchor.RivetRopeSystem
         public bool EnableForceFeedback;
         [Min(0f)] public float ForcePreTensionThreshold;
         [Min(0f)] public float ForceMaxConstraintCorrection;
+        [Min(0f)] public float ForceElasticStretch;
         [Min(0f)] public float ForceTensionStrengthPerMeter;
         [Min(0f)] public float ForceVelocityDamping;
         [Min(0f)] public float ForceReboundStrength;
@@ -89,6 +90,7 @@ namespace Anchor.RivetRopeSystem
                 EnableForceFeedback = true,
                 ForcePreTensionThreshold = 0.75f,
                 ForceMaxConstraintCorrection = 0.45f,
+                ForceElasticStretch = 0.35f,
                 ForceTensionStrengthPerMeter = 1.25f,
                 ForceVelocityDamping = 0.85f,
                 ForceReboundStrength = 0.45f,
@@ -118,6 +120,7 @@ namespace Anchor.RivetRopeSystem
                 EnableForceFeedback = EnableForceFeedback,
                 ForcePreTensionThreshold = Mathf.Max(0f, ForcePreTensionThreshold),
                 ForceMaxConstraintCorrection = Mathf.Max(0f, ForceMaxConstraintCorrection),
+                ForceElasticStretch = Mathf.Max(0f, ForceElasticStretch),
                 ForceTensionStrengthPerMeter = Mathf.Max(0f, ForceTensionStrengthPerMeter),
                 ForceVelocityDamping = Mathf.Max(0f, ForceVelocityDamping),
                 ForceReboundStrength = Mathf.Max(0f, ForceReboundStrength),
@@ -290,17 +293,19 @@ namespace Anchor.RivetRopeSystem
                 };
             }
 
-            var overshootStrength = constraintDistance * sanitized.ForceTensionStrengthPerMeter;
+            var elasticScale = CalculateElasticScale(constraintDistance, sanitized.ForceElasticStretch);
+            var softenedConstraintDistance = constraintDistance * elasticScale;
+            var overshootStrength = softenedConstraintDistance * sanitized.ForceTensionStrengthPerMeter;
             var preTensionStrength = inPreTension
                 ? Mathf.InverseLerp(sanitized.ForcePreTensionThreshold, 0f, path.RemainingSlack) * sanitized.ForceTensionStrengthPerMeter
                 : 0f;
             var tensionStrength = Mathf.Clamp(overshootStrength + preTensionStrength, 0f, sanitized.ForceMaxFeedbackStrength);
 
             var movingAwaySpeed = Mathf.Max(0f, Vector3.Dot(input.EndpointVelocity, -direction));
-            var dampingCorrection = direction * movingAwaySpeed * sanitized.ForceVelocityDamping;
+            var dampingCorrection = direction * movingAwaySpeed * sanitized.ForceVelocityDamping * elasticScale;
             var correctionDistance = sanitized.ForceMaxConstraintCorrection > 0f
-                ? Mathf.Min(constraintDistance, sanitized.ForceMaxConstraintCorrection)
-                : constraintDistance;
+                ? Mathf.Min(softenedConstraintDistance, sanitized.ForceMaxConstraintCorrection)
+                : softenedConstraintDistance;
             var dt = Mathf.Max(0.0001f, input.DeltaTime);
             var reboundCorrection = direction * (correctionDistance / dt) * sanitized.ForceReboundStrength;
 
@@ -316,6 +321,22 @@ namespace Anchor.RivetRopeSystem
                 TensionState = path.TensionState,
                 Reason = constraintDistance > 0f ? RopeForceFeedbackReason.Taut : RopeForceFeedbackReason.PreTension
             };
+        }
+
+        private static float CalculateElasticScale(float constraintDistance, float elasticStretch)
+        {
+            if (constraintDistance <= 0f)
+            {
+                return 1f;
+            }
+
+            if (elasticStretch <= 0f)
+            {
+                return 1f;
+            }
+
+            var normalizedStretch = Mathf.Clamp01(constraintDistance / elasticStretch);
+            return Mathf.Lerp(0.2f, 1f, normalizedStretch * normalizedStretch);
         }
 
         private static RopeForceFeedbackResult Inactive(RopeForceFeedbackInput input, RopeForceFeedbackReason reason)

@@ -42,5 +42,8 @@ namespace ClimbGame.Climb3C.Character
 
         /// <summary>切换为全物理布娃娃并施加初速度（摔落）。</summary>
         void EnterRagdoll(Vector3 initialVelocity);
+
+        /// <summary>摔落中追加一个速度变化，用于外部系统（如绳索）给布娃娃轻量反馈。</summary>
+        void AddRagdollVelocityChange(Vector3 velocityChange);
     }
 }

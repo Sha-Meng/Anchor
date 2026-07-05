@@ -354,6 +354,19 @@ namespace ClimbGame.Climb3C.Character
                 ForceMode.VelocityChange);
         }
 
+        public void AddRagdollVelocityChange(Vector3 velocityChange)
+        {
+            if (!_ragdoll || velocityChange.sqrMagnitude <= 0.000001f)
+            {
+                return;
+            }
+
+            foreach (var p in _all)
+            {
+                p.Body.AddForce(velocityChange, ForceMode.VelocityChange);
+            }
+        }
+
         public void ExitRagdoll()
         {
             _ragdoll = false;

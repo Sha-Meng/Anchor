@@ -27,6 +27,7 @@ namespace Anchor.RivetRopeSystem.Editor
             var collect = CreateProbe("Rivet Rope Collect Probe", root.transform, new Vector3(0f, 2.6f, -0.2f));
 
             var config = CreateConfigAsset();
+            ConfigureGameplaySettings(config);
             ConfigureConfigVisuals(config);
             var driver = root.AddComponent<RivetRopeDebugDriver>();
             var line = root.AddComponent<LineRenderer>();
@@ -81,6 +82,23 @@ namespace Anchor.RivetRopeSystem.Editor
             AssetDatabase.CreateAsset(config, path);
             AssetDatabase.SaveAssets();
             return config;
+        }
+
+        private static void ConfigureGameplaySettings(RivetRopeConfig config)
+        {
+            var settings = RivetRopeSettings.CreateDefault();
+            settings.TotalRopeLength = 4.25f;
+            settings.EnableForceFeedback = true;
+            settings.ForcePreTensionThreshold = 0f;
+            settings.ForceMaxConstraintCorrection = 0.85f;
+            settings.ForceElasticStretch = 0.55f;
+            settings.ForceTensionStrengthPerMeter = 4.8f;
+            settings.ForceVelocityDamping = 0.75f;
+            settings.ForceReboundStrength = 0.48f;
+            settings.ForceMaxFeedbackStrength = 12f;
+            config.ConfigureRuntime(settings);
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
         }
 
         private static void ConfigureLine(LineRenderer line)
