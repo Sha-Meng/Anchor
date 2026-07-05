@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/Start.scene
+    guid: XHNNtH6pUXnoDlhK/pfEWccSajYORyIYyOOyriebL+MYsOnYKqW/TMs=
+  - enabled: 1
     path: Assets/Anchor/Scenes/NetworkDemoEntry.scene
     guid: 6a9f41f1e8d84a8e8e01d758c9c8d101
   - enabled: 1
