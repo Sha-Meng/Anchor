@@ -19,6 +19,8 @@ namespace ClimbGame.Climb3C.Character
         private readonly RagdollFallConfig _fall;
         private readonly Vector3 _initialEuler;
         private readonly float _scale;
+        private readonly string _magnetNamePrefix;
+        private readonly bool _allowExternalHandControl;
 
         private Transform _root;
         private Transform _chest;
@@ -45,12 +47,19 @@ namespace ClimbGame.Climb3C.Character
         public CapsuleCollider BodyCapsule => null;
 
         public MagnetClimberAvatar(GameObject sceneCharacter, ArmRigConfig rig, RagdollFallConfig fall, Vector3 initialEuler, float scale)
+            : this(sceneCharacter, rig, fall, initialEuler, scale, string.Empty, true)
+        {
+        }
+
+        public MagnetClimberAvatar(GameObject sceneCharacter, ArmRigConfig rig, RagdollFallConfig fall, Vector3 initialEuler, float scale, string magnetNamePrefix, bool allowExternalHandControl)
         {
             _character = sceneCharacter;
             _rig = rig;
             _fall = fall;
             _initialEuler = initialEuler;
             _scale = scale <= 0f ? 1f : scale;
+            _magnetNamePrefix = magnetNamePrefix ?? string.Empty;
+            _allowExternalHandControl = allowExternalHandControl;
         }
 
         public void Build(Transform parent, Vector3 center, Material bodyMat, Material handMat)
@@ -71,7 +80,7 @@ namespace ClimbGame.Climb3C.Character
             _rHand = FindDeep(_root, "RightHand");
 
             // 是否有外部磁点控制器（如 MainLevel2 的 HandFollowController）；有则本化身不驱动磁点。
-            _externalHandControl = Object.FindObjectOfType<HandFollowController>() != null;
+            _externalHandControl = _allowExternalHandControl && Object.FindObjectOfType<HandFollowController>() != null;
 
             // Animator 始终禁用（不需要任何动画）。初始停止 ragdoll：禁用 RagdollAnimator2 组件；
             // 此时角色为静态骨骼，root.transform 的位置/旋转/缩放驱动可见姿态。第三帧再启用组件并切 Fall。
@@ -104,8 +113,8 @@ namespace ClimbGame.Climb3C.Character
                 _ra2.RA2Event_SwitchToFall();
             }
 
-            if (_leftMagnet == null) _leftMagnet = CreateMagnet("LeftHandMagnet", _lHand, out _leftMP);
-            if (_rightMagnet == null) _rightMagnet = CreateMagnet("RightHandMagnet", _rHand, out _rightMP);
+            if (_leftMagnet == null) _leftMagnet = CreateMagnet(_magnetNamePrefix + "LeftHandMagnet", _lHand, out _leftMP);
+            if (_rightMagnet == null) _rightMagnet = CreateMagnet(_magnetNamePrefix + "RightHandMagnet", _rHand, out _rightMP);
             _leftMagnet.position = leftHold;
             _rightMagnet.position = rightHold;
         }
@@ -159,6 +168,9 @@ namespace ClimbGame.Climb3C.Character
 
         public Vector3 GetHandPosition(ClimbHand hand)
         {
+            Transform magnet = hand == ClimbHand.Left ? _leftMagnet : _rightMagnet;
+            if (magnet != null) return magnet.position;
+
             Transform h = hand == ClimbHand.Left ? _lHand : _rHand;
             return h != null ? h.position : TorsoWorldPosition;
         }

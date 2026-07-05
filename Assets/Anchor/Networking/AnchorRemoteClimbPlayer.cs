@@ -2,6 +2,7 @@ using ClimbGame.Climb3C.Character;
 using ClimbGame.Climb3C.Config;
 using ClimbGame.Climb3C.Core;
 using ClimbGame.Climb3C.Gameplay;
+using FIMSpace.FProceduralAnimation;
 using UnityEngine;
 
 namespace Anchor.Networking
@@ -9,12 +10,14 @@ namespace Anchor.Networking
     public sealed class AnchorRemoteClimbPlayer
     {
         private readonly IClimberAvatar _avatar;
+        private readonly MagnetClimberAvatar _magnetAvatar;
         private readonly Transform _root;
         private Vector3 _targetTorso;
         private Vector3 _targetLeftHand;
         private Vector3 _targetRightHand;
         private bool _hasTarget;
         private int _lastSeq = -1;
+        private int _pendingRagdollWarpFrames;
 
         public Transform Root => _root;
         public int LastSeq => _lastSeq;
@@ -48,11 +51,24 @@ namespace Anchor.Networking
             Transform avatarRoot;
             if (characterSource != null)
             {
-                var avatar = new PrefabClimberAvatar(characterSource, armRig, fall, characterScale, capsuleCenter, capsuleHeight, capsuleRadius, initialEuler);
+                var remoteCharacter = Object.Instantiate(characterSource);
+                remoteCharacter.name = name + " Character";
+                var avatar = new MagnetClimberAvatar(
+                    remoteCharacter,
+                    armRig,
+                    fall,
+                    initialEuler,
+                    characterScale,
+                    MakeRemoteMagnetPrefix(name),
+                    false);
                 avatar.Build(null, torso, null, null);
+                DisableRemoteBehaviours(avatar.Root);
+                avatar.SetInitialTransform(torso);
+                avatar.CommitClimbRagdoll(leftHand, rightHand);
                 _avatar = avatar;
+                _magnetAvatar = avatar;
                 avatarRoot = avatar.Root;
-                DisableRemoteBehaviours(avatarRoot);
+                _pendingRagdollWarpFrames = 3;
             }
             else
             {
@@ -109,6 +125,15 @@ namespace Anchor.Networking
             var left = Vector3.Lerp(_avatar.GetHandPosition(ClimbHand.Left), _targetLeftHand, t);
             var right = Vector3.Lerp(_avatar.GetHandPosition(ClimbHand.Right), _targetRightHand, t);
             ApplyTargets(torso, left, right, false);
+
+            if (_pendingRagdollWarpFrames > 0)
+            {
+                _pendingRagdollWarpFrames--;
+                if (_pendingRagdollWarpFrames == 0)
+                {
+                    _magnetAvatar?.SetRagdollPosition(torso);
+                }
+            }
         }
 
         public void MarkPeerLeft()
@@ -136,11 +161,27 @@ namespace Anchor.Networking
             var behaviours = root.GetComponentsInChildren<MonoBehaviour>(true);
             for (int i = 0; i < behaviours.Length; i++)
             {
-                if (behaviours[i] != null)
+                if (behaviours[i] != null && !(behaviours[i] is RagdollAnimator2))
                 {
                     behaviours[i].enabled = false;
                 }
             }
+        }
+
+        private static string MakeRemoteMagnetPrefix(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "Remote_";
+
+            var chars = name.ToCharArray();
+            for (int i = 0; i < chars.Length; i++)
+            {
+                if (!char.IsLetterOrDigit(chars[i]))
+                {
+                    chars[i] = '_';
+                }
+            }
+
+            return new string(chars) + "_";
         }
 
         private void SetTint(Color bodyColor, Color handColor)
