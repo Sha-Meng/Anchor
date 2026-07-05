@@ -295,6 +295,8 @@ namespace Anchor.Networking
             _localClimbBinder.useConfiguredStartCenter = true;
             _localClimbBinder.configuredStartCenter = localPose.torso;
             _localClimbBinder.configuredStartPointName = localSpawn.StartPointName;
+            _localClimbBinder.characterFrontOffset = 2.35f;
+            _localClimbBinder.bodyWallOffset = 2.35f;
             _localClimbBinder.useNearestStartAnchorPair = false;
             _localClimbBinder.primaryStartAnchorName = string.Empty;
             _localClimbBinder.leftHandStartAnchorName = localSpawn.LeftHandAnchorName;

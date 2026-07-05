@@ -37,6 +37,16 @@ namespace Anchor.RivetRopeSystem
         Protected = 1
     }
 
+    public enum RopeForceFeedbackReason
+    {
+        None = 0,
+        Disabled = 1,
+        InvalidPath = 2,
+        Slack = 3,
+        PreTension = 4,
+        Taut = 5
+    }
+
     [Serializable]
     public struct RivetRopeSettings
     {
@@ -52,6 +62,13 @@ namespace Anchor.RivetRopeSystem
         [Min(0f)] public float MaxFallDamage;
         [Min(0f)] public float ProtectedDamageMultiplier;
         [Min(0f)] public float UnprotectedDamageMultiplier;
+        public bool EnableForceFeedback;
+        [Min(0f)] public float ForcePreTensionThreshold;
+        [Min(0f)] public float ForceMaxConstraintCorrection;
+        [Min(0f)] public float ForceTensionStrengthPerMeter;
+        [Min(0f)] public float ForceVelocityDamping;
+        [Min(0f)] public float ForceReboundStrength;
+        [Min(0f)] public float ForceMaxFeedbackStrength;
 
         public static RivetRopeSettings CreateDefault()
         {
@@ -68,7 +85,14 @@ namespace Anchor.RivetRopeSystem
                 MinFallDamage = 1f,
                 MaxFallDamage = 100f,
                 ProtectedDamageMultiplier = 0.45f,
-                UnprotectedDamageMultiplier = 1f
+                UnprotectedDamageMultiplier = 1f,
+                EnableForceFeedback = true,
+                ForcePreTensionThreshold = 0.75f,
+                ForceMaxConstraintCorrection = 0.45f,
+                ForceTensionStrengthPerMeter = 1.25f,
+                ForceVelocityDamping = 0.85f,
+                ForceReboundStrength = 0.45f,
+                ForceMaxFeedbackStrength = 8f
             };
         }
 
@@ -90,7 +114,14 @@ namespace Anchor.RivetRopeSystem
                 MinFallDamage = minDamage,
                 MaxFallDamage = maxDamage > 0f ? maxDamage : 100f,
                 ProtectedDamageMultiplier = Mathf.Max(0f, ProtectedDamageMultiplier),
-                UnprotectedDamageMultiplier = Mathf.Max(0f, UnprotectedDamageMultiplier)
+                UnprotectedDamageMultiplier = Mathf.Max(0f, UnprotectedDamageMultiplier),
+                EnableForceFeedback = EnableForceFeedback,
+                ForcePreTensionThreshold = Mathf.Max(0f, ForcePreTensionThreshold),
+                ForceMaxConstraintCorrection = Mathf.Max(0f, ForceMaxConstraintCorrection),
+                ForceTensionStrengthPerMeter = Mathf.Max(0f, ForceTensionStrengthPerMeter),
+                ForceVelocityDamping = Mathf.Max(0f, ForceVelocityDamping),
+                ForceReboundStrength = Mathf.Max(0f, ForceReboundStrength),
+                ForceMaxFeedbackStrength = Mathf.Max(0f, ForceMaxFeedbackStrength)
             };
         }
     }
@@ -182,6 +213,133 @@ namespace Anchor.RivetRopeSystem
         public RivetRopeTensionState TensionState;
 
         public bool IsTaut => TensionState == RivetRopeTensionState.Taut;
+    }
+
+    [Serializable]
+    public struct RopeForceFeedbackInput
+    {
+        public string PlayerId;
+        public RopePathResult Path;
+        public Vector3 EndpointPosition;
+        public Vector3 EndpointVelocity;
+        public float DeltaTime;
+    }
+
+    [Serializable]
+    public struct RopeForceFeedbackResult
+    {
+        public bool IsActive;
+        public string PlayerId;
+        public Vector3 TensionDirection;
+        public float TensionStrength;
+        public float ConstraintDistance;
+        public Vector3 SuggestedVelocityCorrection;
+        public Vector3 AdjacentConstraintPoint;
+        public RivetRopeTensionState TensionState;
+        public RopeForceFeedbackReason Reason;
+
+        public bool HasVelocityCorrection => SuggestedVelocityCorrection.sqrMagnitude > 0.000001f;
+    }
+
+    public static class RopeForceFeedbackCalculator
+    {
+        public static RopeForceFeedbackResult Evaluate(RopeForceFeedbackInput input, RivetRopeSettings settings)
+        {
+            var sanitized = settings.Sanitized();
+            var path = input.Path;
+            var points = path.Points;
+
+            if (!sanitized.EnableForceFeedback)
+            {
+                return Inactive(input, RopeForceFeedbackReason.Disabled);
+            }
+
+            if (points == null || points.Length < 2)
+            {
+                return Inactive(input, RopeForceFeedbackReason.InvalidPath);
+            }
+
+            var endpointIndex = ResolveEndpointIndex(points, input.EndpointPosition);
+            var adjacentIndex = endpointIndex == 0 ? 1 : points.Length - 2;
+            var adjacent = points[adjacentIndex];
+            var direction = adjacent - input.EndpointPosition;
+            if (direction.sqrMagnitude <= 0.000001f)
+            {
+                direction = adjacent - points[endpointIndex];
+            }
+
+            direction = direction.sqrMagnitude > 0.000001f ? direction.normalized : Vector3.zero;
+            var constraintDistance = Mathf.Max(0f, path.ConstraintDistance);
+            var inPreTension = constraintDistance <= 0f
+                && sanitized.ForcePreTensionThreshold > 0f
+                && path.RemainingSlack <= sanitized.ForcePreTensionThreshold;
+
+            if (constraintDistance <= 0f && !inPreTension)
+            {
+                return new RopeForceFeedbackResult
+                {
+                    IsActive = false,
+                    PlayerId = input.PlayerId ?? string.Empty,
+                    TensionDirection = direction,
+                    TensionStrength = 0f,
+                    ConstraintDistance = 0f,
+                    SuggestedVelocityCorrection = Vector3.zero,
+                    AdjacentConstraintPoint = adjacent,
+                    TensionState = path.TensionState,
+                    Reason = RopeForceFeedbackReason.Slack
+                };
+            }
+
+            var overshootStrength = constraintDistance * sanitized.ForceTensionStrengthPerMeter;
+            var preTensionStrength = inPreTension
+                ? Mathf.InverseLerp(sanitized.ForcePreTensionThreshold, 0f, path.RemainingSlack) * sanitized.ForceTensionStrengthPerMeter
+                : 0f;
+            var tensionStrength = Mathf.Clamp(overshootStrength + preTensionStrength, 0f, sanitized.ForceMaxFeedbackStrength);
+
+            var movingAwaySpeed = Mathf.Max(0f, Vector3.Dot(input.EndpointVelocity, -direction));
+            var dampingCorrection = direction * movingAwaySpeed * sanitized.ForceVelocityDamping;
+            var correctionDistance = sanitized.ForceMaxConstraintCorrection > 0f
+                ? Mathf.Min(constraintDistance, sanitized.ForceMaxConstraintCorrection)
+                : constraintDistance;
+            var dt = Mathf.Max(0.0001f, input.DeltaTime);
+            var reboundCorrection = direction * (correctionDistance / dt) * sanitized.ForceReboundStrength;
+
+            return new RopeForceFeedbackResult
+            {
+                IsActive = tensionStrength > 0f || constraintDistance > 0f,
+                PlayerId = input.PlayerId ?? string.Empty,
+                TensionDirection = direction,
+                TensionStrength = tensionStrength,
+                ConstraintDistance = constraintDistance,
+                SuggestedVelocityCorrection = dampingCorrection + reboundCorrection,
+                AdjacentConstraintPoint = adjacent,
+                TensionState = path.TensionState,
+                Reason = constraintDistance > 0f ? RopeForceFeedbackReason.Taut : RopeForceFeedbackReason.PreTension
+            };
+        }
+
+        private static RopeForceFeedbackResult Inactive(RopeForceFeedbackInput input, RopeForceFeedbackReason reason)
+        {
+            return new RopeForceFeedbackResult
+            {
+                IsActive = false,
+                PlayerId = input.PlayerId ?? string.Empty,
+                TensionDirection = Vector3.zero,
+                TensionStrength = 0f,
+                ConstraintDistance = 0f,
+                SuggestedVelocityCorrection = Vector3.zero,
+                AdjacentConstraintPoint = Vector3.zero,
+                TensionState = input.Path.TensionState,
+                Reason = reason
+            };
+        }
+
+        private static int ResolveEndpointIndex(Vector3[] points, Vector3 endpointPosition)
+        {
+            var firstDistance = (endpointPosition - points[0]).sqrMagnitude;
+            var lastDistance = (endpointPosition - points[points.Length - 1]).sqrMagnitude;
+            return firstDistance <= lastDistance ? 0 : points.Length - 1;
+        }
     }
 
     [Serializable]
@@ -498,6 +656,25 @@ namespace Anchor.RivetRopeSystem
                 ConstraintDistance = Mathf.Max(0f, -slack),
                 TensionState = slack > 0f ? RivetRopeTensionState.Slack : RivetRopeTensionState.Taut
             };
+        }
+
+        public RopeForceFeedbackResult EvaluateForceFeedback(
+            string playerId,
+            RopePathResult path,
+            Vector3 endpointPosition,
+            Vector3 endpointVelocity,
+            float deltaTime)
+        {
+            return RopeForceFeedbackCalculator.Evaluate(
+                new RopeForceFeedbackInput
+                {
+                    PlayerId = playerId,
+                    Path = path,
+                    EndpointPosition = endpointPosition,
+                    EndpointVelocity = endpointVelocity,
+                    DeltaTime = deltaTime
+                },
+                _settings);
         }
 
         public void StartRescueWindow()

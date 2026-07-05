@@ -215,11 +215,90 @@ namespace Anchor.RivetRopeSystem.Tests
         }
 
         [Test]
+        public void ForceFeedback_SlackPathDoesNotActivateConstraint()
+        {
+            var path = _model.BuildRopePath(Vector3.zero, new Vector3(0f, 8f, 0f));
+
+            var feedback = _model.EvaluateForceFeedback("lead", path, new Vector3(0f, 8f, 0f), Vector3.up, 0.016f);
+
+            Assert.IsFalse(feedback.IsActive);
+            Assert.AreEqual(RopeForceFeedbackReason.Slack, feedback.Reason);
+            Assert.AreEqual(0f, feedback.ConstraintDistance, 0.001f);
+            Assert.AreEqual(0f, feedback.TensionStrength, 0.001f);
+        }
+
+        [Test]
+        public void ForceFeedback_TautDirectPathPullsUpperTowardLower()
+        {
+            var path = _model.BuildRopePath(Vector3.zero, new Vector3(0f, 25f, 0f));
+
+            var feedback = _model.EvaluateForceFeedback("lead", path, new Vector3(0f, 25f, 0f), Vector3.up * 2f, 0.02f);
+
+            Assert.IsTrue(feedback.IsActive);
+            Assert.AreEqual(RopeForceFeedbackReason.Taut, feedback.Reason);
+            Assert.AreEqual(5f, feedback.ConstraintDistance, 0.001f);
+            AssertVectorApproximately(Vector3.down, feedback.TensionDirection);
+            Assert.Greater(feedback.TensionStrength, 0f);
+            Assert.Greater(feedback.SuggestedVelocityCorrection.magnitude, 0f);
+        }
+
+        [Test]
+        public void ForceFeedback_SingleRivetUsesAdjacentRivetDirection()
+        {
+            var settings = _settings;
+            settings.TotalRopeLength = 8f;
+            _model.Reset(settings, "lead", "second");
+            PlaceLeadRivet(new Vector3(3f, 10f, 0f));
+            var upper = new Vector3(6f, 20f, 0f);
+            var path = _model.BuildRopePath(Vector3.zero, upper);
+
+            var feedback = _model.EvaluateForceFeedback("lead", path, upper, Vector3.zero, 0.02f);
+
+            Assert.IsTrue(feedback.IsActive);
+            AssertVectorApproximately((new Vector3(3f, 10f, 0f) - upper).normalized, feedback.TensionDirection);
+            AssertVectorApproximately(new Vector3(3f, 10f, 0f), feedback.AdjacentConstraintPoint);
+        }
+
+        [Test]
+        public void ForceFeedback_MultiRivetUsesEndpointAdjacentPoint()
+        {
+            var settings = _settings;
+            settings.TotalRopeLength = 8f;
+            _model.Reset(settings, "lead", "second");
+            PlaceLeadRivet(new Vector3(-2f, 5f, 0f));
+            PlaceLeadRivet(new Vector3(2f, 12f, 0f));
+            PlaceLeadRivet(new Vector3(-1f, 18f, 0f));
+            var upper = new Vector3(4f, 24f, 0f);
+            var path = _model.BuildRopePath(Vector3.zero, upper);
+
+            var feedback = _model.EvaluateForceFeedback("lead", path, upper, Vector3.zero, 0.02f);
+
+            Assert.IsTrue(feedback.IsActive);
+            AssertVectorApproximately((new Vector3(-1f, 18f, 0f) - upper).normalized, feedback.TensionDirection);
+            AssertVectorApproximately(new Vector3(-1f, 18f, 0f), feedback.AdjacentConstraintPoint);
+        }
+
+        [Test]
+        public void ForceFeedback_DisabledBySettingsDoesNotActivate()
+        {
+            var settings = _settings;
+            settings.EnableForceFeedback = false;
+            _model.Reset(settings, "lead", "second");
+            var path = _model.BuildRopePath(Vector3.zero, new Vector3(0f, 25f, 0f));
+
+            var feedback = _model.EvaluateForceFeedback("lead", path, new Vector3(0f, 25f, 0f), Vector3.up, 0.02f);
+
+            Assert.IsFalse(feedback.IsActive);
+            Assert.AreEqual(RopeForceFeedbackReason.Disabled, feedback.Reason);
+        }
+
+        [Test]
         public void VisualSettingsChanges_DoNotChangeRopeRules()
         {
             PlaceLeadRivet(new Vector3(0f, 5f, 0f));
             var before = _model.BuildRopePath(Vector3.zero, new Vector3(0f, 12f, 0f));
             var beforeFall = _model.ResolveFall("lead", Vector3.zero, new Vector3(0f, 12f, 0f));
+            var beforeFeedback = _model.EvaluateForceFeedback("lead", before, new Vector3(0f, 12f, 0f), Vector3.up, 0.02f);
             var config = ScriptableObject.CreateInstance<RivetRopeConfig>();
 
             var visuals = RivetRopeVisualSettings.CreateDefault();
@@ -232,6 +311,7 @@ namespace Anchor.RivetRopeSystem.Tests
 
             var after = _model.BuildRopePath(Vector3.zero, new Vector3(0f, 12f, 0f));
             var afterFall = _model.ResolveFall("lead", Vector3.zero, new Vector3(0f, 12f, 0f));
+            var afterFeedback = _model.EvaluateForceFeedback("lead", after, new Vector3(0f, 12f, 0f), Vector3.up, 0.02f);
 
             Assert.AreEqual(before.UsedLength, after.UsedLength, 0.001f);
             Assert.AreEqual(before.RemainingSlack, after.RemainingSlack, 0.001f);
@@ -239,6 +319,9 @@ namespace Anchor.RivetRopeSystem.Tests
             Assert.AreEqual(before.TensionState, after.TensionState);
             Assert.AreEqual(beforeFall.ProtectionRivetId, afterFall.ProtectionRivetId);
             Assert.AreEqual(beforeFall.SuggestedDamage, afterFall.SuggestedDamage, 0.001f);
+            Assert.AreEqual(beforeFeedback.IsActive, afterFeedback.IsActive);
+            Assert.AreEqual(beforeFeedback.TensionStrength, afterFeedback.TensionStrength, 0.001f);
+            AssertVectorApproximately(beforeFeedback.TensionDirection, afterFeedback.TensionDirection);
             UnityEngine.Object.DestroyImmediate(config);
         }
 
@@ -353,6 +436,13 @@ namespace Anchor.RivetRopeSystem.Tests
                 IsPlayerStable = stable,
                 IsPlayerInteractive = true
             });
+        }
+
+        private static void AssertVectorApproximately(Vector3 expected, Vector3 actual, float tolerance = 0.001f)
+        {
+            Assert.AreEqual(expected.x, actual.x, tolerance);
+            Assert.AreEqual(expected.y, actual.y, tolerance);
+            Assert.AreEqual(expected.z, actual.z, tolerance);
         }
     }
 }

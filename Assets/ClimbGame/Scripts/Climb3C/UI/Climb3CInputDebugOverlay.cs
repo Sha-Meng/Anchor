@@ -23,6 +23,7 @@ namespace ClimbGame.Climb3C.UI
         private DebugMarker _handMarker;
         private RectTransform _lagLine;
         private Image _lagLineImage;
+        private Text _ropeForceText;
 
         public void Build(Canvas canvas, ClimbTuningConfig tuning, Camera camera, ClimbController3D controller)
         {
@@ -47,6 +48,8 @@ namespace ClimbGame.Climb3C.UI
             _lagLineImage.raycastTarget = false;
             _lagLine.sizeDelta = new Vector2(4f, 1f);
             _lagLine.gameObject.SetActive(false);
+
+            _ropeForceText = CreateRopeForceText(root);
         }
 
         private void LateUpdate()
@@ -54,6 +57,7 @@ namespace ClimbGame.Climb3C.UI
             if (_controller == null || _tuning == null) return;
 
             _zones.SetActiveSide(_controller.CurrentHand);
+            UpdateRopeForceText(_tuning.showInputDebug);
 
             bool showDebug = _tuning.showInputDebug;
             ClimbInputDebugSnapshot snap = _controller.InputDebug;
@@ -118,6 +122,26 @@ namespace ClimbGame.Climb3C.UI
             Debug.DrawLine(snap.ReachStartHandWorld, hand, Color.cyan);
         }
 
+        private void UpdateRopeForceText(bool visible)
+        {
+            if (_ropeForceText == null)
+            {
+                return;
+            }
+
+            _ropeForceText.gameObject.SetActive(visible);
+            if (!visible)
+            {
+                return;
+            }
+
+            var rope = _controller.RopeForceDebug;
+            _ropeForceText.text =
+                $"Rope Force: consuming={rope.Consuming} reason={rope.IgnoreReason}\n" +
+                $"tension={rope.TensionStrength:0.00} constraint={rope.ConstraintDistance:0.00} " +
+                $"fix={rope.SuggestedVelocityCorrection.magnitude:0.00}m/s";
+        }
+
         private void UpdateLagLine(Vector2 from, Vector2 to)
         {
             if (_lagLine == null) return;
@@ -159,6 +183,27 @@ namespace ClimbGame.Climb3C.UI
             img.raycastTarget = false;
             go.SetActive(false);
             return new DebugMarker(rt);
+        }
+
+        private static Text CreateRopeForceText(Transform parent)
+        {
+            var go = new GameObject("RopeForceDebugText", typeof(RectTransform));
+            var rect = go.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(0f, 0f);
+            rect.pivot = new Vector2(0f, 0f);
+            rect.anchoredPosition = new Vector2(24f, 24f);
+            rect.sizeDelta = new Vector2(720f, 72f);
+
+            var text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 22;
+            text.alignment = TextAnchor.LowerLeft;
+            text.color = new Color(1f, 0.25f, 0.9f, 0.95f);
+            text.raycastTarget = false;
+            go.SetActive(false);
+            return text;
         }
 
         private static Sprite BuildRingSprite(int size)

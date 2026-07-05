@@ -1,4 +1,5 @@
 using Anchor.ForceSystem;
+using Anchor.RivetRopeSystem;
 using ClimbGame.Climb3C.Character;
 using ClimbGame.Climb3C.Config;
 using ClimbGame.Climb3C.Core;
@@ -11,6 +12,31 @@ using UnityEngine;
 namespace ClimbGame.Climb3C.Gameplay
 {
     public enum ClimbState { WaitingForPress, Reaching, Returning, Falling }
+
+    public struct RopeForceConsumerDebugSnapshot
+    {
+        public bool HasFeedback;
+        public bool Consuming;
+        public string IgnoreReason;
+        public Vector3 AppliedDisplacement;
+        public Vector3 SuggestedVelocityCorrection;
+        public float TensionStrength;
+        public float ConstraintDistance;
+
+        public static RopeForceConsumerDebugSnapshot Inactive(string reason)
+        {
+            return new RopeForceConsumerDebugSnapshot
+            {
+                HasFeedback = false,
+                Consuming = false,
+                IgnoreReason = reason ?? string.Empty,
+                AppliedDisplacement = Vector3.zero,
+                SuggestedVelocityCorrection = Vector3.zero,
+                TensionStrength = 0f,
+                ConstraintDistance = 0f
+            };
+        }
+    }
 
     /// <summary>
     /// 本地攀爬者的逻辑层：消费输入，驱动 <see cref="IClimberAvatar"/> 化身，
@@ -38,6 +64,9 @@ namespace ClimbGame.Climb3C.Gameplay
         private IGripQueryProvider _gripProvider;
         private WallDepthProbe _wallProbe;
         private CapsuleWallResolver _wallResolver;
+        private bool _consumeRopeForceFeedback;
+        private RopeForceFeedbackResult _pendingRopeForceFeedback;
+        private RopeForceConsumerDebugSnapshot _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("NoFeedback");
         private float _bodyWallOffset = 0.4f;
         private float _maxHandDistance = 2f;
         private float _handSlipCancelDistance = 0.5f;
@@ -64,6 +93,7 @@ namespace ClimbGame.Climb3C.Gameplay
         public ClimbHand CurrentHand => _s != null ? _s.CurrentHand : ClimbHand.None;
         public Vector3 TorsoCenter => _s != null ? _s.TorsoCenter : Vector3.zero;
         public ClimbInputDebugSnapshot InputDebug => _inputDebug;
+        public RopeForceConsumerDebugSnapshot RopeForceDebug => _ropeForceDebug;
 
         /// <summary>某只手成功抓握锚定时触发，参数为刚锚定的手（相机可据此回到中性机位）。</summary>
         public event System.Action<ClimbHand> HandAnchored;
@@ -129,6 +159,9 @@ namespace ClimbGame.Climb3C.Gameplay
             _stamina = new ClimbStamina(staminaCfg, _s);
             _s.ForceMemory = ForceEvaluationMemory.CreateDefault();
             _forceInputAdapter.Configure(_s);
+            _consumeRopeForceFeedback = false;
+            _pendingRopeForceFeedback = default;
+            _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("NoFeedback");
 
             _s.State = ClimbState.WaitingForPress;
             _s.CurrentHand = ClimbHand.None;
@@ -293,6 +326,7 @@ namespace ClimbGame.Climb3C.Gameplay
                 ? _cameraConfig.neutralForward.normalized
                 : Vector3.forward;
             mid -= wallForward * _bodyWallOffset;
+            mid = ApplyRopeForceFeedback(mid);
             _s.TorsoCenter = SmoothTo(_s.TorsoCenter, mid, _tuning.torsoFollowLerp);
 
             // 先按目标中心摆好胶囊体，再做胶囊体 vs 墙体去穿模：
@@ -328,6 +362,73 @@ namespace ClimbGame.Climb3C.Gameplay
         }
 
         public void SetGripMagnetZOffset(float offset) => _gripMagnetZOffset = offset;
+
+        public void SetRopeForceFeedbackEnabled(bool enabled)
+        {
+            _consumeRopeForceFeedback = enabled;
+            if (!enabled)
+            {
+                _pendingRopeForceFeedback = default;
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("ConsumerDisabled");
+            }
+        }
+
+        public void ConsumeRopeForceFeedback(RopeForceFeedbackResult feedback)
+        {
+            _pendingRopeForceFeedback = feedback;
+        }
+
+        public void ClearRopeForceFeedback(string reason = "NoFeedback")
+        {
+            _pendingRopeForceFeedback = default;
+            _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive(reason);
+        }
+
+        private Vector3 ApplyRopeForceFeedback(Vector3 targetTorso)
+        {
+            if (!_consumeRopeForceFeedback)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("ConsumerDisabled");
+                return targetTorso;
+            }
+
+            if (!_pendingRopeForceFeedback.IsActive)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive(_pendingRopeForceFeedback.Reason.ToString());
+                return targetTorso;
+            }
+
+            if (_s.State == ClimbState.Falling)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("Falling");
+                return targetTorso;
+            }
+
+            var direction = _pendingRopeForceFeedback.TensionDirection;
+            if (direction.sqrMagnitude <= 0.000001f)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("InvalidDirection");
+                return targetTorso;
+            }
+
+            var dt = Mathf.Max(0.0001f, Time.deltaTime);
+            var suggestedDisplacement = _pendingRopeForceFeedback.SuggestedVelocityCorrection * dt;
+            var maxDisplacement = Mathf.Max(0.02f, _pendingRopeForceFeedback.ConstraintDistance);
+            var applied = Vector3.ClampMagnitude(suggestedDisplacement, maxDisplacement);
+
+            _ropeForceDebug = new RopeForceConsumerDebugSnapshot
+            {
+                HasFeedback = true,
+                Consuming = applied.sqrMagnitude > 0.000001f,
+                IgnoreReason = applied.sqrMagnitude > 0.000001f ? string.Empty : "ZeroCorrection",
+                AppliedDisplacement = applied,
+                SuggestedVelocityCorrection = _pendingRopeForceFeedback.SuggestedVelocityCorrection,
+                TensionStrength = _pendingRopeForceFeedback.TensionStrength,
+                ConstraintDistance = _pendingRopeForceFeedback.ConstraintDistance
+            };
+
+            return targetTorso + applied;
+        }
 
         private RivetPoint ExcludeRivet() => _s.CurrentHand == ClimbHand.Left ? _s.LeftRivet : _s.RightRivet;
 

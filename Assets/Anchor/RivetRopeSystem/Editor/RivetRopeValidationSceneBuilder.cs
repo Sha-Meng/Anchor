@@ -10,6 +10,8 @@ namespace Anchor.RivetRopeSystem.Editor
     {
         public const string ScenePath = "Assets/Anchor/RivetRopeSystem/Scenes/RivetRopeValidation.scene";
         public const string VisualLabScenePath = "Assets/Anchor/RivetRopeSystem/Scenes/RivetRopeVisualLab.scene";
+        private const string VisualLabCharacterPath = "Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab";
+        private const string VisualLabFallbackCharacterPath = "Assets/Art/Character/RagDollMan.prefab";
 
         [MenuItem("Anchor/Rivet Rope/Rebuild Validation Scene")]
         public static void BuildValidationScene()
@@ -60,11 +62,14 @@ namespace Anchor.RivetRopeSystem.Editor
             scene.name = "RivetRopeVisualLab";
 
             var camera = CreateVisualLabCamera();
+            CreateVisualLabLight();
             CreateVisualLabBackdrop();
             CreateDistanceTicks();
 
             var lower = CreateMarker("Lower Waist Endpoint", new Vector3(-2.4f, -3.2f, 0f), Color.cyan, 0.34f);
             var upper = CreateMarker("Upper Waist Endpoint", new Vector3(2.2f, 4.8f, 0f), new Color(1f, 0.55f, 0.15f), 0.34f);
+            var feedbackProxy = CreateMarker("Rope Force Feedback Proxy", upper.position, new Color(1f, 0.2f, 0.85f), 0.28f);
+            var character = CreateVisualLabCharacter(upper.position, out var forceBone);
             var rivets = new[]
             {
                 CreateMarker("Lab Rivet 01", new Vector3(0f, 0.9f, 0f), Color.yellow, 0.24f),
@@ -88,7 +93,7 @@ namespace Anchor.RivetRopeSystem.Editor
             BindDriver(driver, config, lower, upper, null);
             BindVisual(visual, config, driver, line);
             BindRivetVisual(rivetVisual, config, driver);
-            BindVisualLab(lab, config, driver, visual, camera, lower, upper, rivets);
+            BindVisualLab(lab, config, driver, visual, camera, lower, upper, rivets, feedbackProxy, character, forceBone);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, VisualLabScenePath);
@@ -131,10 +136,20 @@ namespace Anchor.RivetRopeSystem.Editor
             cameraObject.transform.rotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
             var camera = cameraObject.AddComponent<Camera>();
             camera.orthographic = true;
-            camera.orthographicSize = 6.2f;
+            camera.orthographicSize = 4.8f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.045f, 0.05f, 0.065f);
             return camera;
+        }
+
+        private static void CreateVisualLabLight()
+        {
+            var lightObject = new GameObject("Visual Lab Key Light");
+            lightObject.transform.rotation = Quaternion.Euler(35f, -25f, 0f);
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 1.25f;
+            light.color = new Color(1f, 0.96f, 0.9f);
         }
 
         private static void CreateWall()
@@ -279,7 +294,9 @@ namespace Anchor.RivetRopeSystem.Editor
                 "Rivet Rope Visual Lab\n" +
                 "左侧面板切换路径/模式/参数。\n" +
                 "拖动青色或橙色端点观察跟随、阻尼和回弹。\n" +
-                "黄色球体是铆钉路径预设点。";
+                "黄色球体是铆钉路径预设点。\n" +
+                "角色受力骨骼优先绑定 Spine2，回退 Spine1/Spine/Hips。\n" +
+                "粉色球体保留为骨骼受力点的辅助观察标记。";
 
             var rect = text.rectTransform;
             rect.anchorMin = new Vector2(1f, 0f);
@@ -334,7 +351,10 @@ namespace Anchor.RivetRopeSystem.Editor
             Camera camera,
             Transform lower,
             Transform upper,
-            Transform[] rivets)
+            Transform[] rivets,
+            Transform feedbackProxy,
+            Transform characterRoot,
+            Transform forceTargetBone)
         {
             var serialized = new SerializedObject(lab);
             serialized.FindProperty("config").objectReferenceValue = config;
@@ -343,6 +363,9 @@ namespace Anchor.RivetRopeSystem.Editor
             serialized.FindProperty("targetCamera").objectReferenceValue = camera;
             serialized.FindProperty("lowerEndpoint").objectReferenceValue = lower;
             serialized.FindProperty("upperEndpoint").objectReferenceValue = upper;
+            serialized.FindProperty("feedbackProxy").objectReferenceValue = feedbackProxy;
+            serialized.FindProperty("characterRoot").objectReferenceValue = characterRoot;
+            serialized.FindProperty("forceTargetBone").objectReferenceValue = forceTargetBone;
 
             var markers = serialized.FindProperty("rivetMarkers");
             markers.arraySize = rivets.Length;
@@ -354,7 +377,88 @@ namespace Anchor.RivetRopeSystem.Editor
             serialized.FindProperty("autoMoveUpper").boolValue = true;
             serialized.FindProperty("autoMoveAmplitude").floatValue = 1.6f;
             serialized.FindProperty("autoMoveSpeed").floatValue = 0.65f;
+            serialized.FindProperty("enableForceFeedbackPreview").boolValue = true;
+            serialized.FindProperty("feedbackDrivesUpperEndpoint").boolValue = characterRoot != null && forceTargetBone != null;
+            serialized.FindProperty("useCharacterForceTarget").boolValue = characterRoot != null && forceTargetBone != null;
+            serialized.FindProperty("fallGravity").floatValue = 2f;
+            serialized.FindProperty("fallInitialDownSpeed").floatValue = 0f;
+            serialized.FindProperty("maxFallSpeed").floatValue = 6f;
+            serialized.FindProperty("fallCatchImpulse").floatValue = 2.2f;
+            serialized.FindProperty("loopFallCatchPreview").boolValue = true;
+            serialized.FindProperty("fallReplayDelay").floatValue = 1.4f;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static Transform CreateVisualLabCharacter(Vector3 forceTargetPosition, out Transform forceBone)
+        {
+            forceBone = null;
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(VisualLabCharacterPath);
+            if (prefab == null)
+            {
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>(VisualLabFallbackCharacterPath);
+            }
+
+            if (prefab == null)
+            {
+                Debug.LogWarning("Rivet rope visual lab: character prefab not found, falling back to proxy-only validation.");
+                return null;
+            }
+
+            var character = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            if (character == null)
+            {
+                return null;
+            }
+
+            character.name = "Rope Force Test Character (MainAcotor_F)";
+            character.transform.position = new Vector3(forceTargetPosition.x, forceTargetPosition.y, 0f);
+            character.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            character.transform.localScale = Vector3.one * 2.6f;
+            DisableRuntimeCharacterScripts(character);
+
+            forceBone =
+                FindDeep(character.transform, "Spine2") ??
+                FindDeep(character.transform, "Spine1") ??
+                FindDeep(character.transform, "Spine") ??
+                FindDeep(character.transform, "Hips") ??
+                character.transform;
+
+            character.transform.position += forceTargetPosition - forceBone.position;
+            Debug.Log($"Rivet rope visual lab character force target: {forceBone.name}");
+            return character.transform;
+        }
+
+        private static void DisableRuntimeCharacterScripts(GameObject character)
+        {
+            var behaviours = character.GetComponentsInChildren<MonoBehaviour>(true);
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                behaviours[i].enabled = false;
+            }
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            if (root.name == name)
+            {
+                return root;
+            }
+
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var found = FindDeep(root.GetChild(i), name);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
 
         private static void BindPanel(RivetRopeDebugPanel panel, RivetRopeDebugDriver driver, Transform placePoint, Transform collectPoint)

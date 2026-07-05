@@ -21,12 +21,16 @@ namespace Anchor.RivetRopeSystem
         private readonly RivetRopeModel _model = new RivetRopeModel();
         private RopePathResult _lastPath;
         private RopeFallResolution _lastFall;
+        private RopeForceFeedbackResult _lastForceFeedback;
         private IRivetRopeDamageSink _damageSink;
         private IRivetRopeNetworkSink _networkSink;
+        private Vector3 _lastUpperPosition;
+        private bool _hasLastUpperPosition;
 
         public RivetRopeModel Model => _model;
         public RopePathResult LastPath => _lastPath;
         public RopeFallResolution LastFall => _lastFall;
+        public RopeForceFeedbackResult LastForceFeedback => _lastForceFeedback;
         public string LeadPlayerId => leadPlayerId;
         public string SecondPlayerId => secondPlayerId;
 
@@ -62,6 +66,12 @@ namespace Anchor.RivetRopeSystem
             if (lowerAttachPoint != null && upperAttachPoint != null)
             {
                 _lastPath = _model.BuildRopePath(lowerAttachPoint.position, upperAttachPoint.position);
+                _lastForceFeedback = _model.EvaluateForceFeedback(
+                    leadPlayerId,
+                    _lastPath,
+                    upperAttachPoint.position,
+                    CalculateUpperVelocity(Time.deltaTime),
+                    Time.deltaTime);
             }
         }
 
@@ -69,6 +79,8 @@ namespace Anchor.RivetRopeSystem
         {
             var settings = config != null ? config.Settings : RivetRopeSettings.CreateDefault();
             _model.Reset(settings, leadPlayerId, secondPlayerId);
+            _lastForceFeedback = default;
+            _hasLastUpperPosition = false;
         }
 
         public void SetNetworkSinkSource(MonoBehaviour source)
@@ -249,7 +261,33 @@ namespace Anchor.RivetRopeSystem
             if (lowerAttachPoint != null && upperAttachPoint != null)
             {
                 _lastPath = _model.BuildRopePath(lowerAttachPoint.position, upperAttachPoint.position);
+                _lastForceFeedback = _model.EvaluateForceFeedback(
+                    leadPlayerId,
+                    _lastPath,
+                    upperAttachPoint.position,
+                    Vector3.zero,
+                    Time.deltaTime);
             }
+        }
+
+        private Vector3 CalculateUpperVelocity(float deltaTime)
+        {
+            if (upperAttachPoint == null)
+            {
+                return Vector3.zero;
+            }
+
+            var position = upperAttachPoint.position;
+            if (!_hasLastUpperPosition || deltaTime <= 0f)
+            {
+                _lastUpperPosition = position;
+                _hasLastUpperPosition = true;
+                return Vector3.zero;
+            }
+
+            var velocity = (position - _lastUpperPosition) / deltaTime;
+            _lastUpperPosition = position;
+            return velocity;
         }
 
         private Vector3 GetSampleProtectionPosition()
@@ -307,6 +345,13 @@ namespace Anchor.RivetRopeSystem
 
             Gizmos.color = Color.cyan;
             Gizmos.DrawWireSphere(lowerAttachPoint.position, settings.CollectRange);
+
+            if (_lastForceFeedback.IsActive)
+            {
+                Gizmos.color = Color.magenta;
+                Gizmos.DrawLine(upperAttachPoint.position, upperAttachPoint.position + _lastForceFeedback.TensionDirection);
+                Gizmos.DrawSphere(_lastForceFeedback.AdjacentConstraintPoint, 0.06f);
+            }
         }
     }
 }

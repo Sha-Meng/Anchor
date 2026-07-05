@@ -3436,10 +3436,10 @@ MonoBehaviour:
   ragdollFall: {fileID: 11400000, guid: 750e5f172818c464d9717f053f4e4198, type: 2}
   cameraConfig: {fileID: 11400000, guid: c8904260bb9f942c08e364b91c169836, type: 2}
   routeRootName: RouteNetwork
-  characterFrontOffset: 0.45
+  characterFrontOffset: 2.35
   startBelowLowest: 0.2
   useConfiguredStartCenter: 1
-  configuredStartCenter: {x: 0.61431634, y: 7.4633226, z: 4.251}
+  configuredStartCenter: {x: 0.61431634, y: 7.4633226, z: 2.451}
   configuredStartPointName: HostStartPoint
   primaryStartAnchorName: 
   useNearestStartAnchorPair: 0
@@ -3471,7 +3471,7 @@ MonoBehaviour:
   capsuleCenter: {x: 0, y: 0, z: 0}
   capsuleHeight: 1.6
   capsuleRadius: 0.3
-  bodyWallOffset: 0.4
+  bodyWallOffset: 2.35
   resolveCapsulePenetration: 1
   wallCollisionMask:
     serializedVersion: 2
@@ -5842,7 +5842,7 @@ Transform:
   m_GameObject: {fileID: 900100001}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.3868502, y: 4.635091, z: 3.7786367}
+  m_LocalPosition: {x: -1.3868502, y: 4.635091, z: 1.8786367}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5889,7 +5889,7 @@ Transform:
   m_GameObject: {fileID: 900100004}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.61431634, y: 7.4633226, z: 4.251}
+  m_LocalPosition: {x: 0.61431634, y: 7.4633226, z: 2.451}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

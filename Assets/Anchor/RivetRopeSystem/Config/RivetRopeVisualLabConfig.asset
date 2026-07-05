@@ -25,6 +25,13 @@ MonoBehaviour:
     MaxFallDamage: 100
     ProtectedDamageMultiplier: 0.45
     UnprotectedDamageMultiplier: 1
+    EnableForceFeedback: 1
+    ForcePreTensionThreshold: 0.75
+    ForceMaxConstraintCorrection: 0.45
+    ForceTensionStrengthPerMeter: 1.25
+    ForceVelocityDamping: 0.85
+    ForceReboundStrength: 0.45
+    ForceMaxFeedbackStrength: 8
   visualSettings:
     VisualMode: 0
     RopeMaterial: {fileID: 2100000, guid: 9e09fa67999ce104a86c6b89ceeef767, type: 2}
@@ -44,3 +51,5 @@ MonoBehaviour:
     SlackColor: {r: 0.86, g: 0.78, b: 0.58, a: 1}
     TautColor: {r: 1, g: 0.52, b: 0.34, a: 1}
     TautWidthMultiplier: 0.86
+    SortingOrder: -20
+    RenderQueue: 2000

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Anchor.ForceSystem;
 using Anchor.LevelAnchorSystem;
+using Anchor.RivetRopeSystem;
 using Anchor.SystemValidation;
 using ClimbGame.Climb3C.Character;
 using ClimbGame.Climb3C.Config;
@@ -68,6 +69,13 @@ namespace ClimbGame.Climb3C.Boot
 
         [Tooltip("是否启用旧的 ClimbCamera 越肩跟随相机。若场景由 CameraMgr（cam0/1/2 机位）接管相机，请保持关闭，避免两者同帧抢写 Main Camera 导致抖动")]
         public bool cameraFollow = false;
+
+        [Header("绳索力反馈（默认关闭，先在绳索测试关卡验收）")]
+        [Tooltip("测试关卡验收通过后再开启：把 RivetRopeDebugDriver 输出的绳索力反馈交给 3C 消费")]
+        public bool enableRopeForceFeedback = false;
+
+        [Tooltip("提供绳索力反馈结果的调试驱动；留空时运行时尝试查找场景中的 RivetRopeDebugDriver")]
+        public RivetRopeDebugDriver ropeDebugDriver;
 
         [Tooltip("相机初始越肩偏移（相对角色头部：x 肩侧、y 上、z 后）")]
         public Vector3 overShoulderOffset = new Vector3(0.6f, 0.55f, -3.2f);
@@ -164,6 +172,35 @@ namespace ClimbGame.Climb3C.Boot
         public ClimbController3D Controller => _controller;
         public IClimbStateSource StateSource => _controller;
 
+        private void Update()
+        {
+            if (_controller == null)
+            {
+                return;
+            }
+
+            if (!enableRopeForceFeedback)
+            {
+                _controller.SetRopeForceFeedbackEnabled(false);
+                return;
+            }
+
+            _controller.SetRopeForceFeedbackEnabled(true);
+
+            if (ropeDebugDriver == null)
+            {
+                ropeDebugDriver = FindObjectOfType<RivetRopeDebugDriver>();
+            }
+
+            if (ropeDebugDriver == null)
+            {
+                _controller.ClearRopeForceFeedback("NoRopeDriver");
+                return;
+            }
+
+            _controller.ConsumeRopeForceFeedback(ropeDebugDriver.LastForceFeedback);
+        }
+
         private IEnumerator Start()
         {
             // 时序：Build 需要等抓点就绪（可能延后若干帧），期间角色会停在场景原始位置。
@@ -249,7 +286,10 @@ namespace ClimbGame.Climb3C.Boot
             if (useConfiguredStartCenter)
             {
                 startCenter = ResolveConfiguredStartCenter();
-                startCenter.z = planeZ - characterFrontOffset;
+                if (!HasConfiguredStartPoint())
+                {
+                    startCenter.z = planeZ - characterFrontOffset;
+                }
             }
             else if (leftStart != null && rightStart != null)
             {
@@ -376,6 +416,7 @@ namespace ClimbGame.Climb3C.Boot
             _controller.SetGripMagnetZOffset(gripMagnetZOffset);
             _controller.SetGrabSnapDistanceXY(grabSnapDistanceXY);
             _controller.SetMagnifierEnabled(enableMagnifier);
+            _controller.SetRopeForceFeedbackEnabled(enableRopeForceFeedback);
 
             // 胶囊体防穿模：把角色胶囊体与墙体做重叠检测，穿插时沿法线推出贴合墙面
             if (resolveCapsulePenetration && avatar.BodyCapsule != null)
@@ -549,6 +590,12 @@ namespace ClimbGame.Climb3C.Boot
             }
 
             return configuredStartCenter;
+        }
+
+        private bool HasConfiguredStartPoint()
+        {
+            return !string.IsNullOrEmpty(configuredStartPointName) &&
+                   GameObject.Find(configuredStartPointName) != null;
         }
 
         private void EnsureConfigs()
