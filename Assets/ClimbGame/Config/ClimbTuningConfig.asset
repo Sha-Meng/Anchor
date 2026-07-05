@@ -25,7 +25,7 @@ MonoBehaviour:
   torsoCenterOffset: {x: 0, y: -0.35, z: 0}
   torsoFollowLerp: 8
   showInputDebug: 1
-  showInputZones: 1
+  showInputZones: 0
   leftZoneColor: {r: 0.25, g: 0.6, b: 1, a: 1}
   rightZoneColor: {r: 1, g: 0.6, b: 0.2, a: 1}
   inactiveZoneAlpha: 0.1

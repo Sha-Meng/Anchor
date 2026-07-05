@@ -54,7 +54,7 @@ namespace ClimbGame.Climb3C.Config
         public bool showInputDebug = true;
 
         [Tooltip("是否在屏幕上用色块标出左右输入区")]
-        public bool showInputZones = true;
+        public bool showInputZones = false;
 
         [Tooltip("左侧输入区颜色（不含透明度，透明度用下方 alpha 控制）")]
         public Color leftZoneColor = new Color(0.25f, 0.6f, 1f);
