@@ -15,9 +15,11 @@ namespace ClimbGame.Climb3C.UI
         [SerializeField] private bool visible = false;
 
         private RectTransform _root;
+        private RectTransform _canvasRect;
         private Image _bg;
         private Image _fill;
         private Camera _camera;
+        private Canvas _canvas;
         private StaminaConfig _config;
         private bool _hasWorldAnchor;
         private Vector3 _worldAnchor;
@@ -30,6 +32,8 @@ namespace ClimbGame.Climb3C.UI
 
         public void Build(Canvas canvas, StaminaConfig config, Camera camera)
         {
+            _canvas = canvas;
+            _canvasRect = canvas != null ? canvas.transform as RectTransform : null;
             _config = config;
             _camera = camera;
 
@@ -161,7 +165,17 @@ namespace ClimbGame.Climb3C.UI
                 return;
             }
             if (!_root.gameObject.activeSelf) _root.gameObject.SetActive(true);
-            _root.position = new Vector3(screen.x, screen.y, 0f);
+
+            // 屏幕像素须换算到 Canvas 局部坐标，才能与 CanvasScaler 下的 sizeDelta 一致（手机/PC 表现对齐）
+            if (_canvasRect != null &&
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    _canvasRect,
+                    new Vector2(screen.x, screen.y),
+                    _canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay ? _canvas.worldCamera : null,
+                    out Vector2 localPoint))
+            {
+                _root.anchoredPosition = localPoint;
+            }
         }
 
         /// <summary>运行时生成一张环形（donut）贴图，供背景与填充复用。</summary>

@@ -311,7 +311,7 @@ namespace Anchor.Networking
             _localClimbBinder.bodyColor = _isHost ? new Color(0.2f, 0.55f, 1f) : new Color(0.2f, 0.9f, 0.65f);
             _localClimbBinder.handColor = new Color(0.95f, 0.8f, 0.65f);
 
-            _remoteClimbPlayer = new AnchorRemoteClimbPlayer(
+            _remoteClimbPlayer = CreateRemoteClimbPlayer(
                 "Remote Climber " + (_remoteSlot == "host" ? "Lead" : "Second"),
                 remotePose.torso,
                 remotePose.leftHand,
@@ -415,6 +415,81 @@ namespace Anchor.Networking
             if (spawn == null) return "(spawn=none)";
 
             return "(" + spawn.StartPointName + " L=" + spawn.LeftHandAnchorName + " R=" + spawn.RightHandAnchorName + ")";
+        }
+
+        private AnchorRemoteClimbPlayer CreateRemoteClimbPlayer(
+            string name,
+            Vector3 torso,
+            Vector3 leftHand,
+            Vector3 rightHand,
+            Color bodyColor,
+            Color handColor)
+        {
+            return new AnchorRemoteClimbPlayer(
+                name,
+                torso,
+                leftHand,
+                rightHand,
+                bodyColor,
+                handColor,
+                ResolveRemoteCharacterSource(),
+                ResolveRemoteInitialEuler(),
+                ResolveRemoteCharacterScale(),
+                ResolveRemoteCapsuleCenter(),
+                ResolveRemoteCapsuleHeight(),
+                ResolveRemoteCapsuleRadius());
+        }
+
+        private GameObject ResolveRemoteCharacterSource()
+        {
+            var sceneCharacterName = _localClimbBinder != null ? _localClimbBinder.sceneCharacterName : "RagDollMan";
+            if (!string.IsNullOrEmpty(sceneCharacterName))
+            {
+                var sceneCharacter = GameObject.Find(sceneCharacterName);
+                if (sceneCharacter != null) return sceneCharacter;
+            }
+
+            if (_localClimbBinder != null && _localClimbBinder.characterPrefab != null)
+            {
+                return _localClimbBinder.characterPrefab;
+            }
+
+#if UNITY_EDITOR
+            var prefabPath = _localClimbBinder != null
+                ? _localClimbBinder.characterPrefabPath
+                : "Assets/Thridpart/PolyOne/FreeStickman/RagDollMan/PR_RagdollDemo_Mannequin.prefab";
+            if (!string.IsNullOrEmpty(prefabPath))
+            {
+                return UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            }
+#endif
+
+            return null;
+        }
+
+        private Vector3 ResolveRemoteInitialEuler()
+        {
+            return _localClimbBinder != null ? _localClimbBinder.initialFlatRotationEuler : new Vector3(90f, 0f, 0f);
+        }
+
+        private float ResolveRemoteCharacterScale()
+        {
+            return _localClimbBinder != null ? _localClimbBinder.characterScale : 1f;
+        }
+
+        private Vector3 ResolveRemoteCapsuleCenter()
+        {
+            return _localClimbBinder != null ? _localClimbBinder.capsuleCenter : Vector3.zero;
+        }
+
+        private float ResolveRemoteCapsuleHeight()
+        {
+            return _localClimbBinder != null ? _localClimbBinder.capsuleHeight : 1.6f;
+        }
+
+        private float ResolveRemoteCapsuleRadius()
+        {
+            return _localClimbBinder != null ? _localClimbBinder.capsuleRadius : 0.3f;
         }
 
         private IEnumerator ResolveLocalStateSourceNextFrame()
@@ -627,7 +702,7 @@ namespace Anchor.Networking
             {
                 var remoteSpawn = _isHost ? _config.GuestSpawn : _config.HostSpawn;
                 var remotePose = ResolveAnchorStartPose(remoteSpawn, !_isHost);
-                _remoteClimbPlayer = new AnchorRemoteClimbPlayer(
+                _remoteClimbPlayer = CreateRemoteClimbPlayer(
                     "Remote Climber Late",
                     remotePose.torso,
                     remotePose.leftHand,
