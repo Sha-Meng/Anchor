@@ -1,3 +1,4 @@
+using Anchor.Networking;
 using DesignerSpace;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,6 +15,7 @@ public sealed class GameOverController : MonoBehaviour
     private Canvas _canvas;
     private GameObject _resultPanel;
     private Text _timeText;
+    private Button _returnButton;
     private bool _resultShown;
 
     private void Awake()
@@ -87,6 +89,11 @@ public sealed class GameOverController : MonoBehaviour
         {
             _timeText.text = "用时 " + LevelSettlement.FormatElapsed(LevelSettlement.ElapsedSeconds);
         }
+
+        if (_returnButton != null)
+        {
+            _returnButton.gameObject.SetActive(true);
+        }
     }
 
     private void HideResultPanel()
@@ -132,5 +139,33 @@ public sealed class GameOverController : MonoBehaviour
         _timeText.fontSize = 72;
         _timeText.color = Color.white;
         _timeText.text = "用时 00:00.00";
+
+        var buttonGo = new GameObject("ReturnToStartButton", typeof(RectTransform));
+        var buttonRect = buttonGo.GetComponent<RectTransform>();
+        buttonRect.SetParent(panelRect, false);
+        buttonRect.anchorMin = new Vector2(0.5f, 0.5f);
+        buttonRect.anchorMax = new Vector2(0.5f, 0.5f);
+        buttonRect.pivot = new Vector2(0.5f, 0.5f);
+        buttonRect.anchoredPosition = new Vector2(0f, -150f);
+        buttonRect.sizeDelta = new Vector2(360f, 80f);
+
+        var buttonImage = buttonGo.AddComponent<Image>();
+        buttonImage.color = new Color(0.18f, 0.35f, 0.65f, 0.95f);
+        _returnButton = buttonGo.AddComponent<Button>();
+        _returnButton.onClick.AddListener(AnchorNetworkDemoController.ExitMultiplayerToStart);
+
+        var buttonTextGo = new GameObject("Text", typeof(RectTransform));
+        var buttonTextRect = buttonTextGo.GetComponent<RectTransform>();
+        buttonTextRect.SetParent(buttonGo.transform, false);
+        buttonTextRect.anchorMin = Vector2.zero;
+        buttonTextRect.anchorMax = Vector2.one;
+        buttonTextRect.offsetMin = Vector2.zero;
+        buttonTextRect.offsetMax = Vector2.zero;
+        var buttonText = buttonTextGo.AddComponent<Text>();
+        buttonText.alignment = TextAnchor.MiddleCenter;
+        buttonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        buttonText.fontSize = 34;
+        buttonText.color = Color.white;
+        buttonText.text = "返回主界面";
     }
 }
