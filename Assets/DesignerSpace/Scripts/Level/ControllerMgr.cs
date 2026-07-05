@@ -48,25 +48,7 @@ namespace DesignerSpace
         [Tooltip("B 球颜色")]
         [SerializeField] private Color ballColorB = new Color(0.2f, 0.55f, 1f);
 
-        [Header("小球状态与体力")]
-        [Tooltip("小球最大耐力")]
-        [SerializeField] private float maxStamina = 100f;
-
-        [Tooltip("Hook 中每秒消耗的耐力")]
-        [SerializeField] private float hookStaminaDrainPerSecond = 15f;
-
-        [Tooltip("释放/待机中的小球被再次点击唤起时，若耐力已空，补到最大耐力的该比例")]
-        [Range(0f, 1f)]
-        [SerializeField] private float standbyWakeMinStaminaRatio = 0.3f;
-
-        [Tooltip("松手位于 AnchorPoint 外环区域时损失的最大耐力比例")]
-        [Range(0f, 1f)]
-        [SerializeField] private float outerRingStaminaLossRatio = 0.3f;
-
-        [Tooltip("松手脱离所有 AnchorPoint 时损失的最大耐力比例")]
-        [Range(0f, 1f)]
-        [SerializeField] private float detachedStaminaLossRatio = 0.5f;
-
+        [Header("小球释放")]
         [Tooltip("释放中小球移动到待机点的速度；<= 0 表示瞬间到位")]
         [SerializeField] private float releaseMoveSpeed = 8f;
 
@@ -80,6 +62,13 @@ namespace DesignerSpace
         [Tooltip("两球之间允许的最大距离（米）；仅夹紧本帧被拖动的那个球，另一球保持不动")]
         [Min(0f)]
         [SerializeField] private float maxBallDistance = 2f;
+
+        [Header("运行时状态显示")]
+        [Tooltip("A 球当前状态，仅用于运行时观察")]
+        [SerializeField] private ControllerBallState ballAStateView = ControllerBallState.Anchored;
+
+        [Tooltip("B 球当前状态，仅用于运行时观察")]
+        [SerializeField] private ControllerBallState ballBStateView = ControllerBallState.Anchored;
 
         [Header("射线")]
         [Tooltip("射线最大检测距离")]
@@ -129,18 +118,13 @@ namespace DesignerSpace
 
         public ControllerBallState BallBState => _ballBRuntime.State;
 
-        public float BallAStamina => _ballARuntime.Stamina;
-
-        public float BallBStamina => _ballBRuntime.Stamina;
-
-        public float MaxStamina => maxStamina;
-
         private void Start()
         {
             _ballA = CreateBall("ControllerBallA", ResolveSpawnPosition(ballSpawnPointA, ballSpawnPositionA), ballColorA);
             _ballB = CreateBall("ControllerBallB", ResolveSpawnPosition(ballSpawnPointB, ballSpawnPositionB), ballColorB);
-            _ballARuntime = new BallRuntime(ControllerBallState.Anchored, Mathf.Max(0f, maxStamina));
-            _ballBRuntime = new BallRuntime(ControllerBallState.Anchored, Mathf.Max(0f, maxStamina));
+            _ballARuntime = new BallRuntime(ControllerBallState.Anchored);
+            _ballBRuntime = new BallRuntime(ControllerBallState.Anchored);
+            RefreshBallStateView();
         }
 
         private void Update()
@@ -161,10 +145,15 @@ namespace DesignerSpace
                 HandlePointerSample(_pointerSamples[i], camera);
             }
 
-            UpdateHookedBall(_ballA, ref _ballARuntime, _ballB);
-            UpdateHookedBall(_ballB, ref _ballBRuntime, _ballA);
             UpdateReleasingBall(_ballA, ref _ballARuntime);
             UpdateReleasingBall(_ballB, ref _ballBRuntime);
+            RefreshBallStateView();
+        }
+
+        private void RefreshBallStateView()
+        {
+            ballAStateView = _ballARuntime.State;
+            ballBStateView = _ballBRuntime.State;
         }
 
         private void HandlePointerSample(PointerSample sample, Camera camera)
@@ -231,16 +220,6 @@ namespace DesignerSpace
                 return;
             }
 
-            if (ball.Stamina <= 0f)
-            {
-                if (ball.State != ControllerBallState.Releasing)
-                {
-                    return;
-                }
-
-                ball.Stamina = Mathf.Max(0.01f, maxStamina * standbyWakeMinStaminaRatio);
-            }
-
             ball.HasReleaseTarget = false;
             ball.PointerId = pointerId;
             ball.State = ControllerBallState.Hooked;
@@ -269,22 +248,6 @@ namespace DesignerSpace
             }
         }
 
-        private void UpdateHookedBall(Transform ball, ref BallRuntime runtime, Transform other)
-        {
-            if (runtime.State != ControllerBallState.Hooked)
-            {
-                return;
-            }
-
-            runtime.Stamina = Mathf.Max(0f, runtime.Stamina - hookStaminaDrainPerSecond * Time.deltaTime);
-            if (runtime.Stamina > 0f)
-            {
-                return;
-            }
-
-            FinishHookAndSettle(ball, ref runtime, other, false);
-        }
-
         private void UpdateReleasingBall(Transform ball, ref BallRuntime runtime)
         {
             if (ball == null || runtime.State != ControllerBallState.Releasing || !runtime.HasReleaseTarget)
@@ -311,20 +274,19 @@ namespace DesignerSpace
         {
             if (_ballARuntime.IsControlledBy(pointerId))
             {
-                FinishHookAndSettle(_ballA, ref _ballARuntime, _ballB, true);
+                FinishHookAndSettle(_ballA, ref _ballARuntime, _ballB);
             }
 
             if (_ballBRuntime.IsControlledBy(pointerId))
             {
-                FinishHookAndSettle(_ballB, ref _ballBRuntime, _ballA, true);
+                FinishHookAndSettle(_ballB, ref _ballBRuntime, _ballA);
             }
         }
 
         private void FinishHookAndSettle(
             Transform ball,
             ref BallRuntime runtime,
-            Transform other,
-            bool applyDetachedLoss)
+            Transform other)
         {
             if (runtime.State != ControllerBallState.Hooked)
             {
@@ -338,23 +300,13 @@ namespace DesignerSpace
                 return;
             }
 
-            if (TryFindAnchorZone(ball.position, out AnchorPoint anchorPoint, out AnchorZone zone))
+            if (TryFindAnchorPoint(ball.position, out AnchorPoint anchorPoint))
             {
                 ball.position = anchorPoint.transform.position;
                 runtime.State = ControllerBallState.Anchored;
                 runtime.HasReleaseTarget = false;
 
-                if (zone == AnchorZone.OuterRing)
-                {
-                    ApplyStaminaLoss(ref runtime, outerRingStaminaLossRatio);
-                }
-
                 return;
-            }
-
-            if (applyDetachedLoss)
-            {
-                ApplyStaminaLoss(ref runtime, detachedStaminaLossRatio);
             }
 
             EnterReleasing(ball, ref runtime, other);
@@ -365,11 +317,6 @@ namespace DesignerSpace
             runtime.State = ControllerBallState.Releasing;
             runtime.ClearPointer();
             runtime.HasReleaseTarget = TryCalculateReleaseTarget(ball, other, out runtime.ReleaseTarget);
-        }
-
-        private void ApplyStaminaLoss(ref BallRuntime runtime, float ratio)
-        {
-            runtime.Stamina = Mathf.Max(0f, runtime.Stamina - Mathf.Max(0f, maxStamina) * Mathf.Clamp01(ratio));
         }
 
         private bool TryCalculateReleaseTarget(Transform ball, Transform other, out Vector3 target)
@@ -396,10 +343,9 @@ namespace DesignerSpace
             return true;
         }
 
-        private bool TryFindAnchorZone(Vector3 position, out AnchorPoint bestAnchor, out AnchorZone bestZone)
+        private bool TryFindAnchorPoint(Vector3 position, out AnchorPoint bestAnchor)
         {
             bestAnchor = null;
-            bestZone = AnchorZone.None;
             float bestDistanceSqr = Mathf.Infinity;
             AnchorPoint[] anchors = FindObjectsOfType<AnchorPoint>();
             for (int i = 0; i < anchors.Length; i++)
@@ -422,10 +368,8 @@ namespace DesignerSpace
                     continue;
                 }
 
-                float coreRadius = Mathf.Max(0f, anchor.previewIntenseRadius);
                 bestAnchor = anchor;
                 bestDistanceSqr = distanceSqr;
-                bestZone = distanceSqr <= coreRadius * coreRadius ? AnchorZone.Core : AnchorZone.OuterRing;
             }
 
             return bestAnchor != null;
@@ -617,17 +561,8 @@ namespace DesignerSpace
                 ballRadius = 0.001f;
             }
 
-            maxStamina = Mathf.Max(0f, maxStamina);
-            hookStaminaDrainPerSecond = Mathf.Max(0f, hookStaminaDrainPerSecond);
             releaseMoveSpeed = Mathf.Max(0f, releaseMoveSpeed);
             releaseStandbyScreenDownOffset = Mathf.Max(0f, releaseStandbyScreenDownOffset);
-        }
-
-        private enum AnchorZone
-        {
-            None,
-            Core,
-            OuterRing
         }
 
         private enum PointerPhase
@@ -654,15 +589,13 @@ namespace DesignerSpace
         private struct BallRuntime
         {
             public ControllerBallState State;
-            public float Stamina;
             public int PointerId;
             public Vector3 ReleaseTarget;
             public bool HasReleaseTarget;
 
-            public BallRuntime(ControllerBallState state, float stamina)
+            public BallRuntime(ControllerBallState state)
             {
                 State = state;
-                Stamina = stamina;
                 PointerId = 0;
                 ReleaseTarget = default;
                 HasReleaseTarget = false;
