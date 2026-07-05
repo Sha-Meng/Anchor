@@ -564,7 +564,8 @@ namespace DesignerSpace
 
         private static bool ShouldShowBallVisuals()
         {
-            return Debug.isDebugBuild;
+            LevelMgr levelMgr = LevelMgr.Instance;
+            return levelMgr != null && levelMgr.IsDebug;
         }
 
         private Vector3 ResolveSpawnPosition(Transform spawnPoint, Vector3 fallbackPosition)
