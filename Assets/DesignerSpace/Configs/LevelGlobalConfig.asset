@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: LevelGlobalConfig
   m_EditorClassIdentifier: 
   runMode: 1
+  staminaMax: 100
+  staminaRecoverPerSecond: 10
+  releasingStaminaPenaltyRatio: 0.4
   coreRadiusColor: {r: 1, g: 0.15, b: 0.15, a: 0.9}
   maxRadiusColor: {r: 1, g: 0.85, b: 0.1, a: 0.75}
   centerColor: {r: 1, g: 1, b: 1, a: 1}

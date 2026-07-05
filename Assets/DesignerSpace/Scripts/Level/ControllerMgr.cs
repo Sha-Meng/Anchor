@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -117,6 +118,9 @@ namespace DesignerSpace
         public ControllerBallState BallAState => _ballARuntime.State;
 
         public ControllerBallState BallBState => _ballBRuntime.State;
+
+        /// <summary>小球进入 Releasing 状态时触发，参数为要扣除的最大体力比例。</summary>
+        public event Action<float> ReleaseStaminaPenaltyRequested;
 
         private void Start()
         {
@@ -296,7 +300,7 @@ namespace DesignerSpace
             runtime.ClearPointer();
             if (ball == null)
             {
-                runtime.State = ControllerBallState.Releasing;
+                EnterReleasingState(ref runtime);
                 return;
             }
 
@@ -314,9 +318,27 @@ namespace DesignerSpace
 
         private void EnterReleasing(Transform ball, ref BallRuntime runtime, Transform other)
         {
-            runtime.State = ControllerBallState.Releasing;
+            EnterReleasingState(ref runtime);
             runtime.ClearPointer();
             runtime.HasReleaseTarget = TryCalculateReleaseTarget(ball, other, out runtime.ReleaseTarget);
+        }
+
+        private void EnterReleasingState(ref BallRuntime runtime)
+        {
+            if (runtime.State == ControllerBallState.Releasing)
+            {
+                return;
+            }
+
+            runtime.State = ControllerBallState.Releasing;
+            ReleaseStaminaPenaltyRequested?.Invoke(ResolveReleasingStaminaPenaltyRatio());
+        }
+
+        private float ResolveReleasingStaminaPenaltyRatio()
+        {
+            LevelMgr levelMgr = LevelMgr.Instance;
+            LevelGlobalConfig config = levelMgr != null ? levelMgr.Config : null;
+            return config != null ? config.ReleasingStaminaPenaltyRatio : 0.4f;
         }
 
         private bool TryCalculateReleaseTarget(Transform ball, Transform other, out Vector3 target)

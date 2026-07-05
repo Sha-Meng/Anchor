@@ -12,11 +12,13 @@ namespace ClimbGame.Climb3C.Gameplay
     {
         private readonly StaminaConfig _config;
         private readonly ClimberRuntimeState _state;
+        private float _recoverPerSecond;
 
         public ClimbStamina(StaminaConfig config, ClimberRuntimeState state)
         {
             _config = config;
             _state = state;
+            _recoverPerSecond = config != null ? config.recoverPerSecond : 45f;
             _state.MaxStamina = config != null ? config.maxStamina : 100f;
             _state.Stamina = _state.MaxStamina;
         }
@@ -32,8 +34,20 @@ namespace ClimbGame.Climb3C.Gameplay
 
         public void Recover(float dt)
         {
-            if (_config == null) return;
-            _state.Stamina = Mathf.Min(_state.MaxStamina, _state.Stamina + _config.recoverPerSecond * dt);
+            _state.Stamina = Mathf.Min(_state.MaxStamina, _state.Stamina + _recoverPerSecond * dt);
+        }
+
+        public void Configure(float maxStamina, float recoverPerSecond, bool refill)
+        {
+            float currentRatio = Ratio;
+            _state.MaxStamina = Mathf.Max(0.001f, maxStamina);
+            _recoverPerSecond = Mathf.Max(0f, recoverPerSecond);
+            _state.Stamina = refill ? _state.MaxStamina : _state.MaxStamina * currentRatio;
+        }
+
+        public void ConsumeMaxRatio(float ratio)
+        {
+            _state.Stamina = Mathf.Max(0f, _state.Stamina - _state.MaxStamina * Mathf.Clamp01(ratio));
         }
 
         public void ResetToRatio(float ratio)

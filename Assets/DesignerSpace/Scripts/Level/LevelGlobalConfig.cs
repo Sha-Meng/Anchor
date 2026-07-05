@@ -24,6 +24,19 @@ namespace DesignerSpace
         [Tooltip("Debug：在 Game 视图显示撒点位置与核心/最大半径；Release：关闭全部调试可视化")]
         public LevelRunMode runMode = LevelRunMode.Release;
 
+        [Header("攀爬体力")]
+        [Tooltip("玩家最大体力值")]
+        [Min(0.001f)]
+        public float staminaMax = 100f;
+
+        [Tooltip("稳定抓在铆钉上时每秒恢复的体力值")]
+        [Min(0f)]
+        public float staminaRecoverPerSecond = 45f;
+
+        [Tooltip("小球进入 Releasing 状态时扣除的最大体力比例")]
+        [Range(0f, 1f)]
+        public float releasingStaminaPenaltyRatio = 0.4f;
+
         [Header("Debug 撒点可视化")]
         [Tooltip("核心半径（AnchorPoint.previewIntenseRadius / 剧烈档）圆环颜色")]
         public Color coreRadiusColor = new Color(1f, 0.15f, 0.15f, 0.9f);
@@ -45,8 +58,20 @@ namespace DesignerSpace
         /// <summary>当前是否处于 Debug 模式。</summary>
         public bool IsDebug => runMode == LevelRunMode.Debug;
 
+        /// <summary>运行时使用的最大体力值。</summary>
+        public float StaminaMax => Mathf.Max(0.001f, staminaMax);
+
+        /// <summary>运行时使用的每秒体力恢复值。</summary>
+        public float StaminaRecoverPerSecond => Mathf.Max(0f, staminaRecoverPerSecond);
+
+        /// <summary>运行时使用的 Releasing 扣体力比例。</summary>
+        public float ReleasingStaminaPenaltyRatio => Mathf.Clamp01(releasingStaminaPenaltyRatio);
+
         private void OnValidate()
         {
+            staminaMax = Mathf.Max(0.001f, staminaMax);
+            staminaRecoverPerSecond = Mathf.Max(0f, staminaRecoverPerSecond);
+            releasingStaminaPenaltyRatio = Mathf.Clamp01(releasingStaminaPenaltyRatio);
             circleSegments = Mathf.Max(8, circleSegments);
             ringLineWidth = Mathf.Max(0.001f, ringLineWidth);
         }

@@ -7,6 +7,7 @@ using ClimbGame.Climb3C.Feedback;
 using ClimbGame.Climb3C.Input;
 using ClimbGame.Climb3C.State;
 using ClimbGame.Climb3C.UI;
+using DesignerSpace;
 using UnityEngine;
 
 namespace ClimbGame.Climb3C.Gameplay
@@ -82,6 +83,7 @@ namespace ClimbGame.Climb3C.Gameplay
         private float _ropeFallMaxVelocityChange = 3.2f;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
         private readonly ClimbForceInputAdapter _forceInputAdapter = new ClimbForceInputAdapter();
+        private ControllerMgr _controllerMgr;
 
         private GameContext _ctx;
         private ClimberRuntimeState _s;
@@ -107,6 +109,16 @@ namespace ClimbGame.Climb3C.Gameplay
 
         /// <summary>手指按下开始伸手（touch 脱离锚点）时触发，参数为伸出/脱离的手。</summary>
         public event System.Action<ClimbHand> HandReachStarted;
+
+        private void OnEnable()
+        {
+            TrySubscribeControllerMgr();
+        }
+
+        private void OnDisable()
+        {
+            UnsubscribeControllerMgr();
+        }
 
         /// <summary>左手当前锚点世界坐标。</summary>
         public Vector3 LeftAnchor => _s != null ? _s.LeftAnchor : Vector3.zero;
@@ -164,6 +176,8 @@ namespace ClimbGame.Climb3C.Gameplay
             _staminaBar = staminaBar;
 
             _stamina = new ClimbStamina(staminaCfg, _s);
+            ApplyLevelGlobalStaminaConfig(true);
+            TrySubscribeControllerMgr();
             _s.ForceMemory = ForceEvaluationMemory.CreateDefault();
             _forceInputAdapter.Configure(_s);
             _consumeRopeForceFeedback = false;
@@ -186,9 +200,62 @@ namespace ClimbGame.Climb3C.Gameplay
             // 初始不驱动磁点/躯干：仅由 SetInitialGrips 把磁点设到抓点、由 Build 设玩家位置。
         }
 
+        public void ApplyReleaseStaminaPenalty(float maxStaminaRatio)
+        {
+            if (_stamina == null || _s == null || !_s.IsLocal)
+            {
+                return;
+            }
+
+            _stamina.ConsumeMaxRatio(maxStaminaRatio);
+        }
+
+        private void ApplyLevelGlobalStaminaConfig(bool refill)
+        {
+            if (_stamina == null)
+            {
+                return;
+            }
+
+            LevelMgr levelMgr = LevelMgr.Instance;
+            LevelGlobalConfig config = levelMgr != null ? levelMgr.Config : null;
+            if (config == null)
+            {
+                return;
+            }
+
+            _stamina.Configure(config.StaminaMax, config.StaminaRecoverPerSecond, refill);
+        }
+
+        private void TrySubscribeControllerMgr()
+        {
+            if (_controllerMgr != null)
+            {
+                return;
+            }
+
+            _controllerMgr = FindObjectOfType<ControllerMgr>();
+            if (_controllerMgr != null)
+            {
+                _controllerMgr.ReleaseStaminaPenaltyRequested += ApplyReleaseStaminaPenalty;
+            }
+        }
+
+        private void UnsubscribeControllerMgr()
+        {
+            if (_controllerMgr == null)
+            {
+                return;
+            }
+
+            _controllerMgr.ReleaseStaminaPenaltyRequested -= ApplyReleaseStaminaPenalty;
+            _controllerMgr = null;
+        }
+
         private void Update()
         {
             if (_avatar == null || _s == null) return;
+            ApplyLevelGlobalStaminaConfig(false);
             float dt = Time.deltaTime;
             _showMagnifier = false;
 
