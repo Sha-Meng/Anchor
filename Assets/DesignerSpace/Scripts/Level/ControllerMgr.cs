@@ -3,6 +3,13 @@ using UnityEngine;
 
 namespace DesignerSpace
 {
+    public enum ControllerBallState
+    {
+        Anchored,
+        Releasing,
+        Hooked
+    }
+
     /// <summary>
     /// 指针拾取控制器（双小球）。
     ///
@@ -41,6 +48,31 @@ namespace DesignerSpace
         [Tooltip("B 球颜色")]
         [SerializeField] private Color ballColorB = new Color(0.2f, 0.55f, 1f);
 
+        [Header("小球状态与体力")]
+        [Tooltip("小球最大耐力")]
+        [SerializeField] private float maxStamina = 100f;
+
+        [Tooltip("Hook 中每秒消耗的耐力")]
+        [SerializeField] private float hookStaminaDrainPerSecond = 15f;
+
+        [Tooltip("释放/待机中的小球被再次点击唤起时，若耐力已空，补到最大耐力的该比例")]
+        [Range(0f, 1f)]
+        [SerializeField] private float standbyWakeMinStaminaRatio = 0.3f;
+
+        [Tooltip("松手位于 AnchorPoint 外环区域时损失的最大耐力比例")]
+        [Range(0f, 1f)]
+        [SerializeField] private float outerRingStaminaLossRatio = 0.3f;
+
+        [Tooltip("松手脱离所有 AnchorPoint 时损失的最大耐力比例")]
+        [Range(0f, 1f)]
+        [SerializeField] private float detachedStaminaLossRatio = 0.5f;
+
+        [Tooltip("释放中小球移动到待机点的速度；<= 0 表示瞬间到位")]
+        [SerializeField] private float releaseMoveSpeed = 8f;
+
+        [Tooltip("释放待机点相对两个小球屏幕中点向下偏移的像素")]
+        [SerializeField] private float releaseStandbyScreenDownOffset = 160f;
+
         [Header("双球距离约束")]
         [Tooltip("开启后：hook（拖动）某个小球时，被拖动的球会被限制在“以另一球为球心、最大距离为半径”的范围内，避免两球距离过远")]
         [SerializeField] private bool constrainBallDistance = true;
@@ -74,11 +106,12 @@ namespace DesignerSpace
         // 复用的射线命中缓冲，避免每帧分配。
         private readonly RaycastHit[] _hitBuffer = new RaycastHit[32];
 
-        // 复用的按住指针屏幕坐标列表，避免每帧分配。
-        private readonly List<Vector2> _heldPointers = new List<Vector2>(8);
+        private readonly List<PointerSample> _pointerSamples = new List<PointerSample>(8);
 
         private Transform _ballA;
         private Transform _ballB;
+        private BallRuntime _ballARuntime;
+        private BallRuntime _ballBRuntime;
 
         /// <summary>A 球 Transform，其他系统可读取其位置作为左手跟随目标。</summary>
         public Transform BallA => _ballA;
@@ -92,23 +125,26 @@ namespace DesignerSpace
         /// <summary>本帧 B 球是否被有效驱动（有指针命中场景且命中点更接近 B 球）。</summary>
         public bool IsBActive { get; private set; }
 
+        public ControllerBallState BallAState => _ballARuntime.State;
+
+        public ControllerBallState BallBState => _ballBRuntime.State;
+
+        public float BallAStamina => _ballARuntime.Stamina;
+
+        public float BallBStamina => _ballBRuntime.Stamina;
+
+        public float MaxStamina => maxStamina;
+
         private void Start()
         {
             _ballA = CreateBall("ControllerBallA", ResolveSpawnPosition(ballSpawnPointA, ballSpawnPositionA), ballColorA);
             _ballB = CreateBall("ControllerBallB", ResolveSpawnPosition(ballSpawnPointB, ballSpawnPositionB), ballColorB);
+            _ballARuntime = new BallRuntime(ControllerBallState.Anchored, Mathf.Max(0f, maxStamina));
+            _ballBRuntime = new BallRuntime(ControllerBallState.Anchored, Mathf.Max(0f, maxStamina));
         }
 
         private void Update()
         {
-            IsAActive = false;
-            IsBActive = false;
-
-            CollectHeldPointers(_heldPointers);
-            if (_heldPointers.Count == 0)
-            {
-                return;
-            }
-
             Camera camera = ResolveCamera();
             if (camera == null)
             {
@@ -116,32 +152,283 @@ namespace DesignerSpace
                 return;
             }
 
-            for (int i = 0; i < _heldPointers.Count; i++)
+            IsAActive = false;
+            IsBActive = false;
+
+            CollectPointerSamples(_pointerSamples);
+            for (int i = 0; i < _pointerSamples.Count; i++)
             {
-                Vector2 screenPosition = _heldPointers[i];
-                Ray ray = camera.ScreenPointToRay(screenPosition);
-                if (!TryPickHit(ray, out RaycastHit hit))
+                HandlePointerSample(_pointerSamples[i], camera);
+            }
+
+            UpdateHookedBall(_ballA, ref _ballARuntime, _ballB);
+            UpdateHookedBall(_ballB, ref _ballBRuntime, _ballA);
+            UpdateReleasingBall(_ballA, ref _ballARuntime);
+            UpdateReleasingBall(_ballB, ref _ballBRuntime);
+        }
+
+        private void HandlePointerSample(PointerSample sample, Camera camera)
+        {
+            if (sample.Phase == PointerPhase.Began)
+            {
+                TryBeginHook(sample, camera);
+                return;
+            }
+
+            if (sample.Phase == PointerPhase.Moved)
+            {
+                TryMoveHook(sample, camera);
+                return;
+            }
+
+            ReleasePointer(sample.PointerId);
+        }
+
+        private void TryBeginHook(PointerSample sample, Camera camera)
+        {
+            Ray ray = camera.ScreenPointToRay(sample.ScreenPosition);
+            if (!TryPickHit(ray, out RaycastHit hit))
+            {
+                return;
+            }
+
+            if (IsHitCloserToBallA(hit.point))
+            {
+                TryAssignPointerToBall(sample.PointerId, ref _ballARuntime, _ballBRuntime);
+                TryMoveBallToHit(_ballA, ref _ballARuntime, _ballB, hit.point, true);
+                return;
+            }
+
+            TryAssignPointerToBall(sample.PointerId, ref _ballBRuntime, _ballARuntime);
+            TryMoveBallToHit(_ballB, ref _ballBRuntime, _ballA, hit.point, false);
+        }
+
+        private void TryMoveHook(PointerSample sample, Camera camera)
+        {
+            Ray ray = camera.ScreenPointToRay(sample.ScreenPosition);
+            if (!TryPickHit(ray, out RaycastHit hit))
+            {
+                return;
+            }
+
+            if (_ballARuntime.IsControlledBy(sample.PointerId))
+            {
+                TryMoveBallToHit(_ballA, ref _ballARuntime, _ballB, hit.point, true);
+                return;
+            }
+
+            if (_ballBRuntime.IsControlledBy(sample.PointerId))
+            {
+                TryMoveBallToHit(_ballB, ref _ballBRuntime, _ballA, hit.point, false);
+            }
+        }
+
+        private void TryAssignPointerToBall(int pointerId, ref BallRuntime ball, BallRuntime other)
+        {
+            if (other.IsControlledBy(pointerId) ||
+                (ball.State == ControllerBallState.Hooked && !ball.IsControlledBy(pointerId)))
+            {
+                return;
+            }
+
+            if (ball.Stamina <= 0f)
+            {
+                if (ball.State != ControllerBallState.Releasing)
+                {
+                    return;
+                }
+
+                ball.Stamina = Mathf.Max(0.01f, maxStamina * standbyWakeMinStaminaRatio);
+            }
+
+            ball.HasReleaseTarget = false;
+            ball.PointerId = pointerId;
+            ball.State = ControllerBallState.Hooked;
+        }
+
+        private void TryMoveBallToHit(
+            Transform ball,
+            ref BallRuntime runtime,
+            Transform other,
+            Vector3 hitPoint,
+            bool isBallA)
+        {
+            if (ball == null || runtime.State != ControllerBallState.Hooked)
+            {
+                return;
+            }
+
+            ball.position = ClampToOther(hitPoint, other);
+            if (isBallA)
+            {
+                IsAActive = true;
+            }
+            else
+            {
+                IsBActive = true;
+            }
+        }
+
+        private void UpdateHookedBall(Transform ball, ref BallRuntime runtime, Transform other)
+        {
+            if (runtime.State != ControllerBallState.Hooked)
+            {
+                return;
+            }
+
+            runtime.Stamina = Mathf.Max(0f, runtime.Stamina - hookStaminaDrainPerSecond * Time.deltaTime);
+            if (runtime.Stamina > 0f)
+            {
+                return;
+            }
+
+            FinishHookAndSettle(ball, ref runtime, other, false);
+        }
+
+        private void UpdateReleasingBall(Transform ball, ref BallRuntime runtime)
+        {
+            if (ball == null || runtime.State != ControllerBallState.Releasing || !runtime.HasReleaseTarget)
+            {
+                return;
+            }
+
+            if (releaseMoveSpeed <= 0f)
+            {
+                ball.position = runtime.ReleaseTarget;
+                runtime.HasReleaseTarget = false;
+                return;
+            }
+
+            ball.position = Vector3.MoveTowards(ball.position, runtime.ReleaseTarget, releaseMoveSpeed * Time.deltaTime);
+            if ((ball.position - runtime.ReleaseTarget).sqrMagnitude <= 0.000001f)
+            {
+                ball.position = runtime.ReleaseTarget;
+                runtime.HasReleaseTarget = false;
+            }
+        }
+
+        private void ReleasePointer(int pointerId)
+        {
+            if (_ballARuntime.IsControlledBy(pointerId))
+            {
+                FinishHookAndSettle(_ballA, ref _ballARuntime, _ballB, true);
+            }
+
+            if (_ballBRuntime.IsControlledBy(pointerId))
+            {
+                FinishHookAndSettle(_ballB, ref _ballBRuntime, _ballA, true);
+            }
+        }
+
+        private void FinishHookAndSettle(
+            Transform ball,
+            ref BallRuntime runtime,
+            Transform other,
+            bool applyDetachedLoss)
+        {
+            if (runtime.State != ControllerBallState.Hooked)
+            {
+                return;
+            }
+
+            runtime.ClearPointer();
+            if (ball == null)
+            {
+                runtime.State = ControllerBallState.Releasing;
+                return;
+            }
+
+            if (TryFindAnchorZone(ball.position, out AnchorPoint anchorPoint, out AnchorZone zone))
+            {
+                ball.position = anchorPoint.transform.position;
+                runtime.State = ControllerBallState.Anchored;
+                runtime.HasReleaseTarget = false;
+
+                if (zone == AnchorZone.OuterRing)
+                {
+                    ApplyStaminaLoss(ref runtime, outerRingStaminaLossRatio);
+                }
+
+                return;
+            }
+
+            if (applyDetachedLoss)
+            {
+                ApplyStaminaLoss(ref runtime, detachedStaminaLossRatio);
+            }
+
+            EnterReleasing(ball, ref runtime, other);
+        }
+
+        private void EnterReleasing(Transform ball, ref BallRuntime runtime, Transform other)
+        {
+            runtime.State = ControllerBallState.Releasing;
+            runtime.ClearPointer();
+            runtime.HasReleaseTarget = TryCalculateReleaseTarget(ball, other, out runtime.ReleaseTarget);
+        }
+
+        private void ApplyStaminaLoss(ref BallRuntime runtime, float ratio)
+        {
+            runtime.Stamina = Mathf.Max(0f, runtime.Stamina - Mathf.Max(0f, maxStamina) * Mathf.Clamp01(ratio));
+        }
+
+        private bool TryCalculateReleaseTarget(Transform ball, Transform other, out Vector3 target)
+        {
+            target = ball != null ? ball.position : default;
+            Camera camera = ResolveCamera();
+            if (camera == null || ball == null || other == null)
+            {
+                return false;
+            }
+
+            Vector3 ballScreen = camera.WorldToScreenPoint(ball.position);
+            Vector3 otherScreen = camera.WorldToScreenPoint(other.position);
+            Vector3 standbyScreen = (ballScreen + otherScreen) * 0.5f;
+            standbyScreen.y -= releaseStandbyScreenDownOffset;
+
+            Ray ray = camera.ScreenPointToRay(standbyScreen);
+            if (!TryPickHit(ray, out RaycastHit hit))
+            {
+                return false;
+            }
+
+            target = hit.point;
+            return true;
+        }
+
+        private bool TryFindAnchorZone(Vector3 position, out AnchorPoint bestAnchor, out AnchorZone bestZone)
+        {
+            bestAnchor = null;
+            bestZone = AnchorZone.None;
+            float bestDistanceSqr = Mathf.Infinity;
+            AnchorPoint[] anchors = FindObjectsOfType<AnchorPoint>();
+            for (int i = 0; i < anchors.Length; i++)
+            {
+                AnchorPoint anchor = anchors[i];
+                if (anchor == null || !anchor.isActiveAndEnabled)
                 {
                     continue;
                 }
 
-                if (IsHitCloserToBallA(hit.point))
+                float outerRadius = Mathf.Max(0f, anchor.previewSlightRadius);
+                if (outerRadius <= 0f)
                 {
-                    if (_ballA != null)
-                    {
-                        _ballA.position = ClampToOther(hit.point, _ballB);
-                    }
-                    IsAActive = true;
+                    continue;
                 }
-                else
+
+                float distanceSqr = (position - anchor.transform.position).sqrMagnitude;
+                if (distanceSqr > outerRadius * outerRadius || distanceSqr >= bestDistanceSqr)
                 {
-                    if (_ballB != null)
-                    {
-                        _ballB.position = ClampToOther(hit.point, _ballA);
-                    }
-                    IsBActive = true;
+                    continue;
                 }
+
+                float coreRadius = Mathf.Max(0f, anchor.previewIntenseRadius);
+                bestAnchor = anchor;
+                bestDistanceSqr = distanceSqr;
+                bestZone = distanceSqr <= coreRadius * coreRadius ? AnchorZone.Core : AnchorZone.OuterRing;
             }
+
+            return bestAnchor != null;
         }
 
         /// <summary>命中点更接近 A 球时返回 true；距离相同则稳定选择 A 球。</summary>
@@ -231,8 +518,8 @@ namespace DesignerSpace
             return mask;
         }
 
-        /// <summary>收集本帧所有按住的指针屏幕坐标（多点触控则多个，鼠标则最多一个）。</summary>
-        private void CollectHeldPointers(List<Vector2> results)
+        /// <summary>收集本帧指针采样，保留按下/移动/松开事件用于绑定与结算小球。</summary>
+        private void CollectPointerSamples(List<PointerSample> results)
         {
             results.Clear();
 
@@ -241,19 +528,44 @@ namespace DesignerSpace
                 for (int i = 0; i < Input.touchCount; i++)
                 {
                     Touch touch = Input.GetTouch(i);
-                    if (touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
-                    {
-                        results.Add(touch.position);
-                    }
+                    results.Add(new PointerSample(touch.fingerId, touch.position, ConvertTouchPhase(touch.phase)));
                 }
 
                 return;
             }
 
+            const int MousePointerId = -1;
+            if (Input.GetMouseButtonDown(0))
+            {
+                results.Add(new PointerSample(MousePointerId, Input.mousePosition, PointerPhase.Began));
+                return;
+            }
+
             if (Input.GetMouseButton(0))
             {
-                results.Add(Input.mousePosition);
+                results.Add(new PointerSample(MousePointerId, Input.mousePosition, PointerPhase.Moved));
+                return;
             }
+
+            if (Input.GetMouseButtonUp(0))
+            {
+                results.Add(new PointerSample(MousePointerId, Input.mousePosition, PointerPhase.Ended));
+            }
+        }
+
+        private PointerPhase ConvertTouchPhase(TouchPhase phase)
+        {
+            if (phase == TouchPhase.Began)
+            {
+                return PointerPhase.Began;
+            }
+
+            if (phase == TouchPhase.Ended || phase == TouchPhase.Canceled)
+            {
+                return PointerPhase.Ended;
+            }
+
+            return PointerPhase.Moved;
         }
 
         private Transform CreateBall(string ballName, Vector3 spawnPosition, Color color)
@@ -303,6 +615,67 @@ namespace DesignerSpace
             if (ballRadius < 0.001f)
             {
                 ballRadius = 0.001f;
+            }
+
+            maxStamina = Mathf.Max(0f, maxStamina);
+            hookStaminaDrainPerSecond = Mathf.Max(0f, hookStaminaDrainPerSecond);
+            releaseMoveSpeed = Mathf.Max(0f, releaseMoveSpeed);
+            releaseStandbyScreenDownOffset = Mathf.Max(0f, releaseStandbyScreenDownOffset);
+        }
+
+        private enum AnchorZone
+        {
+            None,
+            Core,
+            OuterRing
+        }
+
+        private enum PointerPhase
+        {
+            Began,
+            Moved,
+            Ended
+        }
+
+        private readonly struct PointerSample
+        {
+            public readonly int PointerId;
+            public readonly Vector2 ScreenPosition;
+            public readonly PointerPhase Phase;
+
+            public PointerSample(int pointerId, Vector2 screenPosition, PointerPhase phase)
+            {
+                PointerId = pointerId;
+                ScreenPosition = screenPosition;
+                Phase = phase;
+            }
+        }
+
+        private struct BallRuntime
+        {
+            public ControllerBallState State;
+            public float Stamina;
+            public int PointerId;
+            public Vector3 ReleaseTarget;
+            public bool HasReleaseTarget;
+
+            public BallRuntime(ControllerBallState state, float stamina)
+            {
+                State = state;
+                Stamina = stamina;
+                PointerId = 0;
+                ReleaseTarget = default;
+                HasReleaseTarget = false;
+            }
+
+            public bool IsControlledBy(int pointerId)
+            {
+                return State == ControllerBallState.Hooked && PointerId == pointerId;
+            }
+
+            public void ClearPointer()
+            {
+                PointerId = 0;
             }
         }
     }

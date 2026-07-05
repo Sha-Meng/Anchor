@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace DesignerSpace
 {
@@ -9,7 +10,7 @@ namespace DesignerSpace
     /// - 指针射线命中点离 A/B 球哪个更近，就操作哪个小球（拾取由 <see cref="ControllerMgr"/> 负责）。
     /// - 左手磁点（LeftHandMagnet）快速 lerp 跟随 A 球；右手磁点（RightHandMagnet）快速 lerp 跟随 B 球。
     ///   由 Ragdoll Animator 2 的磁点负责把手骨刚体拽到磁点位置，从而实现手跟随。
-    /// - 某侧指针松开时该侧停止驱动，手保持在磁点最后位置（由布娃娃物理接管）。
+    /// - 磁点按小球当前状态使用不同速度跟随，Hook 中更紧，释放中/锚定中可单独调手感。
     /// - 左右手互不影响，可同时用左右手分别操作两只球。
     ///
     /// 本组件只移动磁点 Transform，不直接引用 RagdollAnimator2 类型，因此可放在无外部依赖的
@@ -38,8 +39,15 @@ namespace DesignerSpace
         [SerializeField] private string rightMagnetName = "RightHandMagnet";
 
         [Header("跟随手感")]
-        [Tooltip("磁点跟随小球的平滑速度，数值越大跟随越紧；<= 0 表示瞬间跟随")]
-        [SerializeField] private float followLerpSpeed = 20f;
+        [Tooltip("小球锚定中时，磁点跟随小球的平滑速度；<= 0 表示瞬间跟随")]
+        [SerializeField] private float anchoredFollowLerpSpeed = 12f;
+
+        [Tooltip("小球释放中时，磁点跟随小球的平滑速度；<= 0 表示瞬间跟随")]
+        [SerializeField] private float releasingFollowLerpSpeed = 8f;
+
+        [Tooltip("小球 Hook 中时，磁点跟随小球的平滑速度；<= 0 表示瞬间跟随")]
+        [FormerlySerializedAs("followLerpSpeed")]
+        [SerializeField] private float hookedFollowLerpSpeed = 20f;
 
         [Tooltip("小于该距离（米）直接吸附到小球，消除 lerp 残差抖动")]
         [SerializeField] private float snapDistance = 0.003f;
@@ -62,32 +70,22 @@ namespace DesignerSpace
                 }
             }
 
-            // A 球 → 左手磁点
-            if (controllerMgr.IsAActive)
+            Transform ballA = controllerMgr.BallA;
+            Transform leftMagnet = ResolveLeftMagnet();
+            Transform rightMagnet = ResolveRightMagnet();
+            if (ballA != null && leftMagnet != null)
             {
-                Transform ballA = controllerMgr.BallA;
-                Transform magnet = ResolveLeftMagnet();
-                Transform otherMagnet = ResolveRightMagnet();
-                if (ballA != null && magnet != null)
-                {
-                    // 以右手磁点为锚点夹紧目标，避免左手离右手过远。
-                    Vector3 target = ClampToOther(ballA.position, otherMagnet);
-                    magnet.position = FollowStep(magnet.position, target);
-                }
+                Vector3 target = ClampToOther(ballA.position, rightMagnet);
+                float speed = ResolveFollowSpeed(controllerMgr.BallAState);
+                leftMagnet.position = FollowStep(leftMagnet.position, target, speed);
             }
 
-            // B 球 → 右手磁点
-            if (controllerMgr.IsBActive)
+            Transform ballB = controllerMgr.BallB;
+            if (ballB != null && rightMagnet != null)
             {
-                Transform ballB = controllerMgr.BallB;
-                Transform magnet = ResolveRightMagnet();
-                Transform otherMagnet = ResolveLeftMagnet();
-                if (ballB != null && magnet != null)
-                {
-                    // 以左手磁点为锚点夹紧目标，避免右手离左手过远。
-                    Vector3 target = ClampToOther(ballB.position, otherMagnet);
-                    magnet.position = FollowStep(magnet.position, target);
-                }
+                Vector3 target = ClampToOther(ballB.position, leftMagnet);
+                float speed = ResolveFollowSpeed(controllerMgr.BallBState);
+                rightMagnet.position = FollowStep(rightMagnet.position, target, speed);
             }
         }
 
@@ -137,8 +135,23 @@ namespace DesignerSpace
             return rightHandMagnet;
         }
 
+        private float ResolveFollowSpeed(ControllerBallState state)
+        {
+            if (state == ControllerBallState.Hooked)
+            {
+                return hookedFollowLerpSpeed;
+            }
+
+            if (state == ControllerBallState.Releasing)
+            {
+                return releasingFollowLerpSpeed;
+            }
+
+            return anchoredFollowLerpSpeed;
+        }
+
         /// <summary>朝目标做指数平滑 lerp，逼近到位即吸附，避免残余抖动。</summary>
-        private Vector3 FollowStep(Vector3 current, Vector3 target)
+        private Vector3 FollowStep(Vector3 current, Vector3 target, float followLerpSpeed)
         {
             if (followLerpSpeed <= 0f)
             {
@@ -152,6 +165,15 @@ namespace DesignerSpace
 
             float t = 1f - Mathf.Exp(-followLerpSpeed * Time.deltaTime);
             return Vector3.Lerp(current, target, t);
+        }
+
+        private void OnValidate()
+        {
+            anchoredFollowLerpSpeed = Mathf.Max(0f, anchoredFollowLerpSpeed);
+            releasingFollowLerpSpeed = Mathf.Max(0f, releasingFollowLerpSpeed);
+            hookedFollowLerpSpeed = Mathf.Max(0f, hookedFollowLerpSpeed);
+            snapDistance = Mathf.Max(0f, snapDistance);
+            maxHandDistance = Mathf.Max(0f, maxHandDistance);
         }
     }
 }
