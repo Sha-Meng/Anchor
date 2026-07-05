@@ -6,9 +6,9 @@ namespace DesignerSpace
     /// <summary>
     /// 指针拾取控制器（双小球）。
     ///
-    /// 进入游戏后在场景中生成两个小球：A 球对应屏幕左半边，B 球对应屏幕右半边。
-    /// 玩家在屏幕左半边按下（鼠标/手指）→ 从该点向世界发射射线，把 A 球移动到命中点；
-    /// 在右半边按下 → 移动 B 球。支持多点触控，可用左右手同时分别操作 A、B 球。
+    /// 进入游戏后在场景中生成两个小球。玩家按下（鼠标/手指）时，从该点向世界发射射线，
+    /// 射线命中点离哪个小球更近，就把哪个小球移动到命中点。
+    /// 支持多点触控，可同时分别操作 A、B 球。
     /// 小球被放到 Ignore Raycast 层，避免射线打到它自身。
     /// </summary>
     [DisallowMultipleComponent]
@@ -23,22 +23,31 @@ namespace DesignerSpace
         [Tooltip("小球半径（米）")]
         [SerializeField] private float ballRadius = 0.15f;
 
-        [Tooltip("A 球（左侧）初始世界位置")]
+        [Tooltip("A 球初始位置参考点；拖拽场景中的 Transform 后，运行时优先使用它的世界坐标")]
+        [SerializeField] private Transform ballSpawnPointA;
+
+        [Tooltip("B 球初始位置参考点；拖拽场景中的 Transform 后，运行时优先使用它的世界坐标")]
+        [SerializeField] private Transform ballSpawnPointB;
+
+        [Tooltip("A 球初始世界位置（未配置 Transform 时使用）")]
         [SerializeField] private Vector3 ballSpawnPositionA = new Vector3(-0.3f, 0f, 0f);
 
-        [Tooltip("B 球（右侧）初始世界位置")]
+        [Tooltip("B 球初始世界位置（未配置 Transform 时使用）")]
         [SerializeField] private Vector3 ballSpawnPositionB = new Vector3(0.3f, 0f, 0f);
 
-        [Tooltip("A 球（左侧）颜色")]
+        [Tooltip("A 球颜色")]
         [SerializeField] private Color ballColorA = new Color(1f, 0.35f, 0.2f);
 
-        [Tooltip("B 球（右侧）颜色")]
+        [Tooltip("B 球颜色")]
         [SerializeField] private Color ballColorB = new Color(0.2f, 0.55f, 1f);
 
-        [Header("屏幕左右分界")]
-        [Range(0f, 1f)]
-        [Tooltip("屏幕宽度的归一化分界：指针 x 小于该比例算左侧（A 球），否则算右侧（B 球）")]
-        [SerializeField] private float screenSplit = 0.5f;
+        [Header("双球距离约束")]
+        [Tooltip("开启后：hook（拖动）某个小球时，被拖动的球会被限制在“以另一球为球心、最大距离为半径”的范围内，避免两球距离过远")]
+        [SerializeField] private bool constrainBallDistance = true;
+
+        [Tooltip("两球之间允许的最大距离（米）；仅夹紧本帧被拖动的那个球，另一球保持不动")]
+        [Min(0f)]
+        [SerializeField] private float maxBallDistance = 2f;
 
         [Header("射线")]
         [Tooltip("射线最大检测距离")]
@@ -71,22 +80,22 @@ namespace DesignerSpace
         private Transform _ballA;
         private Transform _ballB;
 
-        /// <summary>A 球（左侧）Transform，其他系统可读取其位置作为左手跟随目标。</summary>
+        /// <summary>A 球 Transform，其他系统可读取其位置作为左手跟随目标。</summary>
         public Transform BallA => _ballA;
 
-        /// <summary>B 球（右侧）Transform，其他系统可读取其位置作为右手跟随目标。</summary>
+        /// <summary>B 球 Transform，其他系统可读取其位置作为右手跟随目标。</summary>
         public Transform BallB => _ballB;
 
-        /// <summary>本帧左侧（A 球）是否被有效驱动（有指针在左半屏且命中场景）。</summary>
+        /// <summary>本帧 A 球是否被有效驱动（有指针命中场景且命中点更接近 A 球）。</summary>
         public bool IsAActive { get; private set; }
 
-        /// <summary>本帧右侧（B 球）是否被有效驱动（有指针在右半屏且命中场景）。</summary>
+        /// <summary>本帧 B 球是否被有效驱动（有指针命中场景且命中点更接近 B 球）。</summary>
         public bool IsBActive { get; private set; }
 
         private void Start()
         {
-            _ballA = CreateBall("ControllerBallA", ballSpawnPositionA, ballColorA);
-            _ballB = CreateBall("ControllerBallB", ballSpawnPositionB, ballColorB);
+            _ballA = CreateBall("ControllerBallA", ResolveSpawnPosition(ballSpawnPointA, ballSpawnPositionA), ballColorA);
+            _ballB = CreateBall("ControllerBallB", ResolveSpawnPosition(ballSpawnPointB, ballSpawnPositionB), ballColorB);
         }
 
         private void Update()
@@ -107,7 +116,6 @@ namespace DesignerSpace
                 return;
             }
 
-            float splitX = Screen.width * screenSplit;
             for (int i = 0; i < _heldPointers.Count; i++)
             {
                 Vector2 screenPosition = _heldPointers[i];
@@ -117,12 +125,11 @@ namespace DesignerSpace
                     continue;
                 }
 
-                bool isLeftSide = screenPosition.x < splitX;
-                if (isLeftSide)
+                if (IsHitCloserToBallA(hit.point))
                 {
                     if (_ballA != null)
                     {
-                        _ballA.position = hit.point;
+                        _ballA.position = ClampToOther(hit.point, _ballB);
                     }
                     IsAActive = true;
                 }
@@ -130,11 +137,52 @@ namespace DesignerSpace
                 {
                     if (_ballB != null)
                     {
-                        _ballB.position = hit.point;
+                        _ballB.position = ClampToOther(hit.point, _ballA);
                     }
                     IsBActive = true;
                 }
             }
+        }
+
+        /// <summary>命中点更接近 A 球时返回 true；距离相同则稳定选择 A 球。</summary>
+        private bool IsHitCloserToBallA(Vector3 hitPoint)
+        {
+            if (_ballA == null)
+            {
+                return false;
+            }
+
+            if (_ballB == null)
+            {
+                return true;
+            }
+
+            float distanceToA = (hitPoint - _ballA.position).sqrMagnitude;
+            float distanceToB = (hitPoint - _ballB.position).sqrMagnitude;
+            return distanceToA <= distanceToB;
+        }
+
+        /// <summary>
+        /// 把被拖动球的目标位置夹紧到“以另一球为球心、maxBallDistance 为半径”的范围内，
+        /// 使两球距离不超过上限。另一球缺失或约束关闭时原样返回。
+        /// </summary>
+        private Vector3 ClampToOther(Vector3 desired, Transform other)
+        {
+            if (!constrainBallDistance || other == null || maxBallDistance <= 0f)
+            {
+                return desired;
+            }
+
+            Vector3 anchor = other.position;
+            Vector3 offset = desired - anchor;
+            float distance = offset.magnitude;
+            if (distance <= maxBallDistance)
+            {
+                return desired;
+            }
+
+            // 超距：沿从另一球指向目标点的方向，收回到最大距离处。
+            return anchor + offset * (maxBallDistance / distance);
         }
 
         /// <summary>
@@ -233,6 +281,11 @@ namespace DesignerSpace
             }
 
             return ballTransform;
+        }
+
+        private Vector3 ResolveSpawnPosition(Transform spawnPoint, Vector3 fallbackPosition)
+        {
+            return spawnPoint != null ? spawnPoint.position : fallbackPosition;
         }
 
         private Camera ResolveCamera()

@@ -6,7 +6,7 @@ namespace DesignerSpace
     /// 主角手部跟随控制器（双小球）。
     ///
     /// 交互规则：
-    /// - 屏幕左半边操作 A 球，右半边操作 B 球（分界与拾取由 <see cref="ControllerMgr"/> 负责）。
+    /// - 指针射线命中点离 A/B 球哪个更近，就操作哪个小球（拾取由 <see cref="ControllerMgr"/> 负责）。
     /// - 左手磁点（LeftHandMagnet）快速 lerp 跟随 A 球；右手磁点（RightHandMagnet）快速 lerp 跟随 B 球。
     ///   由 Ragdoll Animator 2 的磁点负责把手骨刚体拽到磁点位置，从而实现手跟随。
     /// - 某侧指针松开时该侧停止驱动，手保持在磁点最后位置（由布娃娃物理接管）。
@@ -44,6 +44,13 @@ namespace DesignerSpace
         [Tooltip("小于该距离（米）直接吸附到小球，消除 lerp 残差抖动")]
         [SerializeField] private float snapDistance = 0.003f;
 
+        [Header("双手距离约束")]
+        [Tooltip("开启后：某只手跟随小球时，会被限制在“以另一只手磁点为球心、最大距离为半径”的范围内，避免两手（两球）距离过远")]
+        [SerializeField] private bool constrainHandDistance = true;
+
+        [Tooltip("两手磁点之间允许的最大距离（米）；仅夹紧本帧被驱动的那只手，另一只手保持不动")]
+        [SerializeField] private float maxHandDistance = 2f;
+
         private void LateUpdate()
         {
             if (controllerMgr == null)
@@ -55,27 +62,55 @@ namespace DesignerSpace
                 }
             }
 
-            // 左半屏：A 球 → 左手磁点
+            // A 球 → 左手磁点
             if (controllerMgr.IsAActive)
             {
                 Transform ballA = controllerMgr.BallA;
                 Transform magnet = ResolveLeftMagnet();
+                Transform otherMagnet = ResolveRightMagnet();
                 if (ballA != null && magnet != null)
                 {
-                    magnet.position = FollowStep(magnet.position, ballA.position);
+                    // 以右手磁点为锚点夹紧目标，避免左手离右手过远。
+                    Vector3 target = ClampToOther(ballA.position, otherMagnet);
+                    magnet.position = FollowStep(magnet.position, target);
                 }
             }
 
-            // 右半屏：B 球 → 右手磁点
+            // B 球 → 右手磁点
             if (controllerMgr.IsBActive)
             {
                 Transform ballB = controllerMgr.BallB;
                 Transform magnet = ResolveRightMagnet();
+                Transform otherMagnet = ResolveLeftMagnet();
                 if (ballB != null && magnet != null)
                 {
-                    magnet.position = FollowStep(magnet.position, ballB.position);
+                    // 以左手磁点为锚点夹紧目标，避免右手离左手过远。
+                    Vector3 target = ClampToOther(ballB.position, otherMagnet);
+                    magnet.position = FollowStep(magnet.position, target);
                 }
             }
+        }
+
+        /// <summary>
+        /// 把被驱动手的目标位置夹紧到“以另一只手磁点为球心、maxHandDistance 为半径”的范围内，
+        /// 使两手距离不超过上限。另一只手缺失或约束关闭时原样返回。
+        /// </summary>
+        private Vector3 ClampToOther(Vector3 desired, Transform otherMagnet)
+        {
+            if (!constrainHandDistance || otherMagnet == null || maxHandDistance <= 0f)
+            {
+                return desired;
+            }
+
+            Vector3 anchor = otherMagnet.position;
+            Vector3 offset = desired - anchor;
+            float distance = offset.magnitude;
+            if (distance <= maxHandDistance)
+            {
+                return desired;
+            }
+
+            return anchor + offset * (maxHandDistance / distance);
         }
 
         /// <summary>返回左手磁点，必要时按名自动解析（磁点常在运行时创建）。</summary>
