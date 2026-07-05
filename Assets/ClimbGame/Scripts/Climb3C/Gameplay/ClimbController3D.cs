@@ -67,12 +67,19 @@ namespace ClimbGame.Climb3C.Gameplay
         private bool _consumeRopeForceFeedback;
         private RopeForceFeedbackResult _pendingRopeForceFeedback;
         private RopeForceConsumerDebugSnapshot _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("NoFeedback");
+        private bool _ropeFallCaught;
+        private bool _ropeFallReboundTriggered;
         private float _bodyWallOffset = 0.4f;
         private float _maxHandDistance = 2f;
         private float _handSlipCancelDistance = 0.5f;
         private float _gripMagnetZOffset = 0.1f;
         private float _grabSnapDistanceXY = 0.5f;
         private bool _magnifierEnabled = true;
+        private float _ropeFallSpring = 7.5f;
+        private float _ropeFallDamping = 1.8f;
+        private float _ropeFallImpulse = 0.65f;
+        private float _ropeFallImpulseStretch = 0.28f;
+        private float _ropeFallMaxVelocityChange = 3.2f;
         private ForceEvaluationSettings _forceSettings = ForceEvaluationSettings.CreateDefault();
         private readonly ClimbForceInputAdapter _forceInputAdapter = new ClimbForceInputAdapter();
 
@@ -162,6 +169,8 @@ namespace ClimbGame.Climb3C.Gameplay
             _consumeRopeForceFeedback = false;
             _pendingRopeForceFeedback = default;
             _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("NoFeedback");
+            _ropeFallCaught = false;
+            _ropeFallReboundTriggered = false;
 
             _s.State = ClimbState.WaitingForPress;
             _s.CurrentHand = ClimbHand.None;
@@ -370,7 +379,23 @@ namespace ClimbGame.Climb3C.Gameplay
             {
                 _pendingRopeForceFeedback = default;
                 _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("ConsumerDisabled");
+                _ropeFallCaught = false;
+                _ropeFallReboundTriggered = false;
             }
+        }
+
+        public void SetRopeFallFeedbackSettings(
+            float spring,
+            float damping,
+            float impulse,
+            float impulseStretch,
+            float maxVelocityChange)
+        {
+            _ropeFallSpring = Mathf.Max(0f, spring);
+            _ropeFallDamping = Mathf.Max(0f, damping);
+            _ropeFallImpulse = Mathf.Max(0f, impulse);
+            _ropeFallImpulseStretch = Mathf.Max(0.01f, impulseStretch);
+            _ropeFallMaxVelocityChange = Mathf.Max(0.1f, maxVelocityChange);
         }
 
         public void ConsumeRopeForceFeedback(RopeForceFeedbackResult feedback)
@@ -400,7 +425,7 @@ namespace ClimbGame.Climb3C.Gameplay
 
             if (_s.State == ClimbState.Falling)
             {
-                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("Falling");
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("HandledByFalling");
                 return targetTorso;
             }
 
@@ -657,6 +682,8 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.State = ClimbState.Falling;
             _s.FallStartY = _avatar.TorsoWorldPosition.y;
             _s.FallTimer = 0f;
+            _ropeFallCaught = false;
+            _ropeFallReboundTriggered = false;
 
             float down = _fallConfig != null ? _fallConfig.initialDownSpeed : 1.5f;
             float push = _fallConfig != null ? _fallConfig.pushFromWall : 1.2f;
@@ -669,6 +696,7 @@ namespace ClimbGame.Climb3C.Gameplay
         private void UpdateFalling(float dt)
         {
             _s.FallTimer += dt;
+            ApplyRopeFallFeedback(dt);
             float torsoY = _avatar.TorsoWorldPosition.y;
             float dropped = _s.FallStartY - torsoY;
 
@@ -713,6 +741,67 @@ namespace ClimbGame.Climb3C.Gameplay
             _s.CurrentHand = ClimbHand.None;
             _s.State = ClimbState.WaitingForPress;
             if (_camera != null) _camera.SetFalling(false);
+            _ropeFallCaught = false;
+            _ropeFallReboundTriggered = false;
+        }
+
+        private void ApplyRopeFallFeedback(float dt)
+        {
+            if (!_consumeRopeForceFeedback)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("ConsumerDisabled");
+                return;
+            }
+
+            if (!_pendingRopeForceFeedback.IsActive)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive(_pendingRopeForceFeedback.Reason.ToString());
+                return;
+            }
+
+            if (_pendingRopeForceFeedback.Reason != RopeForceFeedbackReason.Taut)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("FallSlack");
+                return;
+            }
+
+            var direction = _pendingRopeForceFeedback.TensionDirection;
+            if (direction.sqrMagnitude <= 0.000001f)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("InvalidDirection");
+                return;
+            }
+
+            direction.Normalize();
+            var stretch = Mathf.Max(0f, _pendingRopeForceFeedback.ConstraintDistance);
+            if (stretch <= 0.0001f)
+            {
+                _ropeForceDebug = RopeForceConsumerDebugSnapshot.Inactive("ZeroStretch");
+                return;
+            }
+
+            var dampingScale = 1f / (1f + _ropeFallDamping * Mathf.Max(0.0001f, dt));
+            var velocityChange = direction * stretch * _ropeFallSpring * Mathf.Max(0.0001f, dt) * dampingScale;
+            if (!_ropeFallReboundTriggered && stretch >= _ropeFallImpulseStretch)
+            {
+                _ropeFallReboundTriggered = true;
+                velocityChange += direction * _ropeFallImpulse;
+            }
+
+            velocityChange = Vector3.ClampMagnitude(velocityChange, _ropeFallMaxVelocityChange);
+            _avatar.AddRagdollVelocityChange(velocityChange);
+            _ropeFallCaught = true;
+
+            _ropeForceDebug = new RopeForceConsumerDebugSnapshot
+            {
+                HasFeedback = true,
+                Consuming = velocityChange.sqrMagnitude > 0.000001f,
+                IgnoreReason = velocityChange.sqrMagnitude > 0.000001f ? string.Empty : "ZeroCorrection",
+                AppliedDisplacement = Vector3.zero,
+                SuggestedVelocityCorrection = velocityChange,
+                TensionStrength = _pendingRopeForceFeedback.TensionStrength,
+                ConstraintDistance = stretch
+            };
         }
 
         private Vector3 ComputeRestAnchor(Vector3 center, ClimbHand hand)

@@ -28,6 +28,7 @@ MonoBehaviour:
     EnableForceFeedback: 1
     ForcePreTensionThreshold: 0.75
     ForceMaxConstraintCorrection: 0.45
+    ForceElasticStretch: 0.35
     ForceTensionStrengthPerMeter: 1.25
     ForceVelocityDamping: 0.85
     ForceReboundStrength: 0.45

@@ -191,6 +191,14 @@ namespace ClimbGame.Climb3C.Character
             if (_ra2 != null) _ra2.RA2Event_AddFullImpact(initialVelocity);
         }
 
+        public void AddRagdollVelocityChange(Vector3 velocityChange)
+        {
+            if (_ra2 != null && velocityChange.sqrMagnitude > 0.000001f)
+            {
+                _ra2.RA2Event_AddFullImpact(velocityChange);
+            }
+        }
+
         private static Transform FindDeep(Transform root, string name)
         {
             if (root.name == name) return root;

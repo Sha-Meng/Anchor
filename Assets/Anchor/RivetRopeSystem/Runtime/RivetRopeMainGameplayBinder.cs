@@ -54,6 +54,8 @@ namespace Anchor.RivetRopeSystem
         private Vector3 _upperVelocity;
         private Vector3 _lowerVelocity;
         private bool _wasFalling;
+        private Vector3 _fallbackLowerAnchor;
+        private bool _hasFallbackLowerAnchor;
 
         public bool IsBound => _climbController != null;
         public Vector3 UpperWaistPosition => upperAttachPoint != null ? upperAttachPoint.position : transform.position;
@@ -317,6 +319,26 @@ namespace Anchor.RivetRopeSystem
                 return _remoteClimberRoot.position + waistOffset;
             }
 
+            if (IsFalling())
+            {
+                if (TryGetFallbackFallAnchor(out var fallAnchor))
+                {
+                    _fallbackLowerAnchor = fallAnchor;
+                    _hasFallbackLowerAnchor = true;
+                    return fallAnchor;
+                }
+
+                if (_hasFallbackLowerAnchor)
+                {
+                    return _fallbackLowerAnchor;
+                }
+            }
+            else
+            {
+                _fallbackLowerAnchor = upper + lowerOffsetFromUpper;
+                _hasFallbackLowerAnchor = true;
+            }
+
             return upper + lowerOffsetFromUpper;
         }
 
@@ -344,6 +366,45 @@ namespace Anchor.RivetRopeSystem
             var stateValue = _stateProperty.GetValue(_climbController, null);
             var state = Convert.ToString(stateValue);
             return string.Equals(state, "WaitingForPress", StringComparison.Ordinal);
+        }
+
+        private bool IsFalling()
+        {
+            if (_stateProperty == null || _climbController == null)
+            {
+                return false;
+            }
+
+            var stateValue = _stateProperty.GetValue(_climbController, null);
+            return string.Equals(Convert.ToString(stateValue), "Falling", StringComparison.Ordinal);
+        }
+
+        private bool TryGetFallbackFallAnchor(out Vector3 anchor)
+        {
+            anchor = default;
+            if (driver == null || driver.Model.PlacedRivets.Count == 0)
+            {
+                return false;
+            }
+
+            var upper = upperAttachPoint != null ? upperAttachPoint.position : transform.position;
+            var best = driver.Model.PlacedRivets[0].Position;
+            var bestSqr = (best - upper).sqrMagnitude;
+            for (int i = 1; i < driver.Model.PlacedRivets.Count; i++)
+            {
+                var candidate = driver.Model.PlacedRivets[i].Position;
+                var sqr = (candidate - upper).sqrMagnitude;
+                if (sqr >= bestSqr)
+                {
+                    continue;
+                }
+
+                best = candidate;
+                bestSqr = sqr;
+            }
+
+            anchor = best;
+            return true;
         }
 
         private Transform FindRemoteClimberRoot()

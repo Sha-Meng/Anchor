@@ -180,6 +180,14 @@ namespace ClimbGame.Climb3C.Character
             }
         }
 
+        public void AddRagdollVelocityChange(Vector3 velocityChange)
+        {
+            if (_ragdoll2 != null && velocityChange.sqrMagnitude > 0.000001f)
+            {
+                _ragdoll2.RA2Event_AddFullImpact(velocityChange);
+            }
+        }
+
         // --- 两骨解析 IK（设置骨骼旋转，末端 end 到达 target；pole 提供弯曲朝向）---
         private static void SolveTwoBone(Transform aT, Transform bT, Transform cT, Vector3 target, Vector3 pole)
         {

@@ -243,6 +243,33 @@ namespace Anchor.RivetRopeSystem.Tests
         }
 
         [Test]
+        public void ForceFeedback_ElasticStretchSoftensSmallOvershoot()
+        {
+            var elasticSettings = _settings;
+            elasticSettings.TotalRopeLength = 10f;
+            elasticSettings.ForceElasticStretch = 1f;
+            elasticSettings.ForceReboundStrength = 1f;
+            elasticSettings.ForceVelocityDamping = 1f;
+            _model.Reset(elasticSettings, "lead", "second");
+            var upper = new Vector3(0f, 10.2f, 0f);
+            var path = _model.BuildRopePath(Vector3.zero, upper);
+
+            var elasticFeedback = _model.EvaluateForceFeedback("lead", path, upper, Vector3.up, 0.02f);
+
+            var rigidSettings = elasticSettings;
+            rigidSettings.ForceElasticStretch = 0f;
+            _model.Reset(rigidSettings, "lead", "second");
+            path = _model.BuildRopePath(Vector3.zero, upper);
+            var rigidFeedback = _model.EvaluateForceFeedback("lead", path, upper, Vector3.up, 0.02f);
+
+            Assert.IsTrue(elasticFeedback.IsActive);
+            Assert.AreEqual(RopeForceFeedbackReason.Taut, elasticFeedback.Reason);
+            Assert.AreEqual(rigidFeedback.ConstraintDistance, elasticFeedback.ConstraintDistance, 0.001f);
+            Assert.Less(elasticFeedback.TensionStrength, rigidFeedback.TensionStrength);
+            Assert.Less(elasticFeedback.SuggestedVelocityCorrection.magnitude, rigidFeedback.SuggestedVelocityCorrection.magnitude);
+        }
+
+        [Test]
         public void ForceFeedback_SingleRivetUsesAdjacentRivetDirection()
         {
             var settings = _settings;
