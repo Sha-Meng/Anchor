@@ -12,10 +12,7 @@ namespace ClimbGame.Climb3C.Input
     public struct ClimbPointer
     {
         public int Id;
-        /// <summary>参与映射的屏幕坐标（移动端含偏移）。</summary>
         public Vector2 ScreenPos;
-        /// <summary>原始触点屏幕坐标（偏移前）。</summary>
-        public Vector2 RawScreenPos;
         public ClimbPointerPhase Phase;
     }
 
@@ -96,7 +93,6 @@ namespace ClimbGame.Climb3C.Input
                     _pointers.Add(new ClimbPointer
                     {
                         Id = t.fingerId,
-                        RawScreenPos = raw,
                         ScreenPos = ApplyMobileTouchOffset(raw),
                         Phase = phase
                     });
@@ -136,7 +132,6 @@ namespace ClimbGame.Climb3C.Input
                     _pointers.Add(new ClimbPointer
                     {
                         Id = -1,
-                        RawScreenPos = mousePosition,
                         ScreenPos = mousePosition,
                         Phase = phase
                     });

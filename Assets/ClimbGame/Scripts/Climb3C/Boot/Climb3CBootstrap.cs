@@ -136,11 +136,6 @@ namespace ClimbGame.Climb3C.Boot
             _controller.SetFallDependencies(ragdollFall, climbCam);
             _controller.SetCameraConfig(cameraConfig);
 
-            var debugGo = new GameObject("Climb3C_InputDebug");
-            debugGo.transform.SetParent(servicesGo.transform, false);
-            var debugOverlay = debugGo.AddComponent<Climb3CInputDebugOverlay>();
-            debugOverlay.Build(canvas, tuning, cam, _controller);
-
             int wallMask = ~((1 << LayerIgnoreRaycast) | (1 << LayerUI));
             _controller.SetWallProbe(new WallDepthProbe(wallMask, RivetZ - 4f, 8f, 0.05f));
 

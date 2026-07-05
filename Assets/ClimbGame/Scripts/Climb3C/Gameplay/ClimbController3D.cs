@@ -96,12 +96,10 @@ namespace ClimbGame.Climb3C.Gameplay
         // 相机视平面映射：起手屏幕点与手所在深度（本地输入用，逐帧把屏幕位移映射到该视平面）
         private Vector2 _reachStartScreen;
         private float _reachDepth;
-        private ClimbInputDebugSnapshot _inputDebug = ClimbInputDebugSnapshot.Inactive;
 
         public ClimbState State => _s != null ? _s.State : ClimbState.WaitingForPress;
         public ClimbHand CurrentHand => _s != null ? _s.CurrentHand : ClimbHand.None;
         public Vector3 TorsoCenter => _s != null ? _s.TorsoCenter : Vector3.zero;
-        public ClimbInputDebugSnapshot InputDebug => _inputDebug;
         public RopeForceConsumerDebugSnapshot RopeForceDebug => _ropeForceDebug;
 
         /// <summary>某只手成功抓握锚定时触发，参数为刚锚定的手（相机可据此回到中性机位）。</summary>
@@ -304,7 +302,6 @@ namespace ClimbGame.Climb3C.Gameplay
         {
             if (_s.State == ClimbState.WaitingForPress)
             {
-                _inputDebug = ClimbInputDebugSnapshot.Inactive;
                 // 不分左右区：任意 touch 起手，按起点离哪只手更近来决定移动哪只手。
                 if (_input.TryGetAnyNewPress(out ClimbPointer p))
                 {
@@ -341,16 +338,6 @@ namespace ClimbGame.Climb3C.Gameplay
                     // 贴墙开启（stickHandToWall）时才按 +Z 采样墙面 z；关闭则保持视平面跟随的 z。
                     _s.AttackHandCurrent = SampleWallZFromHand(follow);
 
-                    _inputDebug = new ClimbInputDebugSnapshot(
-                        true,
-                        p.RawScreenPos,
-                        p.ScreenPos,
-                        worldStart,
-                        _s.ReachStartHand,
-                        mapped,
-                        commanded,
-                        _s.AttackHandCurrent);
-
                     if (p.Phase == ClimbPointerPhase.Ended)
                     {
                         // 松手：落到磁点真实位置（去平滑滞后），贴墙开启时再采样墙面 z 做吸附判定
@@ -375,7 +362,6 @@ namespace ClimbGame.Climb3C.Gameplay
             }
             else if (_s.State == ClimbState.Returning)
             {
-                _inputDebug = ClimbInputDebugSnapshot.Inactive;
                 Vector3 anchor = AnchorOf(_s.CurrentHand);
                 _s.AttackHandCurrent = SmoothTo(_s.AttackHandCurrent, anchor, _tuning.handReturnLerp);
                 _stamina.Drain(dt, _staminaCfg.abandonDrainMultiplier);
