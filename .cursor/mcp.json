@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "mcp-unity": {
-      "command": "/Users/felixzou/.nvm/versions/node/v24.18.0/bin/node",
+      "command": "node",
       "args": [
-        ".cursor/run-mcp-unity-server.mjs"
+        "Library/PackageCache/com.gamelovers.mcp-unity@6abc9cf5b8/Server~/build/index.js"
       ]
     }
   }

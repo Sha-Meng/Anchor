@@ -54,6 +54,7 @@ namespace Anchor.Networking
         private RivetRopeMainGameplayBinder _rivetRopeBinder;
 
         private Canvas _canvas;
+        private RectTransform _contentRoot;
         private GameObject _runtimeRoot;
         private Text _statusText;
         private Text _logText;
@@ -66,6 +67,15 @@ namespace Anchor.Networking
         private Vector3 _remoteTarget = new Vector3(2f, 0.5f, 0f);
         private float _nextUiY = -58f;
         private string _currentView;
+
+        private static readonly Color ScreenBackgroundColor = new Color(0.025f, 0.04f, 0.075f, 1f);
+        private static readonly Color PanelBackgroundColor = new Color(0.055f, 0.085f, 0.13f, 0.94f);
+        private static readonly Color PanelAccentColor = new Color(0.08f, 0.22f, 0.34f, 0.72f);
+        private static readonly Color PrimaryButtonColor = new Color(0.1f, 0.42f, 0.78f, 0.96f);
+        private static readonly Color InputBackgroundColor = new Color(0.035f, 0.055f, 0.085f, 0.96f);
+        private static readonly Color BodyTextColor = new Color(0.9f, 0.96f, 1f, 1f);
+        private static readonly Color MutedTextColor = new Color(0.58f, 0.72f, 0.82f, 1f);
+        private static readonly Color GoldAccentColor = new Color(1f, 0.72f, 0.28f, 1f);
 
         private struct RoomListEntry
         {
@@ -184,7 +194,6 @@ namespace Anchor.Networking
             CreateCanvas("Anchor Network Demo - 房间列表");
 
             _statusText = AddText("Status", "状态：未连接", 16, TextAnchor.MiddleLeft);
-            _endpointInput = AddInput("EndpointInput", _config.DefaultEndpoint);
             AddButton(_client != null && _client.IsConnected ? "已连接" : "连接", Connect);
             AddButton("刷新房间列表", RequestRoomList);
             AddButton("创建房间", CreateRoom);
@@ -1044,6 +1053,7 @@ namespace Anchor.Networking
             }
 
             _canvas = null;
+            _contentRoot = null;
             _statusText = null;
             _logText = null;
             _roomText = null;
@@ -1103,7 +1113,8 @@ namespace Anchor.Networking
         private void CreateCanvas(string title)
         {
             EnsureEventSystem();
-            _nextUiY = -58f;
+            _nextUiY = -104f;
+            _contentRoot = null;
 
             var root = new GameObject("Anchor Demo Canvas");
             ParentToRuntimeRoot(root);
@@ -1115,14 +1126,99 @@ namespace Anchor.Networking
             scaler.matchWidthOrHeight = 0.5f;
             root.AddComponent<GraphicRaycaster>();
 
-            var titleText = AddText("Title", title, 24, TextAnchor.MiddleCenter, 36f);
-            var rect = titleText.GetComponent<RectTransform>();
+            AddScreenBackground(root.transform);
+            _contentRoot = AddMainPanel(root.transform);
+            AddTitle(title);
+            AddSubtitle("双人攀登联机入口");
+            _nextUiY = -126f;
+        }
+
+        private void AddScreenBackground(Transform parent)
+        {
+            var background = new GameObject("Anchor Demo Background");
+            background.transform.SetParent(parent, false);
+            var image = background.AddComponent<Image>();
+            image.color = ScreenBackgroundColor;
+            var rect = background.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            AddBackdropShape(parent, "Anchor Demo Glow Left", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(320f, 520f), new Vector2(42f, 0f), new Color(0.02f, 0.34f, 0.5f, 0.22f));
+            AddBackdropShape(parent, "Anchor Demo Glow Right", new Vector2(1f, 0.52f), new Vector2(1f, 0.5f), new Vector2(280f, 460f), new Vector2(-36f, -20f), new Color(0.8f, 0.48f, 0.12f, 0.12f));
+        }
+
+        private void AddBackdropShape(Transform parent, string name, Vector2 anchor, Vector2 pivot, Vector2 size, Vector2 position, Color color)
+        {
+            var shape = new GameObject(name);
+            shape.transform.SetParent(parent, false);
+            var image = shape.AddComponent<Image>();
+            image.color = color;
+            var rect = shape.GetComponent<RectTransform>();
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = pivot;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+        private RectTransform AddMainPanel(Transform parent)
+        {
+            var panel = new GameObject("Anchor Demo Main Panel");
+            panel.transform.SetParent(parent, false);
+            var image = panel.AddComponent<Image>();
+            image.color = PanelBackgroundColor;
+            var outline = panel.AddComponent<Outline>();
+            outline.effectColor = new Color(0.28f, 0.62f, 0.82f, 0.4f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            var rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(780f, 620f);
+
+            var header = new GameObject("Header Accent");
+            header.transform.SetParent(panel.transform, false);
+            var headerImage = header.AddComponent<Image>();
+            headerImage.color = PanelAccentColor;
+            var headerRect = header.GetComponent<RectTransform>();
+            headerRect.anchorMin = new Vector2(0f, 1f);
+            headerRect.anchorMax = new Vector2(1f, 1f);
+            headerRect.pivot = new Vector2(0.5f, 1f);
+            headerRect.anchoredPosition = Vector2.zero;
+            headerRect.sizeDelta = new Vector2(0f, 88f);
+
+            return rect;
+        }
+
+        private void AddTitle(string title)
+        {
+            var label = CreateText("Anchor Demo Title", title, 30, TextAnchor.MiddleLeft, GoldAccentColor);
+            label.fontStyle = FontStyle.Bold;
+            AddTextShadow(label);
+
+            var rect = label.rectTransform;
+            rect.SetParent(_contentRoot, false);
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -10f);
-            rect.sizeDelta = new Vector2(0f, 40f);
-            _nextUiY = -58f;
+            rect.anchoredPosition = new Vector2(30f, -16f);
+            rect.sizeDelta = new Vector2(-60f, 40f);
+        }
+
+        private void AddSubtitle(string subtitle)
+        {
+            var label = CreateText("Anchor Demo Subtitle", subtitle, 15, TextAnchor.MiddleLeft, MutedTextColor);
+            var rect = label.rectTransform;
+            rect.SetParent(_contentRoot, false);
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(30f, -54f);
+            rect.sizeDelta = new Vector2(-60f, 24f);
         }
 
         private void EnsureEntryCamera()
@@ -1161,20 +1257,26 @@ namespace Anchor.Networking
         private Text AddText(string name, string text, int fontSize, TextAnchor alignment, float height = 28f)
         {
             var go = new GameObject("Anchor Demo " + name);
-            go.transform.SetParent(_canvas.transform, false);
+            go.transform.SetParent(GetUiContentParent(), false);
             var label = go.AddComponent<Text>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = text;
             label.fontSize = fontSize;
-            label.color = Color.white;
+            label.color = name == "Log" ? MutedTextColor : BodyTextColor;
             label.alignment = alignment;
+            if (name == "Status" || name == "RoomInfo")
+            {
+                label.fontStyle = FontStyle.Bold;
+                label.color = GoldAccentColor;
+            }
+            AddTextShadow(label);
 
             var rect = go.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
             rect.anchoredPosition = new Vector2(0f, _nextUiY);
-            rect.sizeDelta = new Vector2(-40f, height);
+            rect.sizeDelta = new Vector2(-60f, height);
             _nextUiY -= height + 6f;
             return label;
         }
@@ -1182,54 +1284,85 @@ namespace Anchor.Networking
         private InputField AddInput(string name, string text)
         {
             var go = new GameObject("Anchor Demo " + name);
-            go.transform.SetParent(_canvas.transform, false);
+            go.transform.SetParent(GetUiContentParent(), false);
             var image = go.AddComponent<Image>();
-            image.color = new Color(0.12f, 0.12f, 0.12f, 0.9f);
+            image.color = InputBackgroundColor;
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = new Color(0.36f, 0.62f, 0.76f, 0.38f);
+            outline.effectDistance = new Vector2(1f, -1f);
             var input = go.AddComponent<InputField>();
+            input.selectionColor = new Color(0.25f, 0.55f, 0.95f, 0.45f);
 
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(go.transform, false);
             var inputText = textGo.AddComponent<Text>();
             inputText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            inputText.fontSize = 16;
-            inputText.color = Color.white;
+            inputText.fontSize = 17;
+            inputText.color = BodyTextColor;
             inputText.alignment = TextAnchor.MiddleLeft;
             input.textComponent = inputText;
             input.text = text;
+            AddTextShadow(inputText);
+
+            var placeholderGo = new GameObject("Placeholder");
+            placeholderGo.transform.SetParent(go.transform, false);
+            var placeholder = placeholderGo.AddComponent<Text>();
+            placeholder.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            placeholder.text = name == "RoomInput" ? "输入房间码" : "Relay 地址";
+            placeholder.fontSize = 17;
+            placeholder.color = new Color(MutedTextColor.r, MutedTextColor.g, MutedTextColor.b, 0.62f);
+            placeholder.alignment = TextAnchor.MiddleLeft;
+            input.placeholder = placeholder;
 
             var textRect = textGo.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(10f, 0f);
-            textRect.offsetMax = new Vector2(-10f, 0f);
+            textRect.offsetMin = new Vector2(18f, 0f);
+            textRect.offsetMax = new Vector2(-18f, 0f);
+
+            var placeholderRect = placeholderGo.GetComponent<RectTransform>();
+            placeholderRect.anchorMin = Vector2.zero;
+            placeholderRect.anchorMax = Vector2.one;
+            placeholderRect.offsetMin = new Vector2(18f, 0f);
+            placeholderRect.offsetMax = new Vector2(-18f, 0f);
 
             var rect = go.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
             rect.anchoredPosition = new Vector2(0f, _nextUiY);
-            rect.sizeDelta = new Vector2(-40f, 30f);
-            _nextUiY -= 36f;
+            rect.sizeDelta = new Vector2(-60f, 38f);
+            _nextUiY -= 46f;
             return input;
         }
 
         private Button AddButton(string label, UnityEngine.Events.UnityAction onClick)
         {
             var go = new GameObject("Anchor Demo Button " + label);
-            go.transform.SetParent(_canvas.transform, false);
+            go.transform.SetParent(GetUiContentParent(), false);
             var image = go.AddComponent<Image>();
-            image.color = new Color(0.18f, 0.35f, 0.65f, 0.95f);
+            image.color = PrimaryButtonColor;
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.34f);
+            shadow.effectDistance = new Vector2(0f, -3f);
             var button = go.AddComponent<Button>();
-            button.onClick.AddListener(onClick);
+            button.targetGraphic = image;
+            button.colors = CreateButtonColors();
+            if (onClick != null)
+            {
+                button.onClick.AddListener(onClick);
+            }
 
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(go.transform, false);
             var text = textGo.AddComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.text = label;
-            text.fontSize = 16;
+            text.fontSize = 17;
             text.color = Color.white;
+            text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;
+            AddTextShadow(text);
 
             var textRect = textGo.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
@@ -1242,9 +1375,47 @@ namespace Anchor.Networking
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
             rect.anchoredPosition = new Vector2(0f, _nextUiY);
-            rect.sizeDelta = new Vector2(-40f, 30f);
-            _nextUiY -= 36f;
+            rect.sizeDelta = new Vector2(-60f, 38f);
+            _nextUiY -= 46f;
             return button;
+        }
+
+        private Transform GetUiContentParent()
+        {
+            return _contentRoot != null ? _contentRoot : _canvas.transform;
+        }
+
+        private static Text CreateText(string name, string text, int fontSize, TextAnchor alignment, Color color)
+        {
+            var go = new GameObject(name);
+            var label = go.AddComponent<Text>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.text = text;
+            label.fontSize = fontSize;
+            label.color = color;
+            label.alignment = alignment;
+            return label;
+        }
+
+        private static void AddTextShadow(Text text)
+        {
+            if (text == null) return;
+            var shadow = text.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
+            shadow.effectDistance = new Vector2(1f, -1f);
+        }
+
+        private static ColorBlock CreateButtonColors()
+        {
+            var colors = ColorBlock.defaultColorBlock;
+            colors.normalColor = PrimaryButtonColor;
+            colors.highlightedColor = new Color(0.16f, 0.56f, 0.95f, 1f);
+            colors.pressedColor = new Color(0.08f, 0.3f, 0.58f, 1f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(0.18f, 0.22f, 0.28f, 0.62f);
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            return colors;
         }
     }
 }
