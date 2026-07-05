@@ -295,9 +295,11 @@ function handleRoomStart(socket, message) {
   }
 
   room.state = "starting";
+  for (const player of room.players) player.enteredGame = false;
   room.lastActiveAt = Date.now();
   const countdownMs = Number(message.payload?.countdownMs || 1000);
   const startAt = nowSeconds() + countdownMs / 1000;
+  broadcastRoomUpdated(room);
   broadcast(room, {
     type: "room.starting",
     roomId: room.roomId,
@@ -312,6 +314,19 @@ function handleEnteredGame(socket, message) {
   const room = getClientRoom(socket);
   if (!client || !room) {
     sendError(socket, message.requestId, "ROOM_NOT_FOUND", "不在房间中");
+    return;
+  }
+  if (room.state === "inGame") {
+    send(socket, {
+      type: "room.inGame",
+      requestId: message.requestId,
+      roomId: room.roomId,
+      payload: {}
+    });
+    return;
+  }
+  if (room.state !== "starting") {
+    sendError(socket, message.requestId, "INVALID_ROOM_STATE", "房间尚未开局");
     return;
   }
 

@@ -36,11 +36,16 @@ namespace Anchor.SystemValidation
                 return;
             }
 
-            Handheld.Vibrate();
+            TryVibrate();
             _nextPulseTime = Time.unscaledTime + Mathf.Lerp(
                 weakestPulseInterval,
                 strongestPulseInterval,
                 _strength);
+        }
+
+        private static void TryVibrate()
+        {
+            Handheld.Vibrate();
         }
 
         private void OnDisable()
