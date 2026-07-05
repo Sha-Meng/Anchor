@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Anchor.RivetRopeSystem;
 using ClimbGame.Climb3C.Boot;
 using ClimbGame.Climb3C.Gameplay;
+using DesignerSpace;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -14,6 +15,7 @@ namespace Anchor.Networking
     public class AnchorNetworkDemoController : MonoBehaviour
     {
         private const string EntrySceneName = "NetworkDemoEntry";
+        private const string StartSceneName = "Start";
         private const string MainLevelSceneName = "MainLevel";
         private const string MainLevel2SceneName = "MainLevel2";
         private const string MainLevelScenePath = "Assets/Scenes/MainLevel.scene";
@@ -112,6 +114,18 @@ namespace Anchor.Networking
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
             _instance.BuildForActiveScene();
+        }
+
+        public static void ExitMultiplayerToStart()
+        {
+            if (_instance != null)
+            {
+                _instance.ReturnToStart();
+                return;
+            }
+
+            LevelSettlement.ResetSession();
+            SceneManager.LoadScene(StartSceneName);
         }
 
         private static void EnsureInstance()
@@ -262,6 +276,7 @@ namespace Anchor.Networking
             CreateCanvas("Anchor " + sceneName + " 联机");
 
             _statusText = AddText("Status", sceneName + " 等待同步确认", 20, TextAnchor.MiddleLeft);
+            AddButton("退出到主界面", ExitMultiplayerToStart);
             _logText = AddText("Log", GetRoomInfoText() + "\n游戏日志：\n", 15, TextAnchor.UpperLeft);
 
             DisableSceneSinglePlayerClimbBinders();
@@ -590,7 +605,16 @@ namespace Anchor.Networking
         private IEnumerator AutoConnectNextFrame()
         {
             yield return null;
-            if (_client != null && !_client.IsConnected) Connect();
+            if (_client == null) yield break;
+
+            if (_client.IsConnected)
+            {
+                RequestRoomList();
+            }
+            else
+            {
+                Connect();
+            }
         }
 
         private void RequestRoomList()
@@ -644,6 +668,20 @@ namespace Anchor.Networking
             SceneManager.LoadScene(EntrySceneName);
         }
 
+        private void ReturnToStart()
+        {
+            if (!string.IsNullOrEmpty(_roomId))
+            {
+                Send(AnchorJson.BuildEnvelope("room.leave", requestId: NewRequestId(), roomId: _roomId));
+            }
+
+            StopAllCoroutines();
+            LevelSettlement.ResetSession();
+            ResetRoomState();
+            ClearRuntimeSceneObjects();
+            SceneManager.LoadScene(StartSceneName);
+        }
+
         private void ResetRoomState()
         {
             _roomId = null;
@@ -654,6 +692,10 @@ namespace Anchor.Networking
             _gameSceneReady = false;
             _gameSyncReady = false;
             _playerCount = 0;
+            _seq = 0;
+            _nextStateSendTime = 0f;
+            _nextRemoteDebugLogTime = 0f;
+            _autoConnectAttempted = false;
             _localSlot = "guest";
             _remoteSlot = "host";
             _localClimbRole = "second";
@@ -664,6 +706,8 @@ namespace Anchor.Networking
             _localStateSource = null;
             _localClimbBinder = null;
             _remoteClimbPlayer = null;
+            _rivetRopeDriver = null;
+            _rivetRopeBinder = null;
         }
 
         private void SendRoomEnteredGame()
@@ -1038,6 +1082,11 @@ namespace Anchor.Networking
             if (_rivetRopeBridge != null)
             {
                 _rivetRopeBridge.SetSyncEnabled(false);
+            }
+
+            if (_localClimbBinder != null && _localClimbBinder.Controller != null)
+            {
+                _localClimbBinder.Controller.PlayerFailed -= HandleLocalPlayerFailed;
             }
 
             if (_runtimeRoot != null)

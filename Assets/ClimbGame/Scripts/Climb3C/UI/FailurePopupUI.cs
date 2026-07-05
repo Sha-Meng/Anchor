@@ -1,3 +1,4 @@
+using Anchor.Networking;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -28,7 +29,7 @@ namespace ClimbGame.Climb3C.UI
             panelRect.anchorMax = new Vector2(0.5f, 0.5f);
             panelRect.pivot = new Vector2(0.5f, 0.5f);
             panelRect.anchoredPosition = Vector2.zero;
-            panelRect.sizeDelta = new Vector2(520f, 220f);
+            panelRect.sizeDelta = new Vector2(520f, 280f);
 
             var panelImage = panel.AddComponent<Image>();
             panelImage.color = new Color(0.08f, 0.08f, 0.08f, 0.94f);
@@ -53,13 +54,41 @@ namespace ClimbGame.Climb3C.UI
             messageRect.SetParent(panel.transform, false);
             messageRect.anchorMin = new Vector2(0f, 0f);
             messageRect.anchorMax = new Vector2(1f, 1f);
-            messageRect.offsetMin = new Vector2(40f, 34f);
+            messageRect.offsetMin = new Vector2(40f, 86f);
             messageRect.offsetMax = new Vector2(-40f, -98f);
             _message = messageGo.AddComponent<Text>();
             _message.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _message.fontSize = 22;
             _message.alignment = TextAnchor.MiddleCenter;
             _message.color = Color.white;
+
+            var buttonGo = new GameObject("ReturnToStartButton", typeof(RectTransform));
+            var buttonRect = buttonGo.GetComponent<RectTransform>();
+            buttonRect.SetParent(panel.transform, false);
+            buttonRect.anchorMin = new Vector2(0.5f, 0f);
+            buttonRect.anchorMax = new Vector2(0.5f, 0f);
+            buttonRect.pivot = new Vector2(0.5f, 0f);
+            buttonRect.anchoredPosition = new Vector2(0f, 24f);
+            buttonRect.sizeDelta = new Vector2(260f, 48f);
+
+            var buttonImage = buttonGo.AddComponent<Image>();
+            buttonImage.color = new Color(0.18f, 0.35f, 0.65f, 0.95f);
+            var button = buttonGo.AddComponent<Button>();
+            button.onClick.AddListener(AnchorNetworkDemoController.ExitMultiplayerToStart);
+
+            var buttonTextGo = new GameObject("Text", typeof(RectTransform));
+            var buttonTextRect = buttonTextGo.GetComponent<RectTransform>();
+            buttonTextRect.SetParent(buttonGo.transform, false);
+            buttonTextRect.anchorMin = Vector2.zero;
+            buttonTextRect.anchorMax = Vector2.one;
+            buttonTextRect.offsetMin = Vector2.zero;
+            buttonTextRect.offsetMax = Vector2.zero;
+            var buttonText = buttonTextGo.AddComponent<Text>();
+            buttonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            buttonText.text = "返回主界面";
+            buttonText.fontSize = 22;
+            buttonText.alignment = TextAnchor.MiddleCenter;
+            buttonText.color = Color.white;
 
             Hide();
         }
