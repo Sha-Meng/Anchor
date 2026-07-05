@@ -10,7 +10,7 @@ namespace ClimbGame.Climb3C.Boot
     ///
     /// 由于 CameraMgr 位于 Anchor.DesignerSpace 程序集（references 为空，无法引用攀爬控制器），
     /// 而 ClimbGame 属于默认 Assembly-CSharp，可同时直接引用两者，故在此做类型安全的连线：
-    /// - 每帧把双手锚点中点推给 CameraMgr，让 fixedPointCameraRig 平滑跟随；
+    /// - 每帧把控制器计算出的相机跟随点推给 CameraMgr，让 fixedPointCameraRig 平滑跟随；
     /// - 手锚定（Grab 成功）时切到中性机位（索引 anchoredPoseIndex，默认 0）；
     /// - 手指按下开始伸手（touch 脱离）时，右手切到 rightHandPoseIndex(1)，左手切到 leftHandPoseIndex(2)。
     /// </summary>
@@ -36,7 +36,7 @@ namespace ClimbGame.Climb3C.Boot
         [SerializeField] private int leftHandPoseIndex = 2;
 
         [Header("跟随")]
-        [Tooltip("是否每帧把双手锚点中点推给 CameraMgr 作为 rig 跟随点")]
+        [Tooltip("是否每帧把控制器计算出的跟随点推给 CameraMgr；摔落时会跟随躯干")]
         [SerializeField] private bool driveFollowTarget = true;
 
         private bool _subscribed;
@@ -74,7 +74,7 @@ namespace ClimbGame.Climb3C.Boot
 
             if (driveFollowTarget)
             {
-                cameraMgr.SetFollowTarget(controller.AnchorMidpoint);
+                cameraMgr.SetFollowTarget(controller.CameraFollowTarget, controller.State == ClimbState.Falling);
             }
         }
 
@@ -94,7 +94,7 @@ namespace ClimbGame.Climb3C.Boot
             {
                 if (driveFollowTarget)
                 {
-                    cameraMgr.SetFollowTarget(controller.AnchorMidpoint);
+                    cameraMgr.SetFollowTarget(controller.CameraFollowTarget, controller.State == ClimbState.Falling);
                 }
                 cameraMgr.SwitchToFixedPose(anchoredPoseIndex);
             }

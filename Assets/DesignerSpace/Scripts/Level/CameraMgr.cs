@@ -85,6 +85,7 @@ namespace DesignerSpace
         private int _currentIndex = -1;
         private Vector3 _followTarget;
         private bool _hasFollowTarget;
+        private bool _forceExternalFollowTarget;
         private bool _poseInitialized;
 
         public Camera TargetCamera => ResolveTargetCamera();
@@ -133,8 +134,18 @@ namespace DesignerSpace
         /// </summary>
         public void SetFollowTarget(Vector3 worldPoint)
         {
+            SetFollowTarget(worldPoint, false);
+        }
+
+        /// <summary>
+        /// 设置 rig 跟随的世界跟随点；forceExternal 为 true 时，本帧及后续优先使用外部点，
+        /// 直到再次以 forceExternal=false 设置跟随点。用于摔落等手部磁点不代表角色中心的状态。
+        /// </summary>
+        public void SetFollowTarget(Vector3 worldPoint, bool forceExternal)
+        {
             _followTarget = worldPoint;
             _hasFollowTarget = true;
+            _forceExternalFollowTarget = forceExternal;
         }
 
         public bool TrySwitchToFixedPose(int index)
@@ -204,7 +215,7 @@ namespace DesignerSpace
             if (fixedPointCameraRig == null) return;
 
             // 优先使用双手磁点中点作为跟随点；解析不到磁点时回退到外部设置的跟随点。
-            if (useHandMagnetMidpoint && TryResolveHandMidpoint(out Vector3 midpoint))
+            if (useHandMagnetMidpoint && !_forceExternalFollowTarget && TryResolveHandMidpoint(out Vector3 midpoint))
             {
                 _followTarget = midpoint;
                 _hasFollowTarget = true;

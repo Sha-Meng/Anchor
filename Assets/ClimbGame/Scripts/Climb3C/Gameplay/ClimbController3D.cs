@@ -106,6 +106,7 @@ namespace ClimbGame.Climb3C.Gameplay
         public bool IsFailed => _s != null && _s.IsFailed;
         public RopeForceConsumerDebugSnapshot RopeForceDebug => _ropeForceDebug;
         public PlayerHealthSnapshot HealthSnapshot => ReadHealthSnapshot();
+        public Vector3 CameraFollowTarget => ResolveCameraFollowTarget();
 
         /// <summary>某只手成功抓握锚定时触发，参数为刚锚定的手（相机可据此回到中性机位）。</summary>
         public event System.Action<ClimbHand> HandAnchored;
@@ -684,20 +685,27 @@ namespace ClimbGame.Climb3C.Gameplay
         private void DriveCameraFollow()
         {
             if (_camera == null) return;
-            Vector3 followPos;
+            _camera.SetFollowTarget(ResolveCameraFollowTarget());
+        }
+
+        private Vector3 ResolveCameraFollowTarget()
+        {
+            if (_s == null || _avatar == null)
+            {
+                return Vector3.zero;
+            }
+
             if (_s.State == ClimbState.Falling)
             {
-                followPos = _avatar.TorsoWorldPosition;
+                return _avatar.TorsoWorldPosition;
             }
-            else if (_s.CurrentHand != ClimbHand.None)
+
+            if (_s.CurrentHand != ClimbHand.None)
             {
-                followPos = _avatar.GetHandPosition(_s.CurrentHand.Other());
+                return _avatar.GetHandPosition(_s.CurrentHand.Other());
             }
-            else
-            {
-                followPos = (_avatar.GetHandPosition(ClimbHand.Left) + _avatar.GetHandPosition(ClimbHand.Right)) * 0.5f;
-            }
-            _camera.SetFollowTarget(followPos);
+
+            return (_avatar.GetHandPosition(ClimbHand.Left) + _avatar.GetHandPosition(ClimbHand.Right)) * 0.5f;
         }
 
         public void SetForceSettings(ForceEvaluationSettings settings) => _forceSettings = settings.Sanitized();
