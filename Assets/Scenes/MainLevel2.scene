@@ -4933,11 +4933,11 @@ MonoBehaviour:
   ragdollFall: {fileID: 11400000, guid: 750e5f172818c464d9717f053f4e4198, type: 2}
   cameraConfig: {fileID: 11400000, guid: c8904260bb9f942c08e364b91c169836, type: 2}
   routeRootName: RouteNetwork
-  characterFrontOffset: 0.45
+  characterFrontOffset: 2.35
   startBelowLowest: 0.2
-  useConfiguredStartCenter: 0
-  configuredStartCenter: {x: 0, y: 0, z: 0}
-  configuredStartPointName: 
+  useConfiguredStartCenter: 1
+  configuredStartCenter: {x: -2.29, y: 7.05, z: 1.5466553}
+  configuredStartPointName: HostStartPoint
   primaryStartAnchorName: 
   useNearestStartAnchorPair: 0
   leftHandStartAnchorName: ScatterAnchor_009
@@ -4954,7 +4954,7 @@ MonoBehaviour:
   characterPrefab: {fileID: 0}
   characterPrefabPath: Assets/Thridpart/PolyOne/FreeStickman/Prefabs/MainAcotor_F.prefab
   characterScale: 1
-  initialFlatRotationEuler: {x: 0, y: 0, z: 0}
+  initialFlatRotationEuler: {x: 90, y: 0, z: 0}
   overrideCharacterInitialPosition: 0
   characterInitialPosition: {x: 0, y: 0, z: 0}
   initialPositionOffset: {x: 0, y: 0, z: 0}
@@ -4968,7 +4968,7 @@ MonoBehaviour:
   capsuleCenter: {x: 0, y: 0, z: 0}
   capsuleHeight: 1.6
   capsuleRadius: 0.3
-  bodyWallOffset: 0.4
+  bodyWallOffset: 2.35
   resolveCapsulePenetration: 1
   wallCollisionMask:
     serializedVersion: 2
@@ -6025,7 +6025,7 @@ Transform:
   m_GameObject: {fileID: 600099768}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.3868502, y: 2.79, z: 1.95}
+  m_LocalPosition: {x: -1.3868502, y: 2.79, z: 0.4955603}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -18899,7 +18899,7 @@ Transform:
   m_GameObject: {fileID: 2005310589}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.29, y: 7.05, z: 2.23}
+  m_LocalPosition: {x: -2.29, y: 7.05, z: 1.5466553}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
