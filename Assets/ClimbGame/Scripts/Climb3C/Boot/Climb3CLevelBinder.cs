@@ -373,6 +373,14 @@ namespace ClimbGame.Climb3C.Boot
             var staminaBar = new GameObject("StaminaBarUI").AddComponent<StaminaBarUI>();
             staminaBar.transform.SetParent(canvasGo.transform, false);
             staminaBar.Build(canvas, stamina, cam);
+
+            var healthBar = new GameObject("HealthBarUI").AddComponent<HealthBarUI>();
+            healthBar.transform.SetParent(canvasGo.transform, false);
+            healthBar.Build(canvas);
+
+            var failurePopup = new GameObject("FailurePopupUI").AddComponent<FailurePopupUI>();
+            failurePopup.transform.SetParent(canvasGo.transform, false);
+            failurePopup.Build(canvas);
             staminaBar.SetBreathingAudio(ResolveStaminaLowBreathingClip(), staminaLowBreathingVolume);
 
             // --- 服务 ---
@@ -433,6 +441,7 @@ namespace ClimbGame.Climb3C.Boot
             _controller = controllerGo.AddComponent<ClimbController3D>();
             _controller.Initialize(gameContext, 0, tuning, armRig, stamina, haptic, avatar, input,
                 projector, rivetField, haptics, magnifierComp, staminaBar, startCenter);
+            _controller.ConfigureHealthUi(healthBar, failurePopup);
             _controller.SetFallDependencies(ragdollFall, climbCam);
             _controller.SetGripProvider(anchorRegistry);
             _controller.SetWallProbe(wallProbe);

@@ -35,6 +35,13 @@ namespace ClimbGame.Climb3C.State
         public float Stamina;
         public float MaxStamina = 100f;
 
+        [Header("生命（需同步）")]
+        public float Health = 100f;
+        public float MaxHealth = 100f;
+        public bool IsFailed;
+        public float LastDamage;
+        public string LastDamageReason = string.Empty;
+
         // --- 仅本地使用的瞬态数据，不参与联机同步 ---
         [NonSerialized] public int TrackedFinger;
         [NonSerialized] public float FallStartY;
@@ -49,5 +56,6 @@ namespace ClimbGame.Climb3C.State
         [NonSerialized] public ForceEvaluationMemory ForceMemory;
 
         public float StaminaRatio => MaxStamina > 0f ? Mathf.Clamp01(Stamina / MaxStamina) : 0f;
+        public float HealthRatio => MaxHealth > 0f ? Mathf.Clamp01(Health / MaxHealth) : 0f;
     }
 }

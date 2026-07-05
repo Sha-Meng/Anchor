@@ -71,7 +71,10 @@
         { "name": "leftHandGripId", "type": "string", "required": false },
         { "name": "rightHandGripId", "type": "string", "required": false },
         { "name": "stamina", "type": "number", "required": false },
-        { "name": "isFalling", "type": "boolean", "required": false }
+        { "name": "isFalling", "type": "boolean", "required": false },
+        { "name": "health", "type": "number", "required": false },
+        { "name": "maxHealth", "type": "number", "required": false },
+        { "name": "isFailed", "type": "boolean", "required": false }
       ]
     },
     {
@@ -85,6 +88,51 @@
         { "name": "eventType", "type": "string", "required": true },
         { "name": "actorPlayerId", "type": "string", "required": true },
         { "name": "data", "type": "object", "required": false }
+      ],
+      "eventTypes": [
+        {
+          "eventType": "rivet.place",
+          "displayName": "Rivet Placed",
+          "description": "成功打钉后同步给远端，远端创建已部署铆钉并重算只读绳路。",
+          "dataFields": [
+            { "name": "rivetId", "type": "string", "required": true },
+            { "name": "position", "type": "vector3", "required": true },
+            { "name": "inventoryAfter", "type": "integer", "required": true },
+            { "name": "ropeRevision", "type": "integer", "required": true }
+          ]
+        },
+        {
+          "eventType": "rivet.collect",
+          "displayName": "Rivet Collected",
+          "description": "成功回收已部署铆钉后同步给远端，远端移除铆钉、更新库存并重算只读绳路。",
+          "dataFields": [
+            { "name": "rivetId", "type": "string", "required": true },
+            { "name": "inventoryAfter", "type": "integer", "required": true },
+            { "name": "ropeRevision", "type": "integer", "required": true }
+          ]
+        },
+        {
+          "eventType": "rivet.leadSwitch",
+          "displayName": "Lead Switched",
+          "description": "当前领攀者成功换领后同步给远端，远端交换领攀/后攀身份但不移动玩家库存。",
+          "dataFields": [
+            { "name": "inventoryAfter", "type": "integer", "required": true },
+            { "name": "ropeRevision", "type": "integer", "required": true }
+          ]
+        },
+        {
+          "eventType": "player.failed",
+          "displayName": "Player Failed",
+          "description": "本地权威玩家生命归零后同步给远端，远端立即显示失败或调试反馈。",
+          "dataFields": [
+            { "name": "health", "type": "number", "required": true },
+            { "name": "maxHealth", "type": "number", "required": true },
+            { "name": "damage", "type": "number", "required": true },
+            { "name": "reason", "type": "string", "required": false },
+            { "name": "firstProtectionRivetId", "type": "string", "required": false },
+            { "name": "firstProtectionSegmentLength", "type": "number", "required": false }
+          ]
+        }
       ]
     }
   ],
@@ -92,9 +140,9 @@
     "本文件定义 MainLevel MVP 客户端 game.* payload 示例。",
     "host/房主固定为上方先锋攀登者，guest/非房主固定为下方第二攀登者；该映射不随本地玩家视角变化。",
     "spawnAnchors 配置 MainLevel 的槽位出生点与左右手磁点目标：host 使用 HostStartPoint + ScatterAnchor_007/008，guest 使用 GuestStartPoint + ScatterAnchor_001/002；sceneSpawnAnchors 可为 MainLevel2 等场景覆盖同名槽位配置。",
-    "game.state 是基础攀爬同步主路径，网络层应通过只读状态采样接口生成 climb-player-state.v1 payload。",
+    "game.state 是基础攀爬同步主路径，网络层应通过只读状态采样接口生成 climb-player-state.v1 payload，并包含 health/maxHealth/isFailed 以同步生命状态。",
     "game.event 只用于有明确远端表现、UI 或调试需求的一次性动作。",
-    "插锚、拔锚和收绳事件类型随铆钉绳索系统实现时补充具体 payload。",
+    "生命归零使用 game.event / climb-event.v1 / player.failed 同步，远端按 eventId 去重并立即显示失败反馈。",
     "修改 game.* payload 字段或发送频率不需要重新部署 relay 服务器。",
     "修改 system.* 或 room.* 控制流程可能需要修改服务器。"
   ]

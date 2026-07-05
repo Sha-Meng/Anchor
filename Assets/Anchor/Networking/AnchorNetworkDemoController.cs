@@ -421,10 +421,49 @@ namespace Anchor.Networking
         {
             yield return null;
             _localStateSource = _localClimbBinder != null ? _localClimbBinder.StateSource : null;
+            if (_localClimbBinder != null && _localClimbBinder.Controller != null)
+            {
+                _localClimbBinder.Controller.PlayerFailed -= HandleLocalPlayerFailed;
+                _localClimbBinder.Controller.PlayerFailed += HandleLocalPlayerFailed;
+            }
+
             if (_localStateSource == null)
             {
                 AppendLog("警告: 未找到本地攀爬状态采样接口");
             }
+        }
+
+        private void HandleLocalPlayerFailed(PlayerHealthSnapshot snapshot, RopeFallResolution resolution)
+        {
+            if (!_gameSyncReady || string.IsNullOrEmpty(_roomId) || string.IsNullOrEmpty(_playerId))
+            {
+                return;
+            }
+
+            var eventSeq = ++_seq;
+            var data = "{"
+                + "\"health\":" + snapshot.CurrentHealth.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ","
+                + "\"maxHealth\":" + snapshot.MaxHealth.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ","
+                + "\"damage\":" + snapshot.LastDamage.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ","
+                + AnchorJson.Pair("reason", snapshot.LastDamageReason) + ","
+                + AnchorJson.Pair("firstProtectionRivetId", resolution.FirstProtectionRivetId) + ","
+                + "\"firstProtectionSegmentLength\":" + resolution.FirstProtectionSegmentLength.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+                + "}";
+            var payload = AnchorJson.BuildClimbEventPayload(
+                "player-failed-" + eventSeq.ToString("0000"),
+                RivetRopeEventTypes.PlayerFailed,
+                _playerId,
+                data);
+
+            Send(AnchorJson.BuildEnvelope(
+                "game.event",
+                roomId: _roomId,
+                senderId: _playerId,
+                seq: eventSeq,
+                sentAt: Time.realtimeSinceStartup,
+                schema: "climb-event.v1",
+                payloadJson: payload));
+            AppendLog("发送失败事件: damage=" + snapshot.LastDamage.ToString("0"));
         }
 
         private void UpdateLocalPlayer()
@@ -580,6 +619,9 @@ namespace Anchor.Networking
             var torso = AnchorJson.GetVector3(statePayload, "position", _remoteTarget);
             var left = AnchorJson.GetVector3(statePayload, "leftHandPosition", torso + new Vector3(-0.45f, 0.25f, 0f));
             var right = AnchorJson.GetVector3(statePayload, "rightHandPosition", torso + new Vector3(0.45f, 0.25f, 0f));
+            var maxHealth = AnchorJson.GetFloat(statePayload, "maxHealth", 100f);
+            var health = AnchorJson.GetFloat(statePayload, "health", maxHealth);
+            var isFailed = AnchorJson.GetBool(statePayload, "isFailed");
 
             if (_remoteClimbPlayer == null)
             {
@@ -599,7 +641,7 @@ namespace Anchor.Networking
                 }
             }
 
-            if (_remoteClimbPlayer.TryApplyState(seq, torso, left, right))
+            if (_remoteClimbPlayer.TryApplyState(seq, torso, left, right, health, maxHealth, isFailed))
             {
                 _remoteTarget = torso;
                 if (_logText != null && Time.time >= _nextRemoteDebugLogTime)
@@ -607,7 +649,7 @@ namespace Anchor.Networking
                     _nextRemoteDebugLogTime = Time.time + 1f;
                     var sentAt = AnchorJson.GetFloat(json, "sentAt", Time.realtimeSinceStartup);
                     var latencyMs = Mathf.Max(0f, (Time.realtimeSinceStartup - sentAt) * 1000f);
-                    AppendLog("远端状态: " + senderId + " seq=" + seq + " 延迟≈" + latencyMs.ToString("0") + "ms " + AnchorJson.GetString(statePayload, "movementState"));
+                    AppendLog("远端状态: " + senderId + " seq=" + seq + " 延迟≈" + latencyMs.ToString("0") + "ms " + AnchorJson.GetString(statePayload, "movementState") + " HP=" + health.ToString("0"));
                 }
             }
         }
@@ -618,6 +660,11 @@ namespace Anchor.Networking
             if (!string.IsNullOrEmpty(eventId) && !_handledEventIds.Add(eventId)) return;
 
             var eventType = AnchorJson.GetString(payload, "eventType");
+            if (eventType == RivetRopeEventTypes.PlayerFailed)
+            {
+                _remoteClimbPlayer?.MarkFailed();
+            }
+
             AppendLog("收到 climb-event: " + eventType);
         }
 

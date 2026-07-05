@@ -348,7 +348,7 @@ docs/coop-network-protocol.config.json
 
 ### `game.state`
 
-客户端发送本地角色状态。MainLevel 攀爬同步使用 `climb-player-state.v1`，payload 由本地只读状态采样接口生成；网络层只读取本地主角状态，不修改本地主角输入、受力、耐力或攀爬状态机。
+客户端发送本地角色状态。MainLevel 攀爬同步使用 `climb-player-state.v1`，payload 由本地只读状态采样接口生成；网络层只读取本地主角状态，不修改本地主角输入、受力、耐力、生命或攀爬状态机。
 
 ```json
 {
@@ -367,12 +367,15 @@ docs/coop-network-protocol.config.json
     "leftHandGripId": "hold-03",
     "rightHandGripId": "hold-02",
     "stamina": 0.8,
-    "isFalling": false
+    "isFalling": false,
+    "health": 75,
+    "maxHealth": 100,
+    "isFailed": false
   }
 }
 ```
 
-远端客户端收到 `game.state` 后 MUST 忽略来自自身 `playerId` 的回环消息，按 `senderId` / `playerId` 路由到远端只读攀爬骨架，并丢弃同一远端玩家的旧 `seq` 状态。
+远端客户端收到 `game.state` 后 MUST 忽略来自自身 `playerId` 的回环消息，按 `senderId` / `playerId` 路由到远端只读攀爬骨架，并丢弃同一远端玩家的旧 `seq` 状态。`health`、`maxHealth` 和 `isFailed` 由本地权威玩家计算后同步，远端只用于显示或失败反馈，MUST NOT 重新计算伤害或覆盖本地主角生命。
 
 ### `game.event`
 
@@ -474,6 +477,35 @@ docs/coop-network-protocol.config.json
 
 客户端 UI 只应向当前本地玩家也是模型当前 `LeadPlayerId` 的一端显示换领入口；非领攀者不显示换领按钮。换领成功后，原第二攀登者成为新的领攀者，原领攀者成为新的后攀者，双方各自携带的铆钉数量保持不变。
 
+#### `player.failed`
+
+本地权威玩家生命归零后发送，远端收到后立即显示队友失败或调试反馈。该事件是一次性边沿反馈；最终生命状态仍通过后续 `game.state` 中的 `health` / `isFailed` 保持一致。
+
+```json
+{
+  "type": "game.event",
+  "roomId": "AB12",
+  "seq": 39,
+  "sentAt": 123460.20,
+  "schema": "climb-event.v1",
+  "payload": {
+    "eventId": "player-failed-0039",
+    "eventType": "player.failed",
+    "actorPlayerId": "p_8f3a2c",
+    "data": {
+      "health": 0,
+      "maxHealth": 100,
+      "damage": 35,
+      "reason": "ProtectedByRivet",
+      "firstProtectionRivetId": "rivet-001",
+      "firstProtectionSegmentLength": 7.2
+    }
+  }
+}
+```
+
+远端客户端 MUST 按 `eventId` 去重。服务器只转发该事件，不理解生命、伤害或失败规则。
+
 ## 房间流程
 
 1. 客户端连接 WebSocket。
@@ -507,7 +539,7 @@ docs/coop-network-protocol.config.json
 8. MainLevel 中显示本地可控攀爬角色和远端只读攀爬骨架。
 9. 房主固定使用 HostStartPoint 与 `ScatterAnchor_007/008`，非房主固定使用 GuestStartPoint 与 `ScatterAnchor_001/002`，双方通过 `LeftHandMagnet` / `RightHandMagnet` 完成初始手部吸附。
 10. 本地玩家通过 JSON 配置定义的 `climb-player-state.v1` payload 发送基础状态。
-11. 远端客户端收到并显示对方位置、朝向、攀爬状态、左右手抓点和耐力。
+11. 远端客户端收到并显示对方位置、朝向、攀爬状态、左右手抓点、耐力和生命状态。
 12. 若当前接入了 `climb-event.v1`，触发一个有表现或调试需求的事件，另一端能收到并在 UI、日志或表现中显示。
 
 验收通过条件：
@@ -518,6 +550,7 @@ docs/coop-network-protocol.config.json
 - 两个客户端能进入同一个 MainLevel。
 - 房主在两端都映射为 HostStartPoint 与 `ScatterAnchor_007/008`，非房主在两端都映射为 GuestStartPoint 与 `ScatterAnchor_001/002`。
 - `game.state` 能通过 relay 转发并驱动远端表现。
+- `game.state` 能同步 `health`、`maxHealth` 和 `isFailed`，生命归零时 `player.failed` 事件能通过 relay 转发并被远端去重处理。
 - 如实现接入 `game.event`，至少一个 `climb-event.v1` 能通过 JSON 配置定义并完成端到端收发与去重。
 
 ## 服务器部署指引

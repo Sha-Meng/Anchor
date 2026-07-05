@@ -363,6 +363,22 @@ namespace Anchor.RivetRopeSystem.Tests
             Assert.IsTrue(protectedFall.IsProtected);
             Assert.Less(protectedFall.SuggestedDamage, unprotected.SuggestedDamage);
             Assert.AreEqual("rivet-001", protectedFall.ProtectionRivetId);
+            Assert.AreEqual("rivet-001", protectedFall.FirstProtectionRivetId);
+            Assert.AreEqual(5f, protectedFall.FirstProtectionSegmentLength, 0.001f);
+        }
+
+        [Test]
+        public void ResolveFall_FirstProtectionSegmentLengthIncreasesDamage()
+        {
+            PlaceLeadRivet(new Vector3(0f, 5f, 0f));
+
+            var shortSegment = _model.ResolveFall("lead", Vector3.zero, new Vector3(0f, 8f, 0f), 0f);
+            var longSegment = _model.ResolveFall("lead", Vector3.zero, new Vector3(0f, 12f, 0f), 0f);
+
+            Assert.AreEqual("rivet-001", shortSegment.FirstProtectionRivetId);
+            Assert.AreEqual("rivet-001", longSegment.FirstProtectionRivetId);
+            Assert.Greater(longSegment.FirstProtectionSegmentLength, shortSegment.FirstProtectionSegmentLength);
+            Assert.GreaterOrEqual(longSegment.SuggestedDamage, shortSegment.SuggestedDamage);
         }
 
         [Test]

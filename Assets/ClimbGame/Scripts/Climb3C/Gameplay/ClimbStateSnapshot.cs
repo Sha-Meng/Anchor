@@ -15,6 +15,9 @@ namespace ClimbGame.Climb3C.Gameplay
         public int RightRivetId;
         public float StaminaRatio;
         public bool IsFalling;
+        public float Health;
+        public float MaxHealth;
+        public bool IsFailed;
     }
 
     public interface IClimbStateSource

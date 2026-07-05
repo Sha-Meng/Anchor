@@ -89,6 +89,12 @@ namespace Anchor.RivetRopeSystem
             ResolveSinks();
         }
 
+        public void SetDamageSinkSource(MonoBehaviour source)
+        {
+            damageSinkSource = source;
+            ResolveSinks();
+        }
+
         public RivetOperationResult DebugPlaceLeadRivet(Vector3 position, bool validSurface = true)
         {
             var result = _model.TryPlaceRivet(new RivetPlaceRequest
@@ -184,13 +190,18 @@ namespace Anchor.RivetRopeSystem
         {
             var lower = lowerAttachPoint != null ? lowerAttachPoint.position : Vector3.zero;
             var upper = upperAttachPoint != null ? upperAttachPoint.position : Vector3.up * 8f;
-            _lastFall = _model.ResolveFall(leadPlayerId, lower, upper);
+            return ResolveFall(leadPlayerId, lower, upper);
+        }
+
+        public RopeFallResolution ResolveFall(string fallingPlayerId, Vector3 lower, Vector3 falling)
+        {
+            _lastFall = _model.ResolveFall(fallingPlayerId, lower, falling);
 
             if (logOperations)
             {
                 Debug.Log(
                     $"Rivet rope fall: protected={_lastFall.IsProtected}, rivet={_lastFall.ProtectionRivetId}, " +
-                    $"distance={_lastFall.EstimatedFreeFallDistance:0.00}, damage={_lastFall.SuggestedDamage:0.0}",
+                    $"segment={_lastFall.FirstProtectionSegmentLength:0.00}, distance={_lastFall.EstimatedFreeFallDistance:0.00}, damage={_lastFall.SuggestedDamage:0.0}",
                     this);
             }
 

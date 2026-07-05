@@ -44,7 +44,7 @@ namespace ClimbGame.Climb3C.Gameplay
     /// 所有运行时数据读写集中在 <see cref="GameContext"/> 的 <see cref="ClimberRuntimeState"/> 上
     /// （便于后续联机同步）。左右手交替攀爬状态机、双手中点重心、耐力与布娃娃摔落。
     /// </summary>
-    public sealed class ClimbController3D : MonoBehaviour, IClimbStateSource
+    public sealed class ClimbController3D : MonoBehaviour, IClimbStateSource, IRivetRopeDamageSink, IPlayerHealthStateSource
     {
         private ClimbTuningConfig _tuning;
         private ArmRigConfig _rig;
@@ -60,8 +60,11 @@ namespace ClimbGame.Climb3C.Gameplay
         private HapticService _haptics;
         private HandMagnifier _magnifier;
         private StaminaBarUI _staminaBar;
+        private HealthBarUI _healthBar;
+        private FailurePopupUI _failurePopup;
         private ClimbCamera _camera;
         private ClimbCameraConfig _cameraConfig;
+        private PlayerHealthController _health;
         private IGripQueryProvider _gripProvider;
         private WallDepthProbe _wallProbe;
         private CapsuleWallResolver _wallResolver;
@@ -100,13 +103,17 @@ namespace ClimbGame.Climb3C.Gameplay
         public ClimbState State => _s != null ? _s.State : ClimbState.WaitingForPress;
         public ClimbHand CurrentHand => _s != null ? _s.CurrentHand : ClimbHand.None;
         public Vector3 TorsoCenter => _s != null ? _s.TorsoCenter : Vector3.zero;
+        public bool IsFailed => _s != null && _s.IsFailed;
         public RopeForceConsumerDebugSnapshot RopeForceDebug => _ropeForceDebug;
+        public PlayerHealthSnapshot HealthSnapshot => ReadHealthSnapshot();
 
         /// <summary>某只手成功抓握锚定时触发，参数为刚锚定的手（相机可据此回到中性机位）。</summary>
         public event System.Action<ClimbHand> HandAnchored;
 
         /// <summary>手指按下开始伸手（touch 脱离锚点）时触发，参数为伸出/脱离的手。</summary>
         public event System.Action<ClimbHand> HandReachStarted;
+
+        public event System.Action<PlayerHealthSnapshot, RopeFallResolution> PlayerFailed;
 
         private void OnEnable()
         {
@@ -146,7 +153,10 @@ namespace ClimbGame.Climb3C.Gameplay
                 LeftRivetId = _s.LeftRivetId,
                 RightRivetId = _s.RightRivetId,
                 StaminaRatio = _s.StaminaRatio,
-                IsFalling = _s.State == ClimbState.Falling
+                IsFalling = _s.State == ClimbState.Falling,
+                Health = _s.Health,
+                MaxHealth = _s.MaxHealth,
+                IsFailed = _s.IsFailed
             };
             return true;
         }
@@ -176,6 +186,10 @@ namespace ClimbGame.Climb3C.Gameplay
             _stamina = new ClimbStamina(staminaCfg, _s);
             ApplyLevelGlobalStaminaConfig(true);
             TrySubscribeControllerMgr();
+            _health = new PlayerHealthController(ReadHealthSnapshot, WriteHealthSnapshot);
+            _health.HealthChanged += RefreshHealthUi;
+            _health.PlayerFailed += HandlePlayerFailed;
+            _health.Reset(playerId.ToString(), PlayerHealthSettings.CreateDefault());
             _s.ForceMemory = ForceEvaluationMemory.CreateDefault();
             _forceInputAdapter.Configure(_s);
             _consumeRopeForceFeedback = false;
@@ -256,6 +270,14 @@ namespace ClimbGame.Climb3C.Gameplay
             ApplyLevelGlobalStaminaConfig(false);
             float dt = Time.deltaTime;
             _showMagnifier = false;
+
+            if (_s.IsFailed)
+            {
+                _magnifier.Hide();
+                if (_staminaBar != null) _staminaBar.SetVisible(false);
+                DriveCameraFollow();
+                return;
+            }
 
             if (_s.State == ClimbState.Falling)
             {
@@ -424,6 +446,13 @@ namespace ClimbGame.Climb3C.Gameplay
         }
 
         public void SetGripMagnetZOffset(float offset) => _gripMagnetZOffset = offset;
+
+        public void ConfigureHealthUi(HealthBarUI healthBar, FailurePopupUI failurePopup)
+        {
+            _healthBar = healthBar;
+            _failurePopup = failurePopup;
+            RefreshHealthUi(ReadHealthSnapshot());
+        }
 
         public void SetRopeForceFeedbackEnabled(bool enabled)
         {
@@ -730,6 +759,11 @@ namespace ClimbGame.Climb3C.Gameplay
 
         private void BeginFall()
         {
+            if (_s.IsFailed)
+            {
+                return;
+            }
+
             _magnifier.Hide();
             _haptics.ClearProximity();
             _s.State = ClimbState.Falling;
@@ -764,6 +798,11 @@ namespace ClimbGame.Climb3C.Gameplay
 
         private void Land(float torsoY)
         {
+            if (_s.IsFailed)
+            {
+                return;
+            }
+
             Vector3 landCenter = new Vector3(_s.TorsoCenter.x, torsoY, _climbZ);
             bool snap = _fallConfig == null || _fallConfig.snapToNearestRivetOnLand;
             if (snap)
@@ -796,6 +835,64 @@ namespace ClimbGame.Climb3C.Gameplay
             if (_camera != null) _camera.SetFalling(false);
             _ropeFallCaught = false;
             _ropeFallReboundTriggered = false;
+        }
+
+        public void OnRivetRopeFallResolved(RopeFallResolution resolution)
+        {
+            if (_health == null || _s == null || _s.IsFailed)
+            {
+                return;
+            }
+
+            _health.ApplyFallDamage(resolution);
+        }
+
+        private PlayerHealthSnapshot ReadHealthSnapshot()
+        {
+            if (_s == null)
+            {
+                return default;
+            }
+
+            return new PlayerHealthSnapshot
+            {
+                PlayerId = _s.PlayerId.ToString(),
+                CurrentHealth = _s.Health,
+                MaxHealth = _s.MaxHealth,
+                IsFailed = _s.IsFailed,
+                LastDamage = _s.LastDamage,
+                LastDamageReason = _s.LastDamageReason
+            };
+        }
+
+        private void WriteHealthSnapshot(PlayerHealthSnapshot snapshot)
+        {
+            if (_s == null)
+            {
+                return;
+            }
+
+            _s.Health = Mathf.Clamp(snapshot.CurrentHealth, 0f, Mathf.Max(1f, snapshot.MaxHealth));
+            _s.MaxHealth = Mathf.Max(1f, snapshot.MaxHealth);
+            _s.IsFailed = snapshot.IsFailed;
+            _s.LastDamage = Mathf.Max(0f, snapshot.LastDamage);
+            _s.LastDamageReason = snapshot.LastDamageReason ?? string.Empty;
+        }
+
+        private void RefreshHealthUi(PlayerHealthSnapshot snapshot)
+        {
+            if (_healthBar != null)
+            {
+                _healthBar.Refresh(snapshot);
+            }
+        }
+
+        private void HandlePlayerFailed(PlayerHealthSnapshot snapshot, RopeFallResolution resolution)
+        {
+            _failurePopup?.Show($"伤害 {snapshot.LastDamage:0} / {snapshot.LastDamageReason}");
+            if (_staminaBar != null) _staminaBar.SetVisible(false);
+            _magnifier.Hide();
+            PlayerFailed?.Invoke(snapshot, resolution);
         }
 
         private void ApplyRopeFallFeedback(float dt)

@@ -55,7 +55,10 @@ namespace Anchor.Networking
                 + "\"leftHandPosition\":" + BuildVector3(snapshot.LeftHandPosition) + ","
                 + "\"rightHandPosition\":" + BuildVector3(snapshot.RightHandPosition) + ","
                 + "\"stamina\":" + snapshot.StaminaRatio.ToString("0.###", CultureInfo.InvariantCulture) + ","
-                + "\"isFalling\":" + (snapshot.IsFalling ? "true" : "false")
+                + "\"isFalling\":" + (snapshot.IsFalling ? "true" : "false") + ","
+                + "\"health\":" + snapshot.Health.ToString("0.###", CultureInfo.InvariantCulture) + ","
+                + "\"maxHealth\":" + snapshot.MaxHealth.ToString("0.###", CultureInfo.InvariantCulture) + ","
+                + "\"isFailed\":" + (snapshot.IsFailed ? "true" : "false")
                 + "}";
         }
 

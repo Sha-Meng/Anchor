@@ -50,6 +50,7 @@ namespace Anchor.RivetRopeSystem
         private Component _climbController;
         private PropertyInfo _torsoCenterProperty;
         private PropertyInfo _stateProperty;
+        private PropertyInfo _isFailedProperty;
         private FieldInfo _avatarField;
         private object _climberAvatar;
         private Transform _localAttachBone;
@@ -60,6 +61,8 @@ namespace Anchor.RivetRopeSystem
         private bool _wasFalling;
         private Vector3 _fallbackLowerAnchor;
         private bool _hasFallbackLowerAnchor;
+        private int _activeFallId;
+        private int _lastResolvedFallId;
         private AudioSource _audioSource;
 
         public bool IsBound => _climbController != null;
@@ -274,9 +277,15 @@ namespace Anchor.RivetRopeSystem
 
             _torsoCenterProperty = _climbController.GetType().GetProperty("TorsoCenter", BindingFlags.Instance | BindingFlags.Public);
             _stateProperty = _climbController.GetType().GetProperty("State", BindingFlags.Instance | BindingFlags.Public);
+            _isFailedProperty = _climbController.GetType().GetProperty("IsFailed", BindingFlags.Instance | BindingFlags.Public);
             _avatarField = _climbController.GetType().GetField("_avatar", BindingFlags.Instance | BindingFlags.NonPublic);
             _climberAvatar = _avatarField != null ? _avatarField.GetValue(_climbController) : null;
             _localAttachBone = ResolveAttachBone(_climberAvatar, localAttachBone);
+
+            if (driver != null && _climbController is MonoBehaviour damageSink)
+            {
+                driver.SetDamageSinkSource(damageSink);
+            }
 
             if (logBinding)
             {
@@ -377,7 +386,7 @@ namespace Anchor.RivetRopeSystem
 
             var stateValue = _stateProperty.GetValue(_climbController, null);
             var state = Convert.ToString(stateValue);
-            return string.Equals(state, "WaitingForPress", StringComparison.Ordinal);
+            return string.Equals(state, "WaitingForPress", StringComparison.Ordinal) && !IsFailed();
         }
 
         private bool IsFalling()
@@ -389,6 +398,17 @@ namespace Anchor.RivetRopeSystem
 
             var stateValue = _stateProperty.GetValue(_climbController, null);
             return string.Equals(Convert.ToString(stateValue), "Falling", StringComparison.Ordinal);
+        }
+
+        private bool IsFailed()
+        {
+            if (_isFailedProperty == null || _climbController == null)
+            {
+                return false;
+            }
+
+            var value = _isFailedProperty.GetValue(_climbController, null);
+            return value is bool failed && failed;
         }
 
         private bool TryGetFallbackFallAnchor(out Vector3 anchor)
@@ -527,7 +547,7 @@ namespace Anchor.RivetRopeSystem
 
         private void UpdateFallRescueState()
         {
-            if (!autoStartRescueOnFalling || driver == null || _stateProperty == null)
+            if (driver == null || _stateProperty == null)
             {
                 return;
             }
@@ -536,8 +556,16 @@ namespace Anchor.RivetRopeSystem
             var isFalling = string.Equals(Convert.ToString(stateValue), "Falling", StringComparison.Ordinal);
             if (isFalling && !_wasFalling)
             {
-                driver.StartRescueWindow();
-                driver.DebugResolveLeadFall();
+                _activeFallId++;
+                if (autoStartRescueOnFalling)
+                {
+                    driver.StartRescueWindow();
+                }
+            }
+            else if (!isFalling && _wasFalling && _activeFallId != _lastResolvedFallId)
+            {
+                _lastResolvedFallId = _activeFallId;
+                driver.ResolveFall(LocalPlayerId, LowerWaistPosition, UpperWaistPosition);
             }
 
             _wasFalling = isFalling;

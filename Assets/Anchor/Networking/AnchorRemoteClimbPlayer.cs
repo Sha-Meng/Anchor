@@ -19,6 +19,9 @@ namespace Anchor.Networking
         public Transform Root => _root;
         public int LastSeq => _lastSeq;
         public bool IsPeerLeft { get; private set; }
+        public float Health { get; private set; } = 100f;
+        public float MaxHealth { get; private set; } = 100f;
+        public bool IsFailed { get; private set; }
 
         public AnchorRemoteClimbPlayer(string name, Vector3 torso, Vector3 leftHand, Vector3 rightHand, Color bodyColor, Color handColor)
         {
@@ -36,7 +39,7 @@ namespace Anchor.Networking
             ApplyTargets(torso, leftHand, rightHand, true);
         }
 
-        public bool TryApplyState(int seq, Vector3 torso, Vector3 leftHand, Vector3 rightHand)
+        public bool TryApplyState(int seq, Vector3 torso, Vector3 leftHand, Vector3 rightHand, float health, float maxHealth, bool isFailed)
         {
             if (seq <= _lastSeq) return false;
 
@@ -44,9 +47,23 @@ namespace Anchor.Networking
             _targetTorso = torso;
             _targetLeftHand = leftHand;
             _targetRightHand = rightHand;
+            MaxHealth = Mathf.Max(1f, maxHealth);
+            Health = Mathf.Clamp(health, 0f, MaxHealth);
+            IsFailed = isFailed;
             _hasTarget = true;
             IsPeerLeft = false;
+            if (isFailed)
+            {
+                SetTint(new Color(0.45f, 0.1f, 0.1f, 0.85f));
+            }
             return true;
+        }
+
+        public void MarkFailed()
+        {
+            IsFailed = true;
+            Health = 0f;
+            SetTint(new Color(0.45f, 0.1f, 0.1f, 0.85f));
         }
 
         public void Update(float deltaTime)

@@ -9,6 +9,7 @@ namespace Anchor.RivetRopeSystem
         public const string RivetPlace = "rivet.place";
         public const string RivetCollect = "rivet.collect";
         public const string LeadSwitch = "rivet.leadSwitch";
+        public const string PlayerFailed = "player.failed";
     }
 
     public enum RivetRopeFailureReason
@@ -387,6 +388,8 @@ namespace Anchor.RivetRopeSystem
         public string FallingPlayerId;
         public RivetFallProtectionState ProtectionState;
         public string ProtectionRivetId;
+        public string FirstProtectionRivetId;
+        public float FirstProtectionSegmentLength;
         public bool RopeTaut;
         public float EstimatedFreeFallDistance;
         public float RescuePullAmount;
@@ -790,6 +793,8 @@ namespace Anchor.RivetRopeSystem
                     fallingPlayerId,
                     RivetFallProtectionState.Unprotected,
                     string.Empty,
+                    string.Empty,
+                    0f,
                     false,
                     unprotectedDistance,
                     rescuePull,
@@ -800,13 +805,15 @@ namespace Anchor.RivetRopeSystem
             var lowerToProtection = CalculatePathLengthToProtection(lowerAttachPoint, protection.RivetId);
             var protectionToFalling = Vector3.Distance(protection.Position, fallingAttachPoint);
             var availableLength = Mathf.Max(0f, _settings.TotalRopeLength - lowerToProtection - rescuePull);
-            var estimatedFreeFall = Mathf.Max(0f, availableLength - protectionToFalling);
+            var estimatedFreeFall = Mathf.Max(0f, protectionToFalling - rescuePull);
             var isTaut = availableLength <= protectionToFalling;
 
             return BuildFallResolution(
                 fallingPlayerId,
                 RivetFallProtectionState.Protected,
                 protection.RivetId,
+                protection.RivetId,
+                protectionToFalling,
                 isTaut,
                 estimatedFreeFall,
                 rescuePull,
@@ -914,6 +921,8 @@ namespace Anchor.RivetRopeSystem
             string fallingPlayerId,
             RivetFallProtectionState protectionState,
             string protectionRivetId,
+            string firstProtectionRivetId,
+            float firstProtectionSegmentLength,
             bool ropeTaut,
             float freeFallDistance,
             float rescuePull,
@@ -930,6 +939,8 @@ namespace Anchor.RivetRopeSystem
                 FallingPlayerId = fallingPlayerId,
                 ProtectionState = protectionState,
                 ProtectionRivetId = protectionRivetId,
+                FirstProtectionRivetId = firstProtectionRivetId,
+                FirstProtectionSegmentLength = Mathf.Max(0f, firstProtectionSegmentLength),
                 RopeTaut = ropeTaut,
                 EstimatedFreeFallDistance = freeFallDistance,
                 RescuePullAmount = rescuePull,
