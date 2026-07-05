@@ -34,6 +34,7 @@ namespace ClimbGame.Climb3C.Character
         private Quaternion _headBindLocal;
         private Vector3 _headLookDir = Vector3.forward;
         private Quaternion _facing = Quaternion.identity;
+        private readonly Vector3 _initialEuler;
         private bool _ragdoll;
 
         public Transform Root => _root;
@@ -44,6 +45,12 @@ namespace ClimbGame.Climb3C.Character
 
         public PrefabClimberAvatar(GameObject prefab, ArmRigConfig rig, RagdollFallConfig fall,
             float scale, Vector3 capsuleCenter, float capsuleHeight, float capsuleRadius)
+            : this(prefab, rig, fall, scale, capsuleCenter, capsuleHeight, capsuleRadius, Vector3.zero)
+        {
+        }
+
+        public PrefabClimberAvatar(GameObject prefab, ArmRigConfig rig, RagdollFallConfig fall,
+            float scale, Vector3 capsuleCenter, float capsuleHeight, float capsuleRadius, Vector3 initialEuler)
         {
             _prefab = prefab;
             _rig = rig;
@@ -52,6 +59,7 @@ namespace ClimbGame.Climb3C.Character
             _capsuleCenter = capsuleCenter;
             _capsuleHeight = capsuleHeight;
             _capsuleRadius = capsuleRadius;
+            _initialEuler = initialEuler;
         }
 
         public void Build(Transform parent, Vector3 center, Material bodyMat, Material handMat)
@@ -61,7 +69,7 @@ namespace ClimbGame.Climb3C.Character
             _root = go.transform;
             _root.SetParent(parent, false);
             _root.localScale = Vector3.one * _scale;
-            _facing = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+            _facing = Quaternion.Euler(_initialEuler);
             _root.SetPositionAndRotation(center, _facing);
 
             // 攀爬时用程序化 IK 驱动骨骼：禁用 Animator（不让动画覆盖 IK）与 RA2（其 Standing 模式会捕获

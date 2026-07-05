@@ -8,7 +8,7 @@ namespace Anchor.Networking
 {
     public sealed class AnchorRemoteClimbPlayer
     {
-        private readonly ClimbCharacter _avatar;
+        private readonly IClimberAvatar _avatar;
         private readonly Transform _root;
         private Vector3 _targetTorso;
         private Vector3 _targetLeftHand;
@@ -24,17 +24,50 @@ namespace Anchor.Networking
         public bool IsFailed { get; private set; }
 
         public AnchorRemoteClimbPlayer(string name, Vector3 torso, Vector3 leftHand, Vector3 rightHand, Color bodyColor, Color handColor)
+            : this(name, torso, leftHand, rightHand, bodyColor, handColor, null, Vector3.zero, 1f, Vector3.zero, 1.6f, 0.3f)
+        {
+        }
+
+        public AnchorRemoteClimbPlayer(
+            string name,
+            Vector3 torso,
+            Vector3 leftHand,
+            Vector3 rightHand,
+            Color bodyColor,
+            Color handColor,
+            GameObject characterSource,
+            Vector3 initialEuler,
+            float characterScale,
+            Vector3 capsuleCenter,
+            float capsuleHeight,
+            float capsuleRadius)
         {
             var armRig = ScriptableObject.CreateInstance<ArmRigConfig>();
             var fall = ScriptableObject.CreateInstance<RagdollFallConfig>();
-            var shader = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse");
-            var bodyMat = new Material(shader) { color = bodyColor };
-            var handMat = new Material(shader) { color = handColor };
 
-            _avatar = new ClimbCharacter(armRig, fall);
-            _avatar.Build(null, torso, bodyMat, handMat);
-            _root = _avatar.Root;
-            _root.name = name;
+            Transform avatarRoot;
+            if (characterSource != null)
+            {
+                var avatar = new PrefabClimberAvatar(characterSource, armRig, fall, characterScale, capsuleCenter, capsuleHeight, capsuleRadius, initialEuler);
+                avatar.Build(null, torso, null, null);
+                _avatar = avatar;
+                avatarRoot = avatar.Root;
+                DisableRemoteBehaviours(avatarRoot);
+            }
+            else
+            {
+                var shader = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse");
+                var bodyMat = new Material(shader) { color = bodyColor };
+                var handMat = new Material(shader) { color = handColor };
+                var avatar = new ClimbCharacter(armRig, fall);
+                avatar.Build(null, torso, bodyMat, handMat);
+                _avatar = avatar;
+                avatarRoot = avatar.Root;
+            }
+
+            _root = avatarRoot;
+            if (_root != null) _root.name = name;
+            SetTint(bodyColor, handColor);
 
             ApplyTargets(torso, leftHand, rightHand, true);
         }
@@ -70,7 +103,7 @@ namespace Anchor.Networking
         {
             if (!_hasTarget || IsPeerLeft) return;
 
-            var current = _avatar.TorsoCenter;
+            var current = _avatar.TorsoWorldPosition;
             var t = 1f - Mathf.Exp(-12f * deltaTime);
             var torso = Vector3.Lerp(current, _targetTorso, t);
             var left = Vector3.Lerp(_avatar.GetHandPosition(ClimbHand.Left), _targetLeftHand, t);
@@ -96,15 +129,49 @@ namespace Anchor.Networking
             _avatar.DriveArm(ClimbHand.Right, rightHand, true);
         }
 
-        private void SetTint(Color color)
+        private static void DisableRemoteBehaviours(Transform root)
+        {
+            if (root == null) return;
+
+            var behaviours = root.GetComponentsInChildren<MonoBehaviour>(true);
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                if (behaviours[i] != null)
+                {
+                    behaviours[i].enabled = false;
+                }
+            }
+        }
+
+        private void SetTint(Color bodyColor, Color handColor)
         {
             if (_root == null) return;
 
             var renderers = _root.GetComponentsInChildren<Renderer>();
             for (int i = 0; i < renderers.Length; i++)
             {
-                renderers[i].material.color = color;
+                renderers[i].material.color = IsUnderHand(renderers[i].transform) ? handColor : bodyColor;
             }
+        }
+
+        private void SetTint(Color color)
+        {
+            SetTint(color, color);
+        }
+
+        private bool IsUnderHand(Transform transform)
+        {
+            while (transform != null && transform != _root)
+            {
+                if (transform.name.IndexOf("Hand", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+
+                transform = transform.parent;
+            }
+
+            return false;
         }
     }
 }
