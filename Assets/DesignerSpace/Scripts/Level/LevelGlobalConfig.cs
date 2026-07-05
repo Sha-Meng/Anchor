@@ -3,7 +3,7 @@ using UnityEngine;
 namespace DesignerSpace
 {
     /// <summary>
-    /// 关卡运行模式。Debug 用于开发期把内部信息（如撒点半径）显示到 Game 视图，Release 仅保留起始引导点。
+    /// 关卡运行模式。Debug 用于开发期把内部信息（如撒点半径）显示到 Game 视图，Release 保留起始引导点与后续淡化散点。
     /// </summary>
     public enum LevelRunMode
     {
@@ -21,7 +21,7 @@ namespace DesignerSpace
     public class LevelGlobalConfig : ScriptableObject
     {
         [Header("运行模式")]
-        [Tooltip("Debug：在 Game 视图显示撒点位置与核心/最大半径；Release：只显示起始引导点")]
+        [Tooltip("Debug：在 Game 视图显示撒点位置与核心/最大半径；Release：显示起始引导点与后续淡化散点")]
         public LevelRunMode runMode = LevelRunMode.Release;
 
         [Header("攀爬体力")]
