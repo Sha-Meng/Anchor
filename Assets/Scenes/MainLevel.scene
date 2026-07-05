@@ -7280,9 +7280,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   driver: {fileID: 1117413495}
   binder: {fileID: 1117413491}
-  panelAnchor: {x: 1, y: 0}
-  panelPivot: {x: 1, y: 0}
-  panelOffset: {x: -32, y: 220}
+  panelAnchor: {x: 1, y: 0.5}
+  panelPivot: {x: 1, y: 0.5}
+  panelOffset: {x: -32, y: 0}
   showStatus: 1
 --- !u!114 &1117413491
 MonoBehaviour:

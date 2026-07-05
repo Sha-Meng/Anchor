@@ -194,7 +194,9 @@ namespace Anchor.RivetRopeSystem.Editor
             var serialized = new SerializedObject(ui);
             serialized.FindProperty("driver").objectReferenceValue = driver;
             serialized.FindProperty("binder").objectReferenceValue = binder;
-            serialized.FindProperty("panelOffset").vector2Value = new Vector2(-32f, 220f);
+            serialized.FindProperty("panelAnchor").vector2Value = new Vector2(1f, 0.5f);
+            serialized.FindProperty("panelPivot").vector2Value = new Vector2(1f, 0.5f);
+            serialized.FindProperty("panelOffset").vector2Value = new Vector2(-32f, 0f);
             serialized.FindProperty("showStatus").boolValue = true;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }

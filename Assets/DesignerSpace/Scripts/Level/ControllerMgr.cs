@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace DesignerSpace
 {
@@ -90,6 +91,10 @@ namespace DesignerSpace
         [Tooltip("是否命中触发器（Trigger）碰撞体")]
         [SerializeField] private QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Ignore;
 
+        [Header("UI 输入互斥")]
+        [Tooltip("开启后，指针从 UI 上按下时不会触发场景射线点击，直到该指针松开")]
+        [SerializeField] private bool ignoreUiPointerInput = true;
+
         [Header("音效")]
         [Tooltip("任意小球处于 Hook 中时循环播放的摸索音效")]
         [SerializeField] private AudioClip hookLoopClip;
@@ -112,6 +117,8 @@ namespace DesignerSpace
         private readonly RaycastHit[] _hitBuffer = new RaycastHit[32];
 
         private readonly List<PointerSample> _pointerSamples = new List<PointerSample>(8);
+        private readonly HashSet<int> _uiCapturedPointerIds = new HashSet<int>();
+        private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>();
 
         private Transform _ballA;
         private Transform _ballB;
@@ -120,6 +127,8 @@ namespace DesignerSpace
         private AudioSource _hookLoopSource;
         private AnchorPoint[] _anchorPoints = Array.Empty<AnchorPoint>();
         private bool _hookHapticsActive;
+        private bool _mouseStartedOverUi;
+        private PointerEventData _uiPointerData;
 
         /// <summary>A 球 Transform，其他系统可读取其位置作为左手跟随目标。</summary>
         public Transform BallA => _ballA;
@@ -661,29 +670,102 @@ namespace DesignerSpace
                 for (int i = 0; i < Input.touchCount; i++)
                 {
                     Touch touch = Input.GetTouch(i);
-                    results.Add(new PointerSample(touch.fingerId, touch.position, ConvertTouchPhase(touch.phase)));
+                    PointerPhase phase = ConvertTouchPhase(touch.phase);
+                    if (touch.phase == TouchPhase.Began)
+                    {
+                        if (IsPointerOverUi(touch.position, touch.fingerId))
+                        {
+                            _uiCapturedPointerIds.Add(touch.fingerId);
+                        }
+                        else
+                        {
+                            _uiCapturedPointerIds.Remove(touch.fingerId);
+                        }
+                    }
+
+                    if (_uiCapturedPointerIds.Contains(touch.fingerId))
+                    {
+                        if (phase == PointerPhase.Ended)
+                        {
+                            _uiCapturedPointerIds.Remove(touch.fingerId);
+                        }
+
+                        continue;
+                    }
+
+                    results.Add(new PointerSample(touch.fingerId, touch.position, phase));
                 }
 
                 return;
             }
 
             const int MousePointerId = -1;
+            bool mouseDown = Input.GetMouseButton(0);
+            bool mouseBegan = Input.GetMouseButtonDown(0);
+            bool mouseEnded = Input.GetMouseButtonUp(0);
+            Vector2 mousePosition = Input.mousePosition;
+            if (!mouseDown && !mouseBegan && !mouseEnded)
+            {
+                _mouseStartedOverUi = false;
+            }
+
+            if (mouseBegan)
+            {
+                _mouseStartedOverUi = IsPointerOverUi(mousePosition, MousePointerId);
+            }
+
+            if (_mouseStartedOverUi)
+            {
+                if (mouseEnded)
+                {
+                    _mouseStartedOverUi = false;
+                }
+
+                return;
+            }
+
             if (Input.GetMouseButtonDown(0))
             {
-                results.Add(new PointerSample(MousePointerId, Input.mousePosition, PointerPhase.Began));
+                results.Add(new PointerSample(MousePointerId, mousePosition, PointerPhase.Began));
                 return;
             }
 
             if (Input.GetMouseButton(0))
             {
-                results.Add(new PointerSample(MousePointerId, Input.mousePosition, PointerPhase.Moved));
+                results.Add(new PointerSample(MousePointerId, mousePosition, PointerPhase.Moved));
                 return;
             }
 
             if (Input.GetMouseButtonUp(0))
             {
-                results.Add(new PointerSample(MousePointerId, Input.mousePosition, PointerPhase.Ended));
+                results.Add(new PointerSample(MousePointerId, mousePosition, PointerPhase.Ended));
             }
+        }
+
+        private bool IsPointerOverUi(Vector2 screenPosition, int pointerId)
+        {
+            if (!ignoreUiPointerInput || EventSystem.current == null)
+            {
+                return false;
+            }
+
+            return EventSystem.current.IsPointerOverGameObject(pointerId) ||
+                RaycastUiAt(screenPosition, pointerId);
+        }
+
+        private bool RaycastUiAt(Vector2 screenPosition, int pointerId)
+        {
+            if (_uiPointerData == null)
+            {
+                _uiPointerData = new PointerEventData(EventSystem.current);
+            }
+
+            _uiPointerData.Reset();
+            _uiPointerData.pointerId = pointerId;
+            _uiPointerData.position = screenPosition;
+            _uiRaycastResults.Clear();
+            EventSystem.current.RaycastAll(_uiPointerData, _uiRaycastResults);
+            return _uiRaycastResults.Count > 0;
         }
 
         private PointerPhase ConvertTouchPhase(TouchPhase phase)

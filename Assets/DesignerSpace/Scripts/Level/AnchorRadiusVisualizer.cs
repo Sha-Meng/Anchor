@@ -8,6 +8,7 @@ namespace DesignerSpace
     /// Gizmos 只在 Scene 视图/编辑器可见，无法满足"在 Game 显示"的需求；这里改用 <see cref="LineRenderer"/>
     /// 在锚点所在墙面的切平面内生成两个圆环（核心/最大）以及一个中心点，运行态与打包后都可见。
     /// 通常由 <see cref="RouteNetwork"/> 在 Debug 模式下按需挂载并调用 <see cref="Configure"/>。
+    /// Release 引导点可调用 <see cref="ConfigureCenterOnly"/> 只显示中心点。
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(AnchorPoint))]
@@ -23,6 +24,7 @@ namespace DesignerSpace
         private Color _centerColor = Color.white;
         private int _segments = 48;
         private float _lineWidth = 0.03f;
+        private bool _showRadiusRings = true;
 
         private Material _ringMaterial;
 
@@ -36,6 +38,23 @@ namespace DesignerSpace
             _centerColor = centerColor;
             _segments = Mathf.Max(8, segments);
             _lineWidth = Mathf.Max(0.001f, lineWidth);
+            _showRadiusRings = true;
+            SetLineActive(CoreRingName, true);
+            SetLineActive(MaxRingName, true);
+            Rebuild();
+        }
+
+        /// <summary>
+        /// 只显示锚点中心，用于 Release 模式下给玩家做路线引导，不暴露半径信息。
+        /// </summary>
+        public void ConfigureCenterOnly(Color centerColor, int segments, float lineWidth)
+        {
+            _centerColor = centerColor;
+            _segments = Mathf.Max(8, segments);
+            _lineWidth = Mathf.Max(0.001f, lineWidth);
+            _showRadiusRings = false;
+            SetLineActive(CoreRingName, false);
+            SetLineActive(MaxRingName, false);
             Rebuild();
         }
 
@@ -61,13 +80,32 @@ namespace DesignerSpace
                 return;
             }
 
-            LineRenderer core = EnsureLine(CoreRingName, _coreColor);
-            LineRenderer max = EnsureLine(MaxRingName, _maxColor);
+            if (_showRadiusRings)
+            {
+                LineRenderer core = EnsureLine(CoreRingName, _coreColor);
+                LineRenderer max = EnsureLine(MaxRingName, _maxColor);
+
+                BuildCircle(core, _anchor.previewIntenseRadius);
+                BuildCircle(max, _anchor.previewSlightRadius);
+            }
+            else
+            {
+                SetLineActive(CoreRingName, false);
+                SetLineActive(MaxRingName, false);
+            }
+
             LineRenderer center = EnsureLine(CenterName, _centerColor);
 
-            BuildCircle(core, _anchor.previewIntenseRadius);
-            BuildCircle(max, _anchor.previewSlightRadius);
             BuildCircle(center, Mathf.Max(0.05f, _lineWidth * 2f));
+        }
+
+        private void SetLineActive(string childName, bool active)
+        {
+            Transform existing = transform.Find(childName);
+            if (existing != null && existing.gameObject.activeSelf != active)
+            {
+                existing.gameObject.SetActive(active);
+            }
         }
 
         private LineRenderer EnsureLine(string childName, Color color)

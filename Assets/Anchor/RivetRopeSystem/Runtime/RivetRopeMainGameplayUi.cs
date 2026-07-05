@@ -10,9 +10,9 @@ namespace Anchor.RivetRopeSystem
     {
         [SerializeField] private RivetRopeDebugDriver driver;
         [SerializeField] private RivetRopeMainGameplayBinder binder;
-        [SerializeField] private Vector2 panelAnchor = new Vector2(1f, 0f);
-        [SerializeField] private Vector2 panelPivot = new Vector2(1f, 0f);
-        [SerializeField] private Vector2 panelOffset = new Vector2(-32f, 180f);
+        [SerializeField] private Vector2 panelAnchor = new Vector2(1f, 0.5f);
+        [SerializeField] private Vector2 panelPivot = new Vector2(1f, 0.5f);
+        [SerializeField] private Vector2 panelOffset = new Vector2(-32f, 0f);
         [SerializeField] private bool showStatus = true;
         [SerializeField] private bool showLookButtons = true;
         [SerializeField] private int lookUpPoseIndex = 3;
