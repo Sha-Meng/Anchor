@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26d86a44d3aab9946b27177aee7cd5da, type: 3}
   m_Name: LevelGlobalConfig
   m_EditorClassIdentifier: 
-  runMode: 1
+  runMode: 0
   staminaMax: 100
   staminaRecoverPerSecond: 10
   releasingStaminaPenaltyRatio: 0.4

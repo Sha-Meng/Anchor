@@ -556,9 +556,15 @@ namespace DesignerSpace
             if (renderer != null)
             {
                 renderer.material.color = color;
+                renderer.enabled = ShouldShowBallVisuals();
             }
 
             return ballTransform;
+        }
+
+        private static bool ShouldShowBallVisuals()
+        {
+            return Debug.isDebugBuild;
         }
 
         private Vector3 ResolveSpawnPosition(Transform spawnPoint, Vector3 fallbackPosition)
