@@ -70,6 +70,10 @@ namespace ClimbGame.Climb3C.Boot
         [Tooltip("是否启用旧的 ClimbCamera 越肩跟随相机。若场景由 CameraMgr（cam0/1/2 机位）接管相机，请保持关闭，避免两者同帧抢写 Main Camera 导致抖动")]
         public bool cameraFollow = false;
 
+        [Header("音效")]
+        [SerializeField] private AudioClip staminaLowBreathingClip;
+        [SerializeField, Range(0f, 1f)] private float staminaLowBreathingVolume = 1f;
+
         [Header("绳索力反馈")]
         [Tooltip("把 RivetRopeDebugDriver 输出的绳索力反馈交给 3C 消费；Slack 下坠不介入，Taut 后只做底部轻回弹")]
         public bool enableRopeForceFeedback = true;
@@ -369,6 +373,7 @@ namespace ClimbGame.Climb3C.Boot
             var staminaBar = new GameObject("StaminaBarUI").AddComponent<StaminaBarUI>();
             staminaBar.transform.SetParent(canvasGo.transform, false);
             staminaBar.Build(canvas, stamina, cam);
+            staminaBar.SetBreathingAudio(ResolveStaminaLowBreathingClip(), staminaLowBreathingVolume);
 
             // --- 服务 ---
             var servicesGo = new GameObject("Climb3C_Services");
@@ -629,6 +634,30 @@ namespace ClimbGame.Climb3C.Boot
             if (ragdollFall == null) ragdollFall = ScriptableObject.CreateInstance<RagdollFallConfig>();
             if (cameraConfig == null) cameraConfig = ScriptableObject.CreateInstance<ClimbCameraConfig>();
         }
+
+        private AudioClip ResolveStaminaLowBreathingClip()
+        {
+#if UNITY_EDITOR
+            if (staminaLowBreathingClip == null)
+            {
+                staminaLowBreathingClip = LoadEditorAudioClipAtPath("Assets/Art/Audio/喘气.mp3");
+            }
+#endif
+            return staminaLowBreathingClip;
+        }
+
+#if UNITY_EDITOR
+        private static AudioClip LoadEditorAudioClipAtPath(string assetPath)
+        {
+            var assetDatabaseType = System.Type.GetType("UnityEditor.AssetDatabase, UnityEditor");
+            var loadMethod = assetDatabaseType != null
+                ? assetDatabaseType.GetMethod("LoadAssetAtPath", new[] { typeof(string), typeof(System.Type) })
+                : null;
+            return loadMethod != null
+                ? loadMethod.Invoke(null, new object[] { assetPath, typeof(AudioClip) }) as AudioClip
+                : null;
+        }
+#endif
 
         private static void SetLayerRecursive(Transform t, int layer)
         {

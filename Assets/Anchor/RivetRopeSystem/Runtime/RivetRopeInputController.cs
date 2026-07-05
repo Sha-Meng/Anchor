@@ -35,8 +35,13 @@ namespace Anchor.RivetRopeSystem
         [SerializeField] private bool placeSurfaceValid = true;
         [SerializeField] private bool logInputActions = true;
 
+        [Header("Audio")]
+        [SerializeField] private AudioClip placeRivetClip;
+        [SerializeField, Range(0f, 1f)] private float placeRivetVolume = 1f;
+
         private PointerEventData _uiPointerData;
         private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>();
+        private AudioSource _audioSource;
 
         public static string DebugRunFirstInputSmokeSequence()
         {
@@ -102,6 +107,10 @@ namespace Anchor.RivetRopeSystem
                 IsValidSurface = placeSurfaceValid,
                 IsPlayerInteractive = playerInteractive
             });
+            if (result.Success)
+            {
+                PlayPlaceRivetClip();
+            }
             LogOperation("place", result.Success, result.FailureReason);
         }
 
@@ -178,6 +187,7 @@ namespace Anchor.RivetRopeSystem
             {
                 targetCamera = Camera.main;
             }
+            ResolvePlaceRivetClip();
         }
 
         private void Update()
@@ -319,5 +329,53 @@ namespace Anchor.RivetRopeSystem
                 Debug.Log("Rivet rope input " + message, this);
             }
         }
+
+        private void PlayPlaceRivetClip()
+        {
+            AudioClip clip = ResolvePlaceRivetClip();
+            if (clip == null)
+            {
+                return;
+            }
+
+            AudioSource source = EnsureAudioSource();
+            source.PlayOneShot(clip, placeRivetVolume);
+        }
+
+        private AudioSource EnsureAudioSource()
+        {
+            if (_audioSource == null)
+            {
+                _audioSource = gameObject.AddComponent<AudioSource>();
+                _audioSource.spatialBlend = 0f;
+                _audioSource.playOnAwake = false;
+            }
+
+            return _audioSource;
+        }
+
+        private AudioClip ResolvePlaceRivetClip()
+        {
+#if UNITY_EDITOR
+            if (placeRivetClip == null)
+            {
+                placeRivetClip = LoadEditorAudioClipAtPath("Assets/Art/Audio/打锚钉.mp3");
+            }
+#endif
+            return placeRivetClip;
+        }
+
+#if UNITY_EDITOR
+        private static AudioClip LoadEditorAudioClipAtPath(string assetPath)
+        {
+            var assetDatabaseType = System.Type.GetType("UnityEditor.AssetDatabase, UnityEditor");
+            var loadMethod = assetDatabaseType != null
+                ? assetDatabaseType.GetMethod("LoadAssetAtPath", new[] { typeof(string), typeof(System.Type) })
+                : null;
+            return loadMethod != null
+                ? loadMethod.Invoke(null, new object[] { assetPath, typeof(AudioClip) }) as AudioClip
+                : null;
+        }
+#endif
     }
 }

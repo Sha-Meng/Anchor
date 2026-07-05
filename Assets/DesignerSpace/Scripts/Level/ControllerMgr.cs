@@ -90,6 +90,12 @@ namespace DesignerSpace
         [Tooltip("是否命中触发器（Trigger）碰撞体")]
         [SerializeField] private QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Ignore;
 
+        [Header("音效")]
+        [Tooltip("任意小球处于 Hook 中时循环播放的摸索音效")]
+        [SerializeField] private AudioClip hookLoopClip;
+
+        [SerializeField, Range(0f, 1f)] private float hookLoopVolume = 1f;
+
         // 内置 “Ignore Raycast” 层，Physics.Raycast 默认忽略，用来避免射线打到小球自己。
         private const int IgnoreRaycastLayer = 2;
 
@@ -102,6 +108,7 @@ namespace DesignerSpace
         private Transform _ballB;
         private BallRuntime _ballARuntime;
         private BallRuntime _ballBRuntime;
+        private AudioSource _hookLoopSource;
 
         /// <summary>A 球 Transform，其他系统可读取其位置作为左手跟随目标。</summary>
         public Transform BallA => _ballA;
@@ -152,6 +159,12 @@ namespace DesignerSpace
             UpdateReleasingBall(_ballA, ref _ballARuntime);
             UpdateReleasingBall(_ballB, ref _ballBRuntime);
             RefreshBallStateView();
+            UpdateHookLoopAudio();
+        }
+
+        private void OnDisable()
+        {
+            StopHookLoopAudio();
         }
 
         private void RefreshBallStateView()
@@ -592,7 +605,78 @@ namespace DesignerSpace
 
             releaseMoveSpeed = Mathf.Max(0f, releaseMoveSpeed);
             releaseStandbyScreenDownOffset = Mathf.Max(0f, releaseStandbyScreenDownOffset);
+            hookLoopVolume = Mathf.Clamp01(hookLoopVolume);
+            ResolveHookLoopClip();
         }
+
+        private void UpdateHookLoopAudio()
+        {
+            bool shouldPlay = (_ballARuntime.State == ControllerBallState.Hooked ||
+                               _ballBRuntime.State == ControllerBallState.Hooked) &&
+                              ResolveHookLoopClip() != null;
+            if (!shouldPlay)
+            {
+                StopHookLoopAudio();
+                return;
+            }
+
+            AudioSource source = EnsureHookLoopSource();
+            if (source.clip != hookLoopClip)
+            {
+                source.clip = hookLoopClip;
+            }
+
+            source.loop = true;
+            source.playOnAwake = false;
+            source.volume = hookLoopVolume;
+            if (!source.isPlaying)
+            {
+                source.Play();
+            }
+        }
+
+        private void StopHookLoopAudio()
+        {
+            if (_hookLoopSource != null && _hookLoopSource.isPlaying)
+            {
+                _hookLoopSource.Stop();
+            }
+        }
+
+        private AudioSource EnsureHookLoopSource()
+        {
+            if (_hookLoopSource == null)
+            {
+                _hookLoopSource = gameObject.AddComponent<AudioSource>();
+                _hookLoopSource.spatialBlend = 0f;
+            }
+
+            return _hookLoopSource;
+        }
+
+        private AudioClip ResolveHookLoopClip()
+        {
+#if UNITY_EDITOR
+            if (hookLoopClip == null)
+            {
+                hookLoopClip = LoadEditorAudioClipAtPath("Assets/Art/Audio/摸索中.mp3");
+            }
+#endif
+            return hookLoopClip;
+        }
+
+#if UNITY_EDITOR
+        private static AudioClip LoadEditorAudioClipAtPath(string assetPath)
+        {
+            var assetDatabaseType = Type.GetType("UnityEditor.AssetDatabase, UnityEditor");
+            var loadMethod = assetDatabaseType != null
+                ? assetDatabaseType.GetMethod("LoadAssetAtPath", new[] { typeof(string), typeof(Type) })
+                : null;
+            return loadMethod != null
+                ? loadMethod.Invoke(null, new object[] { assetPath, typeof(AudioClip) }) as AudioClip
+                : null;
+        }
+#endif
 
         private enum PointerPhase
         {

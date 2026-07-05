@@ -34,6 +34,10 @@ namespace ClimbGame.Climb3C.Boot
         public Color bodyColor = new Color(0.2f, 0.5f, 0.85f);
         public Color handColor = new Color(0.95f, 0.8f, 0.65f);
 
+        [Header("音效")]
+        [SerializeField] private AudioClip staminaLowBreathingClip;
+        [SerializeField, Range(0f, 1f)] private float staminaLowBreathingVolume = 1f;
+
         private const int LayerDefault = 0;
         private const int LayerIgnoreRaycast = 2;
         private const int LayerUI = 5;
@@ -100,6 +104,7 @@ namespace ClimbGame.Climb3C.Boot
             var staminaBar = new GameObject("StaminaBarUI").AddComponent<StaminaBarUI>();
             staminaBar.transform.SetParent(canvasGo.transform, false);
             staminaBar.Build(canvas, stamina, cam);
+            staminaBar.SetBreathingAudio(ResolveStaminaLowBreathingClip(), staminaLowBreathingVolume);
 
             // --- 服务 ---
             var servicesGo = new GameObject("ClimbServices");
@@ -190,6 +195,30 @@ namespace ClimbGame.Climb3C.Boot
             if (ragdollFall == null) ragdollFall = ScriptableObject.CreateInstance<RagdollFallConfig>();
             if (cameraConfig == null) cameraConfig = ScriptableObject.CreateInstance<ClimbCameraConfig>();
         }
+
+        private AudioClip ResolveStaminaLowBreathingClip()
+        {
+#if UNITY_EDITOR
+            if (staminaLowBreathingClip == null)
+            {
+                staminaLowBreathingClip = LoadEditorAudioClipAtPath("Assets/Art/Audio/喘气.mp3");
+            }
+#endif
+            return staminaLowBreathingClip;
+        }
+
+#if UNITY_EDITOR
+        private static AudioClip LoadEditorAudioClipAtPath(string assetPath)
+        {
+            var assetDatabaseType = System.Type.GetType("UnityEditor.AssetDatabase, UnityEditor");
+            var loadMethod = assetDatabaseType != null
+                ? assetDatabaseType.GetMethod("LoadAssetAtPath", new[] { typeof(string), typeof(System.Type) })
+                : null;
+            return loadMethod != null
+                ? loadMethod.Invoke(null, new object[] { assetPath, typeof(AudioClip) }) as AudioClip
+                : null;
+        }
+#endif
 
         private static void SetLayerRecursive(Transform t, int layer)
         {

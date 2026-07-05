@@ -21,6 +21,10 @@ namespace ClimbGame.Climb3C.UI
         private StaminaConfig _config;
         private bool _hasWorldAnchor;
         private Vector3 _worldAnchor;
+        private AudioClip _breathingClip;
+        private AudioSource _breathingSource;
+        private float _breathingVolume = 1f;
+        private bool _isLowStamina;
 
         private static Sprite _ringSprite;
 
@@ -69,6 +73,14 @@ namespace ClimbGame.Climb3C.UI
         {
             visible = v;
             if (_root != null) _root.gameObject.SetActive(v);
+            UpdateBreathingLoop();
+        }
+
+        public void SetBreathingAudio(AudioClip clip, float volume = 1f)
+        {
+            _breathingClip = clip;
+            _breathingVolume = Mathf.Clamp01(volume);
+            UpdateBreathingLoop();
         }
 
         /// <summary>设置圆环跟随的世界锚点（双手中心点，偏移在内部按配置叠加）。</summary>
@@ -84,9 +96,49 @@ namespace ClimbGame.Climb3C.UI
             ratio = Mathf.Clamp01(ratio);
             _fill.fillAmount = ratio;
             // 透明度恒定；耐力降到 1/3 及以下才变红，否则用正常色
-            Color c = ratio <= 1f / 3f ? lowColor : highColor;
+            _isLowStamina = ratio <= 1f / 3f;
+            Color c = _isLowStamina ? lowColor : highColor;
             c.a = 1f;
             _fill.color = c;
+            UpdateBreathingLoop();
+        }
+
+        private void UpdateBreathingLoop()
+        {
+            bool shouldPlay = visible && _isLowStamina && _breathingClip != null;
+            if (!shouldPlay)
+            {
+                if (_breathingSource != null && _breathingSource.isPlaying)
+                {
+                    _breathingSource.Stop();
+                }
+                return;
+            }
+
+            AudioSource source = EnsureBreathingSource();
+            if (source.clip != _breathingClip)
+            {
+                source.clip = _breathingClip;
+            }
+
+            source.volume = _breathingVolume;
+            source.loop = true;
+            source.playOnAwake = false;
+            if (!source.isPlaying)
+            {
+                source.Play();
+            }
+        }
+
+        private AudioSource EnsureBreathingSource()
+        {
+            if (_breathingSource == null)
+            {
+                _breathingSource = gameObject.AddComponent<AudioSource>();
+                _breathingSource.spatialBlend = 0f;
+            }
+
+            return _breathingSource;
         }
 
         private void LateUpdate()

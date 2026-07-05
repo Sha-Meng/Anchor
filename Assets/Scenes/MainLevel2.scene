@@ -1376,8 +1376,12 @@ MonoBehaviour:
   ballSpawnPositionB: {x: 0.3, y: 0, z: 0}
   ballColorA: {r: 1, g: 0.35, b: 0.2, a: 1}
   ballColorB: {r: 0.2, g: 0.55, b: 1, a: 1}
+  releaseMoveSpeed: 8
+  releaseStandbyScreenDownOffset: 160
   constrainBallDistance: 1
   maxBallDistance: 1.5
+  ballAStateView: 0
+  ballBStateView: 0
   maxRayDistance: 1000
   raycastMask:
     serializedVersion: 2
@@ -1386,6 +1390,8 @@ MonoBehaviour:
   actorLayerName: Actor
   ignoreDynamicBodies: 1
   triggerInteraction: 1
+  hookLoopClip: {fileID: 8300000, guid: c82581551264e254990b87cb47b453e0, type: 3}
+  hookLoopVolume: 1
 --- !u!4 &117245913
 Transform:
   m_ObjectHideFlags: 0
@@ -1874,7 +1880,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 22400762, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -0.000030517578
+      value: -0.000022888184
       objectReference: {fileID: 0}
     - target: {fileID: 22426080, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
       propertyPath: m_AnchorMax.x
@@ -3317,6 +3323,38 @@ MonoBehaviour:
   baseStability: 10
   previewIntenseRadius: 0.15
   previewSlightRadius: 0.3
+--- !u!1 &322351900
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 7
+  m_Component:
+  - component: {fileID: 322351901}
+  m_Layer: 0
+  m_HasEditorInfo: 1
+  m_Name: DownCam
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &322351901
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 322351900}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.7110747, y: -0.012306983, z: -0.0123136975, w: -0.70290095}
+  m_LocalPosition: {x: 0.28999996, y: -2.25, z: -0.72}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1646831481}
+  m_LocalEulerAnglesHint: {x: -90.662, y: 1.0449982, z: 0.94999695}
 --- !u!1 &322973385
 GameObject:
   m_ObjectHideFlags: 0
@@ -4943,6 +4981,15 @@ MonoBehaviour:
   leftHandStartAnchorName: ScatterAnchor_009
   rightHandStartAnchorName: ScatterAnchor_007
   cameraFollow: 1
+  staminaLowBreathingClip: {fileID: 0}
+  staminaLowBreathingVolume: 1
+  enableRopeForceFeedback: 1
+  ropeDebugDriver: {fileID: 0}
+  ropeFallSpring: 7.5
+  ropeFallDamping: 1.8
+  ropeFallImpulse: 0.65
+  ropeFallImpulseStretch: 0.28
+  ropeFallMaxVelocityChange: 3.2
   overShoulderOffset: {x: 0.6, y: 0.55, z: -6.2}
   gripQueryRadius: 0.5
   stickHandToWall: 0
@@ -15678,6 +15725,8 @@ MonoBehaviour:
   - {fileID: 330234784}
   - {fileID: 952584542}
   - {fileID: 657100515}
+  - {fileID: 571446386}
+  - {fileID: 322351901}
   startIndex: 0
   applyStartPose: 1
   keepApplyingFixedPose: 1
@@ -15707,6 +15756,7 @@ Transform:
   - {fileID: 952584542}
   - {fileID: 657100515}
   - {fileID: 571446386}
+  - {fileID: 322351901}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1662157994
@@ -19648,7 +19698,9 @@ MonoBehaviour:
   rightHandMagnet: {fileID: 0}
   leftMagnetName: LeftHandMagnet
   rightMagnetName: RightHandMagnet
-  followLerpSpeed: 20
+  anchoredFollowLerpSpeed: 12
+  releasingFollowLerpSpeed: 8
+  hookedFollowLerpSpeed: 20
   snapDistance: 0.003
   constrainHandDistance: 1
   maxHandDistance: 1.5
