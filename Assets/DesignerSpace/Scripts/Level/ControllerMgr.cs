@@ -96,8 +96,17 @@ namespace DesignerSpace
 
         [SerializeField, Range(0f, 1f)] private float hookLoopVolume = 1f;
 
+        [Header("手机震动")]
+        [Tooltip("Hook 小球靠近锚点时使用的手机震动适配器；留空时优先查找同物体上的适配器，其次查找场景中的适配器")]
+        [SerializeField] private MonoBehaviour hookHaptics;
+
+        [Tooltip("震动强度曲线指数；大于 1 时只有更接近锚点才明显变强")]
+        [Min(0.1f)]
+        [SerializeField] private float hookHapticIntensityExponent = 1f;
+
         // 内置 “Ignore Raycast” 层，Physics.Raycast 默认忽略，用来避免射线打到小球自己。
         private const int IgnoreRaycastLayer = 2;
+        private const string HapticAdapterTypeName = "MobileHapticFeedbackAdapter";
 
         // 复用的射线命中缓冲，避免每帧分配。
         private readonly RaycastHit[] _hitBuffer = new RaycastHit[32];
@@ -109,6 +118,8 @@ namespace DesignerSpace
         private BallRuntime _ballARuntime;
         private BallRuntime _ballBRuntime;
         private AudioSource _hookLoopSource;
+        private AnchorPoint[] _anchorPoints = Array.Empty<AnchorPoint>();
+        private bool _hookHapticsActive;
 
         /// <summary>A 球 Transform，其他系统可读取其位置作为左手跟随目标。</summary>
         public Transform BallA => _ballA;
@@ -135,6 +146,7 @@ namespace DesignerSpace
             _ballB = CreateBall("ControllerBallB", ResolveSpawnPosition(ballSpawnPointB, ballSpawnPositionB), ballColorB);
             _ballARuntime = new BallRuntime(ControllerBallState.Anchored);
             _ballBRuntime = new BallRuntime(ControllerBallState.Anchored);
+            RefreshAnchorPointCache();
             RefreshBallStateView();
         }
 
@@ -160,11 +172,13 @@ namespace DesignerSpace
             UpdateReleasingBall(_ballB, ref _ballBRuntime);
             RefreshBallStateView();
             UpdateHookLoopAudio();
+            UpdateHookHapticFeedback();
         }
 
         private void OnDisable()
         {
             StopHookLoopAudio();
+            ClearHookHapticFeedback();
         }
 
         private void RefreshBallStateView()
@@ -410,6 +424,145 @@ namespace DesignerSpace
             return bestAnchor != null;
         }
 
+        private void UpdateHookHapticFeedback()
+        {
+            float strength = 0f;
+            if (_ballARuntime.State == ControllerBallState.Hooked)
+            {
+                strength = Mathf.Max(strength, ResolveHookHapticStrength(_ballA));
+            }
+
+            if (_ballBRuntime.State == ControllerBallState.Hooked)
+            {
+                strength = Mathf.Max(strength, ResolveHookHapticStrength(_ballB));
+            }
+
+            if (strength <= 0f)
+            {
+                ClearHookHapticFeedback();
+                return;
+            }
+
+            MonoBehaviour adapter = ResolveHookHaptics();
+            if (adapter == null)
+            {
+                return;
+            }
+
+            SetHookHapticStrength(adapter, strength);
+            _hookHapticsActive = true;
+        }
+
+        private float ResolveHookHapticStrength(Transform ball)
+        {
+            if (ball == null || !TryFindNearestAnchorPoint(ball.position, out AnchorPoint anchor, out float distance))
+            {
+                return 0f;
+            }
+
+            float outerRadius = Mathf.Max(0f, anchor.previewSlightRadius);
+            if (outerRadius <= 0f || distance >= outerRadius)
+            {
+                return 0f;
+            }
+
+            float fullStrengthRadius = Mathf.Clamp(anchor.previewIntenseRadius, 0f, outerRadius);
+            if (fullStrengthRadius >= outerRadius)
+            {
+                return 1f;
+            }
+
+            float t = Mathf.InverseLerp(outerRadius, fullStrengthRadius, distance);
+            return Mathf.Pow(Mathf.Clamp01(t), hookHapticIntensityExponent);
+        }
+
+        private bool TryFindNearestAnchorPoint(Vector3 position, out AnchorPoint nearestAnchor, out float nearestDistance)
+        {
+            nearestAnchor = null;
+            nearestDistance = Mathf.Infinity;
+
+            if (_anchorPoints == null || _anchorPoints.Length == 0)
+            {
+                RefreshAnchorPointCache();
+            }
+
+            for (int i = 0; i < _anchorPoints.Length; i++)
+            {
+                AnchorPoint anchor = _anchorPoints[i];
+                if (anchor == null || !anchor.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                float distance = Vector3.Distance(position, anchor.transform.position);
+                if (distance >= nearestDistance)
+                {
+                    continue;
+                }
+
+                nearestAnchor = anchor;
+                nearestDistance = distance;
+            }
+
+            return nearestAnchor != null;
+        }
+
+        private void RefreshAnchorPointCache()
+        {
+            _anchorPoints = FindObjectsOfType<AnchorPoint>();
+        }
+
+        private MonoBehaviour ResolveHookHaptics()
+        {
+            if (hookHaptics == null)
+            {
+                hookHaptics = GetComponent(HapticAdapterTypeName) as MonoBehaviour;
+            }
+
+            if (hookHaptics == null)
+            {
+                hookHaptics = FindHapticAdapterInScene();
+            }
+
+            return hookHaptics;
+        }
+
+        private static MonoBehaviour FindHapticAdapterInScene()
+        {
+            MonoBehaviour[] behaviours = FindObjectsOfType<MonoBehaviour>();
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                MonoBehaviour behaviour = behaviours[i];
+                if (behaviour != null && behaviour.GetType().Name == HapticAdapterTypeName)
+                {
+                    return behaviour;
+                }
+            }
+
+            return null;
+        }
+
+        private static void SetHookHapticStrength(MonoBehaviour adapter, float strength)
+        {
+            adapter.SendMessage("SetStrength", strength, SendMessageOptions.DontRequireReceiver);
+        }
+
+        private void ClearHookHapticFeedback()
+        {
+            if (!_hookHapticsActive)
+            {
+                return;
+            }
+
+            MonoBehaviour adapter = ResolveHookHaptics();
+            if (adapter != null)
+            {
+                SetHookHapticStrength(adapter, 0f);
+            }
+
+            _hookHapticsActive = false;
+        }
+
         /// <summary>命中点更接近 A 球时返回 true；距离相同则稳定选择 A 球。</summary>
         private bool IsHitCloserToBallA(Vector3 hitPoint)
         {
@@ -606,6 +759,7 @@ namespace DesignerSpace
             releaseMoveSpeed = Mathf.Max(0f, releaseMoveSpeed);
             releaseStandbyScreenDownOffset = Mathf.Max(0f, releaseStandbyScreenDownOffset);
             hookLoopVolume = Mathf.Clamp01(hookLoopVolume);
+            hookHapticIntensityExponent = Mathf.Max(0.1f, hookHapticIntensityExponent);
             ResolveHookLoopClip();
         }
 
