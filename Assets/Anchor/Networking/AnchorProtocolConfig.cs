@@ -11,6 +11,7 @@ namespace Anchor.Networking
         public AnchorTransportConfig transport;
         public AnchorEnvelopeConfig envelope;
         public AnchorSpawnAnchorConfig spawnAnchors;
+        public AnchorSceneSpawnConfig[] sceneSpawnAnchors;
         public AnchorMessageConfig[] messages;
         public string[] notes;
 
@@ -68,6 +69,38 @@ namespace Anchor.Networking
         public string HostLeadAnchorName => HostSpawn.LeftHandAnchorName;
 
         public string GuestSecondAnchorName => GuestSpawn.LeftHandAnchorName;
+
+        public AnchorSpawnSlotConfig GetHostSpawn(string sceneName)
+        {
+            var sceneSpawn = GetSceneSpawn(sceneName);
+            return sceneSpawn != null
+                ? sceneSpawn.GetHostSpawn()
+                : HostSpawn;
+        }
+
+        public AnchorSpawnSlotConfig GetGuestSpawn(string sceneName)
+        {
+            var sceneSpawn = GetSceneSpawn(sceneName);
+            return sceneSpawn != null
+                ? sceneSpawn.GetGuestSpawn()
+                : GuestSpawn;
+        }
+
+        private AnchorSpawnAnchorConfig GetSceneSpawn(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName) || sceneSpawnAnchors == null) return null;
+
+            for (int i = 0; i < sceneSpawnAnchors.Length; i++)
+            {
+                var sceneSpawn = sceneSpawnAnchors[i];
+                if (sceneSpawn != null && sceneSpawn.Matches(sceneName))
+                {
+                    return sceneSpawn.spawnAnchors;
+                }
+            }
+
+            return null;
+        }
 
         public static AnchorProtocolConfig Load()
         {
@@ -133,6 +166,19 @@ namespace Anchor.Networking
                 hostLeadAnchorName = "ScatterAnchor_007",
                 guestSecondAnchorName = "ScatterAnchor_001"
             };
+        }
+    }
+
+    [Serializable]
+    public class AnchorSceneSpawnConfig
+    {
+        public string sceneName;
+        public AnchorSpawnAnchorConfig spawnAnchors;
+
+        public bool Matches(string activeSceneName)
+        {
+            return !string.IsNullOrEmpty(sceneName)
+                && string.Equals(sceneName, activeSceneName, StringComparison.Ordinal);
         }
     }
 

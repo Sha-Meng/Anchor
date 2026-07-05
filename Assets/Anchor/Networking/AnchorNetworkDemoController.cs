@@ -14,7 +14,10 @@ namespace Anchor.Networking
     public class AnchorNetworkDemoController : MonoBehaviour
     {
         private const string EntrySceneName = "NetworkDemoEntry";
-        private const string GameSceneName = "MainLevel";
+        private const string MainLevelSceneName = "MainLevel";
+        private const string MainLevel2SceneName = "MainLevel2";
+        private const string MainLevelScenePath = "Assets/Scenes/MainLevel.scene";
+        private const string MainLevel2ScenePath = "Assets/Scenes/MainLevel2.scene";
 
         private static AnchorNetworkDemoController _instance;
 
@@ -147,7 +150,7 @@ namespace Anchor.Networking
             ClearRuntimeSceneObjects();
             _currentView = null;
 
-            if (sceneName == GameSceneName)
+            if (IsGameSceneName(sceneName))
             {
                 BuildGameScene();
             }
@@ -246,9 +249,10 @@ namespace Anchor.Networking
             _gameSceneReady = true;
             _gameSyncReady = false;
             ResolveRoomRoles();
-            CreateCanvas("Anchor MainLevel 联机");
+            var sceneName = SceneManager.GetActiveScene().name;
+            CreateCanvas("Anchor " + sceneName + " 联机");
 
-            _statusText = AddText("Status", "MainLevel 等待同步确认", 20, TextAnchor.MiddleLeft);
+            _statusText = AddText("Status", sceneName + " 等待同步确认", 20, TextAnchor.MiddleLeft);
             _logText = AddText("Log", GetRoomInfoText() + "\n游戏日志：\n", 15, TextAnchor.UpperLeft);
 
             DisableSceneSinglePlayerClimbBinders();
@@ -284,8 +288,11 @@ namespace Anchor.Networking
 
         private void BuildMainLevelPlayers()
         {
-            var localSpawn = _isHost ? _config.HostSpawn : _config.GuestSpawn;
-            var remoteSpawn = _isHost ? _config.GuestSpawn : _config.HostSpawn;
+            var sceneName = SceneManager.GetActiveScene().name;
+            var hostSpawn = _config.GetHostSpawn(sceneName);
+            var guestSpawn = _config.GetGuestSpawn(sceneName);
+            var localSpawn = _isHost ? hostSpawn : guestSpawn;
+            var remoteSpawn = _isHost ? guestSpawn : hostSpawn;
             var localPose = ResolveAnchorStartPose(localSpawn, _isHost);
             var remotePose = ResolveAnchorStartPose(remoteSpawn, !_isHost);
 
@@ -677,10 +684,10 @@ namespace Anchor.Networking
                     break;
                 case "room.updated":
                     ApplyRoomPayload(json, payload);
-                    if (!string.IsNullOrEmpty(_roomId) && SceneManager.GetActiveScene().name != GameSceneName) BuildLobbyView();
+                    if (!string.IsNullOrEmpty(_roomId) && !IsGameSceneName(SceneManager.GetActiveScene().name)) BuildLobbyView();
                     break;
                 case "room.starting":
-                    AppendLog("收到开局，进入 MainLevel");
+                    AppendLog("收到开局，准备进入游戏场景");
                     StartCoroutine(LoadGameSceneAfterDelay(AnchorJson.GetFloat(payload, "countdownMs", 500f) / 1000f));
                     break;
                 case "room.inGame":
@@ -715,7 +722,35 @@ namespace Anchor.Networking
         private IEnumerator LoadGameSceneAfterDelay(float delay)
         {
             if (delay > 0f) yield return new WaitForSeconds(delay);
-            SceneManager.LoadScene(GameSceneName);
+            var sceneName = ResolveBuildGameSceneName();
+            if (string.IsNullOrEmpty(sceneName))
+            {
+                AppendLog("错误: 当前构建未包含 MainLevel 或 MainLevel2，无法进入多人主关卡");
+                yield break;
+            }
+
+            AppendLog("进入 " + sceneName);
+            SceneManager.LoadScene(sceneName);
+        }
+
+        private static bool IsGameSceneName(string sceneName)
+        {
+            return sceneName == MainLevelSceneName || sceneName == MainLevel2SceneName;
+        }
+
+        private static string ResolveBuildGameSceneName()
+        {
+            var hasMainLevel = IsSceneInBuild(MainLevelScenePath);
+            var hasMainLevel2 = IsSceneInBuild(MainLevel2ScenePath);
+
+            if (hasMainLevel) return MainLevelSceneName;
+            if (hasMainLevel2) return MainLevel2SceneName;
+            return null;
+        }
+
+        private static bool IsSceneInBuild(string scenePath)
+        {
+            return SceneUtility.GetBuildIndexByScenePath(scenePath) >= 0;
         }
 
         private void RefreshRoomInfo()
