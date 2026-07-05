@@ -3,7 +3,6 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using UnityEngine.Video;
 
 namespace Anchor.RivetRopeSystem
 {
@@ -18,9 +17,9 @@ namespace Anchor.RivetRopeSystem
         [SerializeField] private bool showLookButtons = true;
         [SerializeField] private int lookUpPoseIndex = 3;
         [SerializeField] private int lookDownPoseIndex = 4;
-        [SerializeField] private bool playLookVideoFeedback = true;
-        [SerializeField] private string lookUpVideoResourcePath = "LookVideos/向上看";
-        [SerializeField] private string lookDownVideoResourcePath = "LookVideos/向下看";
+        [SerializeField] private bool playLookAudioFeedback = true;
+        [SerializeField] private string lookUpAudioResourcePath = "LookAudios/向上看";
+        [SerializeField] private string lookDownAudioResourcePath = "LookAudios/向下看";
 
         private Canvas _canvas;
         private GameObject _panelObject;
@@ -33,8 +32,7 @@ namespace Anchor.RivetRopeSystem
         private Button _lookUpButton;
         private Button _lookDownButton;
         private Component _cameraMgr;
-        private VideoPlayer _lookVideoPlayer;
-        private AudioSource _lookVideoAudioSource;
+        private AudioSource _lookAudioSource;
         private int _heldLookPoseIndex = -1;
         private int _restoreLookPoseIndex = -1;
 
@@ -84,8 +82,8 @@ namespace Anchor.RivetRopeSystem
             _rescueButton = AddButton(panel.transform, "收绳救援", new Vector2(0f, -182f), OnRescueClicked);
             _lookUpButton = AddButton(panel.transform, "向上看", new Vector2(0f, -236f), null);
             _lookDownButton = AddButton(panel.transform, "向下看", new Vector2(0f, -290f), null);
-            AddHoldEvents(_lookUpButton, () => BeginLook(lookUpPoseIndex, lookUpVideoResourcePath), EndLook);
-            AddHoldEvents(_lookDownButton, () => BeginLook(lookDownPoseIndex, lookDownVideoResourcePath), EndLook);
+            AddHoldEvents(_lookUpButton, () => BeginLook(lookUpPoseIndex, lookUpAudioResourcePath), EndLook);
+            AddHoldEvents(_lookDownButton, () => BeginLook(lookDownPoseIndex, lookDownAudioResourcePath), EndLook);
 
             if (showStatus)
             {
@@ -271,10 +269,10 @@ namespace Anchor.RivetRopeSystem
             SwitchCameraPose(poseIndex);
         }
 
-        private void BeginLook(int poseIndex, string videoResourcePath)
+        private void BeginLook(int poseIndex, string audioResourcePath)
         {
             BeginLook(poseIndex);
-            PlayLookVideoFeedback(videoResourcePath);
+            PlayLookAudioFeedback(audioResourcePath);
         }
 
         private void EndLook()
@@ -302,45 +300,36 @@ namespace Anchor.RivetRopeSystem
             }
         }
 
-        private void PlayLookVideoFeedback(string videoResourcePath)
+        private void PlayLookAudioFeedback(string audioResourcePath)
         {
-            if (!playLookVideoFeedback || string.IsNullOrWhiteSpace(videoResourcePath))
+            if (!playLookAudioFeedback || string.IsNullOrWhiteSpace(audioResourcePath))
             {
                 return;
             }
 
-            var clip = Resources.Load<VideoClip>(videoResourcePath);
+            var clip = Resources.Load<AudioClip>(audioResourcePath);
             if (clip == null)
             {
-                Debug.LogWarning($"Look video feedback clip not found in Resources: {videoResourcePath}", this);
+                Debug.LogWarning($"Look audio feedback clip not found in Resources: {audioResourcePath}", this);
                 return;
             }
 
-            EnsureLookVideoPlayer();
-            _lookVideoPlayer.Stop();
-            _lookVideoPlayer.clip = clip;
-            _lookVideoPlayer.Play();
+            EnsureLookAudioSource();
+            _lookAudioSource.Stop();
+            _lookAudioSource.clip = clip;
+            _lookAudioSource.Play();
         }
 
-        private void EnsureLookVideoPlayer()
+        private void EnsureLookAudioSource()
         {
-            if (_lookVideoPlayer != null)
+            if (_lookAudioSource != null)
             {
                 return;
             }
 
-            _lookVideoAudioSource = gameObject.AddComponent<AudioSource>();
-            _lookVideoAudioSource.playOnAwake = false;
-            _lookVideoAudioSource.spatialBlend = 0f;
-
-            _lookVideoPlayer = gameObject.AddComponent<VideoPlayer>();
-            _lookVideoPlayer.playOnAwake = false;
-            _lookVideoPlayer.waitForFirstFrame = false;
-            _lookVideoPlayer.renderMode = VideoRenderMode.APIOnly;
-            _lookVideoPlayer.audioOutputMode = VideoAudioOutputMode.AudioSource;
-            _lookVideoPlayer.controlledAudioTrackCount = 1;
-            _lookVideoPlayer.EnableAudioTrack(0, true);
-            _lookVideoPlayer.SetTargetAudioSource(0, _lookVideoAudioSource);
+            _lookAudioSource = gameObject.AddComponent<AudioSource>();
+            _lookAudioSource.playOnAwake = false;
+            _lookAudioSource.spatialBlend = 0f;
         }
 
         private float LayoutVisibleButtons()
